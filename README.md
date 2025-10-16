@@ -384,7 +384,19 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.1** (Latest) - Cookie Domain SSO Fix
+### **v2.2** (Latest) - Pure Grayscale Design & Gradients
+- ✅ **Removed All Bluish Colors**: Eliminated all remaining blue/cyan tints from UI
+- ✅ **Fixed Bluish Glows**: Shadow-glow now uses white instead of blue-gray
+- ✅ **Removed Bluish Backgrounds**: All rgba(15, 23, 42) changed to pure gray
+- ✅ **Fixed Bluish Text-Shadow**: Brand hover glow changed from blue to white
+- ✅ **Beautiful Grayscale Gradients**: Added 5 professional gradient definitions
+- ✅ **Cards Use Gradients**: Cards now use gradient-card for visual depth
+- ✅ **Buttons Use Gradients**: Secondary buttons feature grayscale gradients
+- ✅ **Modal Gradients**: Modal headers and content styled with subtle gradients
+- ✅ **All Text White or Light**: Changed all gray text (var(--gray-400)) to white/light gray
+- ✅ **Enhanced Visual Depth**: Gradients add professional polish without color
+
+### **v2.1** - Cookie Domain SSO Fix
 - ✅ **Login Functionality Restored**: Fixed cookie domain parsing for SSO
 - ✅ **Proper Domain Extraction**: Rewrote getCookieDomain() with clearer logic
 - ✅ **Cross-Subdomain Cookies**: Cookie now correctly uses `.server-nt.de` (with leading dot)
