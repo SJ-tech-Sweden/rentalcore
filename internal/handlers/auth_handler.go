@@ -381,29 +381,50 @@ func getCookieDomain(c *gin.Context) string {
 
 	// For production domains like rent.server-nt.de, storage.server-nt.de
 	// Extract parent domain: server-nt.de
+	// Split by dots to get domain parts
 	parts := []string{}
-	currentPart := ""
-	for i := len(host) - 1; i >= 0; i-- {
-		if host[i] == '.' {
-			if currentPart != "" {
-				parts = append([]string{currentPart}, parts...)
-				currentPart = ""
-			}
-		} else {
-			currentPart = string(host[i]) + currentPart
+	for _, part := range []byte(host) {
+		if part == '.' {
+			parts = append(parts, ".")
 		}
 	}
-	if currentPart != "" {
-		parts = append([]string{currentPart}, parts...)
+
+	// Use simpler string splitting
+	domainParts := []string{}
+	temp := ""
+	for i := 0; i < len(host); i++ {
+		if host[i] == '.' {
+			if temp != "" {
+				domainParts = append(domainParts, temp)
+				temp = ""
+			}
+		} else {
+			temp += string(host[i])
+		}
+	}
+	if temp != "" {
+		domainParts = append(domainParts, temp)
 	}
 
-	// If we have at least 2 parts (e.g., server-nt.de), use parent domain
-	if len(parts) >= 2 {
-		parentDomain := parts[len(parts)-2] + "." + parts[len(parts)-1]
+	fmt.Printf("DEBUG: getCookieDomain: host=%s, parsed parts=%v\n", host, domainParts)
+
+	// If we have at least 3 parts (e.g., rent.server-nt.de), use parent domain
+	// For rent.server-nt.de -> parts=["rent", "server-nt", "de"] -> return ".server-nt.de"
+	if len(domainParts) >= 3 {
+		parentDomain := domainParts[len(domainParts)-2] + "." + domainParts[len(domainParts)-1]
+		fmt.Printf("DEBUG: getCookieDomain: returning parent domain: .%s\n", parentDomain)
 		return "." + parentDomain // Leading dot for all subdomains
 	}
 
+	// If we have 2 parts (e.g., server-nt.de), also use it with leading dot
+	if len(domainParts) == 2 {
+		parentDomain := domainParts[0] + "." + domainParts[1]
+		fmt.Printf("DEBUG: getCookieDomain: returning domain with dot: .%s\n", parentDomain)
+		return "." + parentDomain
+	}
+
 	// Fallback: no domain restriction
+	fmt.Printf("DEBUG: getCookieDomain: fallback to empty string\n")
 	return ""
 }
 
