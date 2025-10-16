@@ -546,11 +546,60 @@ func (h *FinancialHandler) calculateReportSummary(results []struct {
 
 // ListTransactionsAPI returns transactions as JSON
 func (h *FinancialHandler) ListTransactionsAPI(c *gin.Context) {
-	// For now, return empty transactions array to prevent UI breaking
-	// TODO: Fix the database model/table issue
+	var transactions []models.FinancialTransaction
+
+	query := h.db.Preload("Job").Preload("Customer").Preload("Creator").
+		Order("transaction_date DESC")
+
+	// Apply filters
+	if transactionType := c.Query("type"); transactionType != "" {
+		query = query.Where("type = ?", transactionType)
+	}
+
+	if status := c.Query("status"); status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if customerID := c.Query("customerID"); customerID != "" {
+		query = query.Where("customer_id = ?", customerID)
+	}
+
+	// Pagination
+	page := c.DefaultQuery("page", "1")
+	pageSize := c.DefaultQuery("pageSize", "50")
+
+	var pageInt, pageSizeInt int
+	fmt.Sscanf(page, "%d", &pageInt)
+	fmt.Sscanf(pageSize, "%d", &pageSizeInt)
+
+	if pageInt < 1 {
+		pageInt = 1
+	}
+	if pageSizeInt < 1 || pageSizeInt > 100 {
+		pageSizeInt = 50
+	}
+
+	offset := (pageInt - 1) * pageSizeInt
+
+	// Get total count
+	var total int64
+	query.Model(&models.FinancialTransaction{}).Count(&total)
+
+	// Get paginated results
+	result := query.Limit(pageSizeInt).Offset(offset).Find(&transactions)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to load transactions",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"transactions": []interface{}{},
-		"count":        0,
+		"transactions": transactions,
+		"count":        total,
+		"page":         pageInt,
+		"pageSize":     pageSizeInt,
+		"totalPages":   (total + int64(pageSizeInt) - 1) / int64(pageSizeInt),
 	})
 }
 
