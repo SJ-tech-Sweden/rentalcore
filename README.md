@@ -384,7 +384,25 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.3** (Latest) - Enhanced Profile Settings Style App-Wide
+### **v2.4** (Latest) - Left Sidebar Navigation Redesign
+- ✅ **Professional Left Sidebar**: Implemented StorageCore-style left sidebar navigation
+- ✅ **Collapsible Sidebar**: Desktop sidebar collapses to icon-only mode (w-64 expanded, w-20 collapsed)
+- ✅ **Mobile Overlay Drawer**: Mobile devices use overlay drawer with backdrop and hamburger menu
+- ✅ **Chevron Toggle Icons**: Desktop shows chevron-left (collapse) and chevron-right (expand) indicators
+- ✅ **Responsive Header**: Header position adjusts dynamically based on sidebar state
+- ✅ **Dynamic Content Margins**: Main content adapts margins automatically (16rem, 5rem, or 0)
+- ✅ **Cross-Navigation**: Integrated StorageCore cross-link in sidebar for seamless app switching
+- ✅ **User Profile Section**: User info with email displayed in sidebar footer
+- ✅ **Settings Menu**: Profile, Company, Users, and Security links in sidebar footer
+- ✅ **Glassmorphism Design**: Modern glass-effect design matching overall aesthetic
+- ✅ **Smooth Transitions**: 300ms ease transitions for all sidebar state changes
+- ✅ **Touch-Optimized**: 44px minimum tap targets for mobile usability
+- ✅ **LocalStorage Persistence**: Sidebar state persists across page reloads
+- ✅ **Zero Horizontal Scroll**: No horizontal scrolling on any viewport size
+- ✅ **All Navigation Preserved**: All existing nav items and functionality maintained
+- ✅ **Closes GitLab Issue #1**: Navigation bar redesign completed
+
+### **v2.3** - Enhanced Profile Settings Style App-Wide
 - ✅ **Enhanced Button Styling**: All buttons now feature thicker borders (2px) and enhanced hover effects
 - ✅ **Improved Hover Animations**: Cards lift 8px on hover (was 2px) with white glow shadows
 - ✅ **Enhanced Primary Buttons**: Gradient backgrounds with reverse animation on hover
