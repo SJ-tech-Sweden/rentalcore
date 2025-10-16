@@ -384,7 +384,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v1.8** (Latest) - StorageCore Color Scheme Match
+### **v1.9** (Latest) - StorageCore Color Pattern Implementation
+- ✅ **Red Primary Buttons**: All primary buttons now use #D0021B (StorageCore red)
+- ✅ **Red Active Navigation**: Active nav items highlighted with red background + shadow
+- ✅ **Red Input Focus**: Input fields show red border on focus (like StorageCore)
+- ✅ **Semantic Colors Restored**: Green (success), Yellow (warning), Blue (info), Red (error)
+- ✅ **Button Hover Effects**: Red shadow effects on hover for primary actions
+- ✅ **Active Dropdown Items**: Red background for active selections
+- ✅ **Removed Gray-Only Limitation**: Now uses proper color semantics
+- ✅ **Visual Consistency**: Matches StorageCore's color usage pattern
+
+### **v1.8** - StorageCore Color Scheme Match
 - ✅ **Complete Color Overhaul**: Matched StorageCore's exact color palette
 - ✅ **StorageCore Red**: Changed accent from #dc2626 to #D0021B (StorageCore red)
 - ✅ **Pure Grayscale Palette**: #0B0B0B, #111111, #161616, #1F1F1F, #2A2A2A backgrounds
