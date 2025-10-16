@@ -16,18 +16,30 @@
     --primary-200: #9ca3ba;
     --primary-100: #d1d5db;
     
-    /* Accent Colors */
-    --accent-electric: #00f5ff;
-    --accent-neon: #39ff14;
-    --accent-coral: #ff6b6b;
-    --accent-gold: #ffd700;
-    --accent-purple: #a855f7;
+    /* Accent Colors - Professional Grayscale + Red */
+    --accent-red: #dc2626;          /* Primary accent - red for important actions */
+    --accent-red-hover: #b91c1c;    /* Darker red for hover states */
+
+    /* Extended Grayscale for UI elements */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    /* White for text on dark backgrounds */
+    --white: #ffffff;
     
     /* Semantic Colors */
     --success: #22c55e;
     --warning: #f59e0b;
-    --error: #ef4444;
-    --info: var(--accent-electric);
+    --error: var(--accent-red);
+    --info: var(--gray-400);
     
     /* Surface Colors */
     --surface-0: #030712;
@@ -91,7 +103,7 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    --shadow-glow: 0 0 20px rgba(0, 245, 255, 0.3);
+    --shadow-glow: 0 0 20px rgba(156, 163, 175, 0.3);
     
     /* Typography */
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
@@ -133,19 +145,27 @@
     --text-muted: #64748b;
     --text-inverse: #f8fafc;
     
-    /* Accent Colors - Adjusted for light mode */
-    --accent-electric: #0891b2;
-    --accent-electric-20: rgba(8, 145, 178, 0.1);
-    --accent-neon: #16a34a;
-    --accent-coral: #dc2626;
-    --accent-gold: #d97706;
-    --accent-purple: #7c3aed;
+    /* Accent Colors - Light Mode (Professional Grayscale + Red) */
+    --accent-red: #dc2626;          /* Primary accent - red for important actions */
+    --accent-red-hover: #b91c1c;    /* Darker red for hover states */
+
+    /* Light mode grayscale adjustments */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
     
     /* Semantic Colors - Light Mode */
     --success: #16a34a;
     --warning: #d97706;
-    --error: #dc2626;
-    --info: var(--accent-electric);
+    --error: var(--accent-red);
+    --info: var(--gray-600);
     --warning-20: rgba(217, 119, 6, 0.1);
     
     /* Adjust shadows for light mode */
@@ -153,7 +173,7 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-    --shadow-glow: 0 0 20px rgba(8, 145, 178, 0.2);
+    --shadow-glow: 0 0 20px rgba(107, 114, 128, 0.2);
 }
 
 /* Light theme body background */
@@ -169,20 +189,20 @@
 
 [data-theme="light"] .rc-btn-outline:hover {
     background: var(--surface-2);
-    border-color: var(--accent-electric);
-    color: var(--accent-electric);
+    border-color: var(--gray-400);
+    color: var(--gray-400);
 }
 
 [data-theme="light"] .rc-btn-outline.active {
-    background: var(--accent-electric);
-    border-color: var(--accent-electric);
+    background: var(--gray-600);
+    border-color: var(--gray-400);
     color: white;
 }
 
 /* Light Mode Spinner */
 [data-theme="light"] .rc-spinner {
     border-color: var(--surface-3);
-    border-top-color: var(--accent-electric);
+    border-top-color: var(--gray-400);
 }
 
 /* Light Mode Modal Overlays */
@@ -198,13 +218,13 @@
 }
 
 [data-theme="light"] .rc-input:focus {
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
 }
 
 /* Light Mode Badges */
 [data-theme="light"] .rc-badge-info {
-    background: var(--accent-electric);
+    background: var(--gray-600);
     color: white;
 }
 
@@ -488,7 +508,7 @@ body {
     font-size: var(--text-4xl);
     font-weight: 800;
     line-height: var(--leading-tight);
-    background: linear-gradient(135deg, var(--accent-electric), var(--accent-purple));
+    background: linear-gradient(135deg, var(--gray-600), var(--gray-700));
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -574,7 +594,7 @@ body {
 .rc-navbar-brand {
     font-size: 1.5rem;
     font-weight: 800;
-    color: var(--accent-electric);
+    color: var(--gray-400);
     text-decoration: none;
     display: flex;
     align-items: center;
@@ -583,7 +603,7 @@ body {
 }
 
 .rc-navbar-brand:hover {
-    color: var(--accent-primary);
+    color: var(--accent-red);
     text-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
     transform: scale(1.02);
 }
@@ -631,7 +651,7 @@ body {
 }
 
 .rc-nav-link:hover {
-    color: var(--accent-electric);
+    color: var(--gray-400);
     border-color: rgba(0, 245, 255, 0.3);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 245, 255, 0.15);
@@ -640,7 +660,7 @@ body {
 .rc-nav-link.active {
     color: white !important;
     background: var(--primary) !important;
-    border: 2px solid var(--accent-electric) !important;
+    border: 2px solid var(--gray-400) !important;
     box-shadow: 0 0 0 1px var(--primary) !important;
 }
 
@@ -648,14 +668,14 @@ body {
 .rc-dropdown-toggle.active {
     color: white !important;
     background: var(--primary) !important;
-    border: 2px solid var(--accent-electric) !important;
+    border: 2px solid var(--gray-400) !important;
     box-shadow: 0 0 0 1px var(--primary) !important;
 }
 
 .rc-dropdown-menu .rc-dropdown-item.active {
     color: white !important;
     background: var(--primary) !important;
-    border: 2px solid var(--accent-electric) !important;
+    border: 2px solid var(--gray-400) !important;
     border-radius: var(--radius-md) !important;
 }
 
@@ -663,7 +683,7 @@ body {
 .rc-dropdown-menu .rc-dropdown-item.active:focus {
     color: white !important;
     background: var(--primary) !important;
-    border: 2px solid var(--accent-electric) !important;
+    border: 2px solid var(--gray-400) !important;
     border-radius: var(--radius-md) !important;
 }
 
@@ -767,14 +787,14 @@ body {
 
 .rc-dropdown-item:hover:not(.active) {
     background: var(--surface-2);
-    color: var(--accent-electric);
+    color: var(--gray-400);
     transform: translateX(4px);
 }
 
 .rc-dropdown-item:focus:not(.active) {
     outline: none;
     background: var(--surface-2);
-    color: var(--accent-electric);
+    color: var(--gray-400);
     transform: translateX(4px);
 }
 
@@ -783,7 +803,7 @@ body {
 }
 
 .rc-dropdown-item:hover:not(.active) i {
-    color: var(--accent-electric);
+    color: var(--gray-400);
 }
 
 .rc-dropdown-header {
@@ -817,7 +837,7 @@ body {
 }
 
 .rc-navbar-toggle:hover {
-    color: var(--accent-electric);
+    color: var(--gray-400);
     background: rgba(0, 245, 255, 0.1);
 }
 
@@ -978,14 +998,14 @@ body {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--accent-electric), var(--accent-purple));
+    background: linear-gradient(90deg, var(--gray-600), var(--gray-700));
     opacity: 0.6;
 }
 
 .rc-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
 }
 
 .rc-card-header {
@@ -1049,15 +1069,15 @@ body {
 }
 
 .rc-btn-primary {
-    background: linear-gradient(135deg, var(--accent-electric), var(--accent-purple));
+    background: linear-gradient(135deg, var(--gray-600), var(--gray-700));
     color: var(--text-inverse);
     box-shadow: var(--shadow-sm);
 }
 
 /* Fix for primary submit buttons */
 .rc-btn-primary[type="submit"] {
-    background: linear-gradient(135deg, var(--accent-electric), var(--accent-purple));
-    border-color: var(--accent-electric);
+    background: linear-gradient(135deg, var(--gray-600), var(--gray-700));
+    border-color: var(--gray-400);
 }
 
 .rc-btn-primary:hover {
@@ -1073,7 +1093,7 @@ body {
 
 .rc-btn-secondary:hover {
     background: var(--surface-4);
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
 }
 
 .rc-btn-ghost {
@@ -1085,7 +1105,7 @@ body {
 .rc-btn-ghost:hover {
     background: var(--surface-2);
     color: var(--text-primary);
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 245, 255, 0.2);
 }
@@ -1099,8 +1119,8 @@ body {
 
 .rc-btn-outline:hover {
     background: var(--surface-3);
-    color: var(--accent-electric);
-    border-color: var(--accent-electric);
+    color: var(--gray-400);
+    border-color: var(--gray-400);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 245, 255, 0.2);
 }
@@ -1121,8 +1141,8 @@ body {
 
 .rc-btn-sm.rc-btn-outline:hover {
     background: rgba(0, 245, 255, 0.1);
-    border-color: var(--accent-electric);
-    color: var(--accent-electric);
+    border-color: var(--gray-400);
+    color: var(--gray-400);
     transform: translateY(-1px) scale(1.05);
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25);
 }
@@ -1135,8 +1155,8 @@ body {
 
 .rc-btn-sm.rc-btn-ghost:hover {
     background: rgba(0, 245, 255, 0.1);
-    border-color: var(--accent-electric);
-    color: var(--accent-electric);
+    border-color: var(--gray-400);
+    color: var(--gray-400);
     transform: translateY(-1px) scale(1.05);
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25);
 }
@@ -1248,7 +1268,7 @@ body {
 
 .rc-input:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: var(--surface-1);
     box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.1);
 }
@@ -1282,7 +1302,7 @@ body {
 
 .rc-textarea:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: var(--surface-1);
     box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.1);
 }
@@ -1509,7 +1529,7 @@ body {
 
 .rc-badge-primary {
     background: rgba(0, 245, 255, 0.2);
-    color: var(--accent-electric);
+    color: var(--gray-400);
     border: 1px solid rgba(0, 245, 255, 0.3);
 }
 
@@ -1556,7 +1576,7 @@ body {
 .rc-alert-info {
     background: rgba(0, 245, 255, 0.1);
     border: 1px solid rgba(0, 245, 255, 0.2);
-    color: var(--accent-electric);
+    color: var(--gray-400);
 }
 
 /* Layout Utilities */
@@ -1668,33 +1688,21 @@ body {
     aspect-ratio: 4 / 3;
 }
 
-/* Animations */
+/* Animations - Reduced and Subtle */
+/* Removed aggressive slide-in and glow animations */
+/* Fade-in kept only for modals/toasts, reduced from 0.6s to 0.2s */
+
 @keyframes rc-fade-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes rc-slide-in {
-    from { transform: translateX(-100%); }
-    to { transform: translateX(0); }
-}
-
-@keyframes rc-glow-pulse {
-    0%, 100% { box-shadow: 0 0 5px rgba(0, 245, 255, 0.3); }
-    50% { box-shadow: 0 0 20px rgba(0, 245, 255, 0.6); }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .rc-animate-fade-in {
-    animation: rc-fade-in 0.6s ease-out;
+    animation: rc-fade-in 0.2s ease-out;
 }
 
-.rc-animate-slide-in {
-    animation: rc-slide-in 0.4s ease-out;
-}
-
-.rc-animate-glow {
-    animation: rc-glow-pulse 2s ease-in-out infinite;
-}
+/* Removed .rc-animate-slide-in - too aggressive */
+/* Removed .rc-animate-glow - unnecessary distraction */
 
 /* Accordion Styles */
 .accordion-category, .accordion-subcategory {
@@ -1737,7 +1745,7 @@ body {
 
 .accordion-icon {
     font-size: 1.2rem;
-    color: var(--accent-electric);
+    color: var(--gray-400);
     transition: transform var(--transition-normal);
 }
 
@@ -1762,7 +1770,7 @@ body {
 }
 
 [data-theme-toggle]:hover i {
-    color: var(--accent-electric);
+    color: var(--gray-400);
     filter: drop-shadow(0 0 8px currentColor);
 }
 
@@ -1854,7 +1862,7 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: 2px solid var(--accent-electric);
+    outline: 2px solid var(--gray-400);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
 }
@@ -1912,8 +1920,8 @@ textarea:focus {
 .btn-group .btn:hover,
 .btn-group-sm .btn:hover {
     background: rgba(0, 245, 255, 0.1);
-    border-color: var(--accent-electric);
-    color: var(--accent-electric) !important;
+    border-color: var(--gray-400);
+    color: var(--gray-400) !important;
     transform: translateY(-1px) scale(1.05);
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25);
 }
@@ -1948,15 +1956,15 @@ textarea:focus {
 
 .btn-outline-primary:hover {
     background: rgba(0, 245, 255, 0.1) !important;
-    border-color: var(--accent-electric) !important;
-    color: var(--accent-electric) !important;
+    border-color: var(--gray-400) !important;
+    color: var(--gray-400) !important;
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25) !important;
 }
 
 .btn-outline-secondary:hover {
     background: var(--surface-3) !important;
-    border-color: var(--accent-electric) !important;
-    color: var(--accent-electric) !important;
+    border-color: var(--gray-400) !important;
+    color: var(--gray-400) !important;
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25) !important;
 }
 
@@ -1979,8 +1987,8 @@ textarea:focus {
 
 .dropdown-toggle:hover {
     background: rgba(0, 245, 255, 0.1) !important;
-    border-color: var(--accent-electric) !important;
-    color: var(--accent-electric) !important;
+    border-color: var(--gray-400) !important;
+    color: var(--gray-400) !important;
     transform: translateY(-1px) scale(1.05);
     box-shadow: 0 6px 20px rgba(0, 245, 255, 0.25);
 }
@@ -1991,7 +1999,7 @@ textarea:focus {
         --surface-1: #000000;
         --surface-2: #1a1a1a;
         --text-primary: #ffffff;
-        --accent-electric: #00ffff;
+        --gray-400: #9ca3af;
     }
 }
 
@@ -2092,7 +2100,7 @@ textarea:focus {
     color: var(--text-primary);
     font-size: 1.2rem;
     font-weight: 600;
-    border-bottom: 2px solid var(--accent-electric);
+    border-bottom: 2px solid var(--gray-400);
     padding-bottom: 8px;
 }
 
@@ -2135,7 +2143,7 @@ textarea:focus {
 }
 
 .info-item span.rc-text-accent {
-    color: var(--accent-electric);
+    color: var(--gray-400);
     font-weight: 700;
 }
 
@@ -2145,7 +2153,7 @@ textarea:focus {
     color: var(--text-primary);
     font-size: 1.2rem;
     font-weight: 600;
-    border-bottom: 2px solid var(--accent-electric);
+    border-bottom: 2px solid var(--gray-400);
     padding-bottom: 8px;
 }
 
@@ -2169,7 +2177,7 @@ textarea:focus {
 .stat-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 245, 255, 0.15);
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
 }
 
 .stat-card::before {
@@ -2179,12 +2187,12 @@ textarea:focus {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--accent-electric), var(--accent-neon));
+    background: linear-gradient(90deg, var(--gray-600), var(--gray-500));
 }
 
 .stat-icon {
     font-size: 2rem;
-    color: var(--accent-electric);
+    color: var(--gray-400);
     margin-bottom: 12px;
 }
 
@@ -2341,7 +2349,7 @@ textarea:focus {
 /* Badge Variants */
 .rc-badge-info {
     background: linear-gradient(135deg, rgba(0, 245, 255, 0.2), rgba(0, 138, 255, 0.2));
-    color: var(--accent-electric);
+    color: var(--gray-400);
     border: 1px solid rgba(0, 245, 255, 0.3);
 }
 
@@ -2359,7 +2367,7 @@ textarea:focus {
 
 /* Text Color Utilities */
 .rc-text-accent {
-    color: var(--accent-electric);
+    color: var(--gray-400);
 }
 
 .rc-text-lg {
@@ -2397,7 +2405,7 @@ textarea:focus {
 .rc-form-select:focus,
 .rc-form-textarea:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
 }
@@ -2470,7 +2478,7 @@ input[type="url"]:focus,
 select:focus,
 textarea:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
 }
@@ -2514,7 +2522,7 @@ label,
 
 .rc-input:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
 }
@@ -2539,7 +2547,7 @@ label,
 
 .rc-select:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
 }
@@ -2565,7 +2573,7 @@ label,
 
 .rc-textarea:focus {
     outline: none;
-    border-color: var(--accent-electric);
+    border-color: var(--gray-400);
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 0 2px rgba(0, 245, 255, 0.2);
 }
@@ -2623,7 +2631,7 @@ label,
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    animation: modalSlideIn 0.2s ease-out;
+    animation: modalSlideIn 0.15s ease-out;
     z-index: 1051;
     flex-shrink: 0;
     margin: var(--space-4); /* Consistent spacing around modal */
@@ -2632,11 +2640,9 @@ label,
 @keyframes modalSlideIn {
     from {
         opacity: 0;
-        transform: scale(0.9) translateY(-20px);
     }
     to {
         opacity: 1;
-        transform: scale(1) translateY(0);
     }
 }
 
@@ -2687,7 +2693,7 @@ label,
     width: 40px;
     height: 40px;
     border: 3px solid var(--surface-3);
-    border-top: 3px solid var(--accent-primary);
+    border-top: 3px solid var(--accent-red);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto;
@@ -2858,7 +2864,7 @@ label,
     gap: var(--space-sm);
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--accent-electric);
+    color: var(--gray-400);
     margin-bottom: var(--space-sm);
 }
 
@@ -2904,7 +2910,7 @@ label,
 }
 
 .rc-footer-links a:hover {
-    color: var(--accent-electric);
+    color: var(--gray-400);
 }
 
 .rc-footer-links a i {
@@ -2933,7 +2939,7 @@ label,
 .rc-nav-link-active {
     color: white !important;
     background: var(--primary) !important;
-    border: 2px solid var(--accent-electric) !important;
+    border: 2px solid var(--gray-400) !important;
     box-shadow: 0 0 0 1px var(--primary) !important;
 }
 
@@ -2967,8 +2973,8 @@ label,
 
 .rc-nav-user .rc-dropdown-toggle:hover {
     background: var(--surface-2);
-    border-color: var(--accent-electric);
-    color: var(--accent-electric);
+    border-color: var(--gray-400);
+    color: var(--gray-400);
 }
 
 .rc-nav-user .rc-dropdown-toggle i:first-child {
@@ -3089,4 +3095,24 @@ label,
     background: rgba(245, 158, 11, 0.1);
     border-color: var(--warning);
     color: var(--warning);
+}
+/* ========================================
+   Accessibility: Reduced Motion Support
+   ======================================== */
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    /* Explicitly disable all custom animations */
+    .rc-animate-fade-in,
+    .rc-modal-content,
+    .rc-spinner {
+        animation: none !important;
+    }
 }

@@ -384,7 +384,18 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v1.3** (Latest) - WebAuthn/Passkey SSO Fix
+### **v1.6** (Latest) - Professional Design Refinement
+- ✅ **Color Scheme Overhaul**: Replaced colorful accents with professional grayscale + red
+- ✅ **Grayscale Palette**: Extended gray-50 to gray-900 for consistent UI elements
+- ✅ **Accent Red**: Primary accent color for important actions (#dc2626)
+- ✅ **Removed Cyan/Purple/Gold**: Eliminated distracting colorful accents
+- ✅ **Animation Reduction**: Removed aggressive slide-in and glow effects
+- ✅ **Subtle Transitions**: Reduced animation durations (0.6s → 0.2s)
+- ✅ **Accessibility**: Added `prefers-reduced-motion` media query support
+- ✅ **Performance**: Lighter page loads without heavy animations
+- ✅ **WCAG 2.2 AA**: Maintained contrast compliance with new color scheme
+
+### **v1.3** - WebAuthn/Passkey SSO Fix
 - ✅ **Fixed WebAuthn Login**: Passkey login now properly sets shared cookie domain
 - ✅ **Complete SSO Support**: Both username/password and passkey login work with SSO
 - ✅ **Seamless Cross-App Authentication**: Login persists across RentalCore and StorageCore
