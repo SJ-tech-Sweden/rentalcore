@@ -384,7 +384,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v1.9** (Latest) - StorageCore Color Pattern Implementation
+### **v2.0** (Latest) - White Text & Login Fix
+- ✅ **All Text White**: Changed all text colors to pure white (#FFFFFF)
+- ✅ **Fixed Login Page**: Replaced old color variables with StorageCore red
+- ✅ **Login Button Red**: Login button now uses #D0021B background
+- ✅ **Red Input Focus**: Login inputs show red focus border
+- ✅ **Fixed Broken Colors**: Removed all references to deleted accent-electric/purple variables
+- ✅ **White Secondary Text**: text-secondary now white instead of gray
+- ✅ **Light Muted Text**: text-muted now very light gray for better readability
+- ✅ **Login Functional**: All login colors fixed and working
+
+### **v1.9** - StorageCore Color Pattern Implementation
 - ✅ **Red Primary Buttons**: All primary buttons now use #D0021B (StorageCore red)
 - ✅ **Red Active Navigation**: Active nav items highlighted with red background + shadow
 - ✅ **Red Input Focus**: Input fields show red border on focus (like StorageCore)
