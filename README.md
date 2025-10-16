@@ -384,7 +384,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.4** (Latest) - Left Sidebar Navigation Redesign
+### **v2.5** (Latest) - Sidebar Navigation Complete (All Pages)
+- ✅ **Fixed Sidebar on All Pages**: Replaced navbar.html (used by 60+ templates) with sidebar navigation
+- ✅ **Universal Navigation**: Sidebar now appears on Dashboard, Jobs, Devices, and all other pages
+- ✅ **Template Architecture Fix**: Discovered that most templates use navbar.html, not base.html
+- ✅ **Mobile Navigation Working**: Hamburger menu and overlay drawer functional on mobile
+- ✅ **Desktop Collapse Working**: Chevron toggle for expanding/collapsing sidebar
+- ✅ **JavaScript Integration**: Sidebar toggle script embedded in navbar.html
+- ✅ **Consistent UX**: All 67 templates now have unified sidebar navigation
+- ✅ **Storage Cross-Link**: Dynamic StorageCore URL detection for seamless switching
+
+### **v2.4** - Left Sidebar Navigation Redesign (base.html only)
 - ✅ **Professional Left Sidebar**: Implemented StorageCore-style left sidebar navigation
 - ✅ **Collapsible Sidebar**: Desktop sidebar collapses to icon-only mode (w-64 expanded, w-20 collapsed)
 - ✅ **Mobile Overlay Drawer**: Mobile devices use overlay drawer with backdrop and hamburger menu
