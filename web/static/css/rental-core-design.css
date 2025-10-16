@@ -3146,3 +3146,530 @@ label,
         animation: none !important;
     }
 }
+
+/* ============================================================================
+   SIDEBAR NAVIGATION (StorageCore-Style)
+   ============================================================================ */
+
+/* Utility Classes */
+.desktop-only {
+    display: block;
+}
+
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .desktop-only {
+        display: none;
+    }
+
+    .mobile-only {
+        display: block;
+    }
+}
+
+/* Header */
+.rc-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--gradient-surface);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--surface-3);
+    transition: all 0.3s ease;
+}
+
+/* Header adjusts based on sidebar state */
+body:has(.rc-sidebar.open:not(.collapsed)) .rc-header {
+    left: 16rem; /* 256px = w-64 */
+}
+
+body:has(.rc-sidebar.collapsed) .rc-header {
+    left: 5rem; /* 80px = w-20 */
+}
+
+@media (max-width: 768px) {
+    .rc-header {
+        left: 0 !important;
+    }
+}
+
+.rc-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .rc-header-content {
+        padding: 0.75rem;
+    }
+}
+
+.rc-header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.rc-header-brand {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+@media (min-width: 640px) {
+    .rc-header-brand {
+        font-size: 1.5rem;
+    }
+}
+
+.brand-rental {
+    color: var(--accent-red);
+}
+
+.brand-core {
+    color: white;
+}
+
+.rc-header-company {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.rc-sidebar-toggle {
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rc-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.rc-sidebar-toggle i {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+}
+
+@media (min-width: 640px) {
+    .rc-sidebar-toggle i {
+        width: 1.5rem;
+        height: 1.5rem;
+        font-size: 1.5rem;
+    }
+}
+
+/* Mobile Backdrop */
+.rc-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 40;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .rc-sidebar-backdrop.show {
+        display: block;
+        opacity: 1;
+    }
+}
+
+/* Sidebar */
+.rc-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    background: var(--gradient-surface);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid var(--surface-3);
+    transition: all 0.3s ease-in-out;
+    width: 16rem; /* 256px = w-64 */
+    transform: translateX(0);
+}
+
+/* Desktop collapsed state */
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed {
+        width: 5rem; /* 80px = w-20 */
+    }
+
+    .rc-sidebar.open {
+        width: 16rem; /* 256px = w-64 */
+    }
+}
+
+/* Mobile hidden state */
+@media (max-width: 768px) {
+    .rc-sidebar {
+        transform: translateX(-100%);
+        width: 16rem;
+    }
+
+    .rc-sidebar.open {
+        transform: translateX(0);
+    }
+}
+
+/* Sidebar Header (Mobile only) */
+.rc-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid var(--surface-3);
+}
+
+.rc-sidebar-brand {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.rc-sidebar-close {
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background 0.2s ease;
+}
+
+.rc-sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.rc-sidebar-close i {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+}
+
+/* Sidebar Navigation */
+.rc-sidebar-nav {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .rc-sidebar-nav {
+        margin-top: 3rem; /* Space for mobile header */
+    }
+}
+
+@media (min-width: 768px) {
+    .rc-sidebar-nav {
+        margin-top: 5rem; /* Space for fixed header */
+    }
+}
+
+/* Navigation Items */
+.rc-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.rc-nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rc-nav-item.active {
+    background: var(--accent-red);
+    color: white;
+    box-shadow: 0 4px 12px rgba(208, 2, 27, 0.4);
+}
+
+.rc-nav-item i {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    font-size: 1.25rem;
+}
+
+.rc-nav-label {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Cross-link special styling */
+.rc-nav-crosslink {
+    background: rgba(208, 2, 27, 0.1);
+    color: var(--accent-red);
+    border: 1px solid rgba(208, 2, 27, 0.2);
+    box-shadow: 0 4px 12px rgba(208, 2, 27, 0.1);
+}
+
+.rc-nav-crosslink:hover {
+    background: var(--accent-red);
+    color: white;
+}
+
+/* Collapsed sidebar: center icons, hide labels */
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-nav-item {
+        justify-content: center;
+        padding: 0.75rem;
+    }
+
+    .rc-sidebar.collapsed .rc-nav-label {
+        display: none;
+    }
+}
+
+/* Sidebar Footer */
+.rc-sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    border-top: 1px solid var(--surface-3);
+    background: rgba(3, 7, 18, 0.5);
+}
+
+/* User Profile */
+.rc-user-profile {
+    display: block;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+}
+
+.rc-user-icon-only {
+    display: none;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-md);
+    justify-content: center;
+}
+
+.rc-user-icon-only i {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+    color: var(--accent-red);
+}
+
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-user-profile {
+        display: none;
+    }
+
+    .rc-sidebar.collapsed .rc-user-icon-only {
+        display: flex;
+    }
+}
+
+.rc-user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rc-user-info i {
+    width: 1rem;
+    height: 1rem;
+    font-size: 1rem;
+    color: var(--accent-red);
+}
+
+.rc-user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-user-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-label);
+}
+
+.rc-user-email {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+/* User Menu */
+.rc-user-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-user-menu {
+        display: none;
+    }
+}
+
+.rc-user-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.rc-user-menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rc-user-menu-item i {
+    width: 1rem;
+    height: 1rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Logout Button */
+.rc-logout-btn,
+.rc-login-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.rc-logout-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(239, 68, 68);
+}
+
+.rc-login-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rc-logout-btn i,
+.rc-login-btn i {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-logout-btn,
+    .rc-sidebar.collapsed .rc-login-btn {
+        justify-content: center;
+        padding: 0.75rem;
+    }
+
+    .rc-sidebar.collapsed .rc-logout-btn .rc-nav-label,
+    .rc-sidebar.collapsed .rc-login-btn .rc-nav-label {
+        display: none;
+    }
+}
+
+/* Main Content */
+.rc-main-content {
+    padding-top: 3.5rem; /* Space for header */
+    transition: margin-left 0.3s ease;
+}
+
+@media (min-width: 640px) {
+    .rc-main-content {
+        padding-top: 4rem;
+    }
+}
+
+/* Main content adjusts based on sidebar state */
+@media (min-width: 768px) {
+    body:has(.rc-sidebar.open:not(.collapsed)) .rc-main-content {
+        margin-left: 16rem; /* 256px = w-64 */
+    }
+
+    body:has(.rc-sidebar.collapsed) .rc-main-content {
+        margin-left: 5rem; /* 80px = w-20 */
+    }
+}
+
+@media (max-width: 768px) {
+    .rc-main-content {
+        margin-left: 0;
+    }
+}
+
+.rc-content-inner {
+    padding: 0.75rem;
+}
+
+@media (min-width: 640px) {
+    .rc-content-inner {
+        padding: 1.5rem;
+    }
+}
+
+/* Hide old navbar styles (if any remaining) */
+.rc-navbar,
+.rc-navbar-content,
+.rc-navbar-brand,
+.rc-navbar-toggle,
+.rc-navbar-nav,
+.rc-dropdown,
+.rc-dropdown-menu,
+.rc-dropdown-toggle,
+.rc-dropdown-item {
+    display: none !important;
+}
+
+/* Override to ensure sidebar styles take precedence */
+.rc-sidebar,
+.rc-header,
+.rc-main-content,
+.rc-sidebar-nav,
+.rc-nav-item {
+    display: flex !important;
+}
+
+.rc-sidebar,
+.rc-sidebar-nav {
+    flex-direction: column !important;
+}
+
+.rc-header {
+    flex-direction: row !important;
+}
