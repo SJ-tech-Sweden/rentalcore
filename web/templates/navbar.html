@@ -93,10 +93,28 @@
             <span class="rc-nav-label">Devices</span>
         </a>
 
-        <a href="/products" class="rc-nav-item {{if eq .currentPage "products"}}active{{end}}" title="Products">
-            <i class="bi bi-box"></i>
-            <span class="rc-nav-label">Products</span>
-        </a>
+        <!-- Products Dropdown -->
+        <div class="rc-nav-dropdown">
+            <button class="rc-nav-dropdown-toggle {{if or (eq .currentPage "products") (eq .currentPage "rental-equipment") (eq .currentPage "rental-analytics")}}active{{end}}" data-dropdown="products">
+                <i class="bi bi-box"></i>
+                <span class="rc-nav-label">Products</span>
+                <i class="bi bi-chevron-down rc-dropdown-icon"></i>
+            </button>
+            <div class="rc-nav-dropdown-menu" id="dropdown-products">
+                <a href="/products" class="rc-nav-dropdown-item {{if eq .currentPage "products"}}active{{end}}">
+                    <i class="bi bi-boxes"></i>
+                    <span class="rc-nav-label">Own Products</span>
+                </a>
+                <a href="/rental-equipment" class="rc-nav-dropdown-item {{if eq .currentPage "rental-equipment"}}active{{end}}">
+                    <i class="bi bi-box-seam"></i>
+                    <span class="rc-nav-label">Rental Equipment</span>
+                </a>
+                <a href="/rental-equipment/analytics" class="rc-nav-dropdown-item {{if eq .currentPage "rental-analytics"}}active{{end}}">
+                    <i class="bi bi-clipboard-data"></i>
+                    <span class="rc-nav-label">Rental Analytics</span>
+                </a>
+            </div>
+        </div>
 
         <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}" title="Cables">
             <i class="bi bi-lightning-charge"></i>
@@ -113,30 +131,32 @@
             <span class="rc-nav-label">Cases</span>
         </a>
 
-        <a href="/invoices" class="rc-nav-item {{if eq .currentPage "invoices"}}active{{end}}" title="Invoices">
-            <i class="bi bi-file-text"></i>
-            <span class="rc-nav-label">Invoices</span>
-        </a>
-
-        <a href="/analytics" class="rc-nav-item {{if eq .currentPage "analytics"}}active{{end}}" title="Analytics">
-            <i class="bi bi-graph-up"></i>
-            <span class="rc-nav-label">Analytics</span>
-        </a>
-
-        <a href="/financial" class="rc-nav-item {{if eq .currentPage "financial"}}active{{end}}" title="Financial">
-            <i class="bi bi-calculator"></i>
-            <span class="rc-nav-label">Financial</span>
-        </a>
-
-        <a href="/workflow/packages" class="rc-nav-item {{if eq .currentPage "packages"}}active{{end}}" title="Packages">
-            <i class="bi bi-box-seam"></i>
-            <span class="rc-nav-label">Packages</span>
-        </a>
-
-        <a href="/rental-equipment" class="rc-nav-item {{if eq .currentPage "rental-equipment"}}active{{end}}" title="Rental Equipment">
-            <i class="bi bi-box-seam"></i>
-            <span class="rc-nav-label">Rental Equip</span>
-        </a>
+        <!-- Tools Dropdown -->
+        <div class="rc-nav-dropdown">
+            <button class="rc-nav-dropdown-toggle {{if or (eq .currentPage "packages") (eq .currentPage "invoices") (eq .currentPage "analytics") (eq .currentPage "financial")}}active{{end}}" data-dropdown="tools">
+                <i class="bi bi-tools"></i>
+                <span class="rc-nav-label">Tools</span>
+                <i class="bi bi-chevron-down rc-dropdown-icon"></i>
+            </button>
+            <div class="rc-nav-dropdown-menu" id="dropdown-tools">
+                <a href="/workflow/packages" class="rc-nav-dropdown-item {{if eq .currentPage "packages"}}active{{end}}">
+                    <i class="bi bi-box-seam"></i>
+                    <span class="rc-nav-label">Equipment Packages</span>
+                </a>
+                <a href="/invoices" class="rc-nav-dropdown-item {{if eq .currentPage "invoices"}}active{{end}}">
+                    <i class="bi bi-file-text"></i>
+                    <span class="rc-nav-label">Invoices</span>
+                </a>
+                <a href="/analytics" class="rc-nav-dropdown-item {{if eq .currentPage "analytics"}}active{{end}}">
+                    <i class="bi bi-graph-up"></i>
+                    <span class="rc-nav-label">Analytics</span>
+                </a>
+                <a href="/financial" class="rc-nav-dropdown-item {{if eq .currentPage "financial"}}active{{end}}">
+                    <i class="bi bi-calculator"></i>
+                    <span class="rc-nav-label">Financial</span>
+                </a>
+            </div>
+        </div>
     </nav>
 
     <!-- User Profile & Logout -->
@@ -158,23 +178,30 @@
         </div>
 
         <!-- User Settings Dropdown -->
-        <div class="rc-user-menu">
-            <a href="/profile/settings" class="rc-user-menu-item" title="Profile Settings">
-                <i class="bi bi-person-gear"></i>
-                <span class="rc-nav-label">Profile</span>
-            </a>
-            <a href="/settings/company" class="rc-user-menu-item" title="Company Settings">
-                <i class="bi bi-building-gear"></i>
-                <span class="rc-nav-label">Company</span>
-            </a>
-            <a href="/users" class="rc-user-menu-item" title="Users">
-                <i class="bi bi-people-fill"></i>
-                <span class="rc-nav-label">Users</span>
-            </a>
-            <a href="/security/roles" class="rc-user-menu-item" title="Security">
-                <i class="bi bi-shield-check"></i>
-                <span class="rc-nav-label">Security</span>
-            </a>
+        <div class="rc-nav-dropdown">
+            <button class="rc-nav-dropdown-toggle {{if or (eq .currentPage "profile") (eq .currentPage "profile-settings") (eq .currentPage "settings") (eq .currentPage "users") (eq .currentPage "security")}}active{{end}}" data-dropdown="user">
+                <i class="bi bi-gear"></i>
+                <span class="rc-nav-label">Settings</span>
+                <i class="bi bi-chevron-down rc-dropdown-icon"></i>
+            </button>
+            <div class="rc-nav-dropdown-menu" id="dropdown-user">
+                <a href="/profile/settings" class="rc-nav-dropdown-item {{if or (eq .currentPage "profile") (eq .currentPage "profile-settings")}}active{{end}}">
+                    <i class="bi bi-person-gear"></i>
+                    <span class="rc-nav-label">Profile Settings</span>
+                </a>
+                <a href="/settings/company" class="rc-nav-dropdown-item {{if eq .currentPage "settings"}}active{{end}}">
+                    <i class="bi bi-building-gear"></i>
+                    <span class="rc-nav-label">Company Settings</span>
+                </a>
+                <a href="/users" class="rc-nav-dropdown-item {{if eq .currentPage "users"}}active{{end}}">
+                    <i class="bi bi-people-fill"></i>
+                    <span class="rc-nav-label">User Management</span>
+                </a>
+                <a href="/security/roles" class="rc-nav-dropdown-item {{if eq .currentPage "security"}}active{{end}}">
+                    <i class="bi bi-shield-check"></i>
+                    <span class="rc-nav-label">Security & Audit</span>
+                </a>
+            </div>
         </div>
 
         <a href="/logout" class="rc-logout-btn" title="Logout">
@@ -210,7 +237,7 @@
     // Load sidebar state from localStorage
     let sidebarOpen = localStorage.getItem('rc-sidebar-open');
     if (sidebarOpen === null) {
-        sidebarOpen = !isMobile(); // Default: open on desktop, closed on mobile
+        sidebarOpen = !isMobile();
     } else {
         sidebarOpen = sidebarOpen === 'true';
     }
@@ -218,11 +245,9 @@
     // Apply initial state
     function applySidebarState() {
         if (isMobile()) {
-            // Mobile: always start closed, use overlay mode
             sidebar.classList.remove('open', 'collapsed');
             sidebarBackdrop.classList.remove('show');
         } else {
-            // Desktop: use saved state
             if (sidebarOpen) {
                 sidebar.classList.add('open');
                 sidebar.classList.remove('collapsed');
@@ -277,7 +302,7 @@
     }
 
     // Close mobile sidebar on navigation
-    const navItems = sidebar.querySelectorAll('.rc-nav-item, .rc-user-menu-item');
+    const navItems = sidebar.querySelectorAll('.rc-nav-item, .rc-nav-dropdown-item');
     navItems.forEach(item => {
         item.addEventListener('click', function() {
             if (isMobile()) {
@@ -290,6 +315,44 @@
     // Handle window resize
     window.addEventListener('resize', function() {
         applySidebarState();
+    });
+
+    // Dropdown toggle functionality
+    const dropdownToggles = document.querySelectorAll('.rc-nav-dropdown-toggle');
+
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            const dropdownId = 'dropdown-' + this.dataset.dropdown;
+            const menu = document.getElementById(dropdownId);
+            const icon = this.querySelector('.rc-dropdown-icon');
+
+            // Toggle this dropdown
+            const isOpen = menu.classList.contains('open');
+
+            if (isOpen) {
+                menu.classList.remove('open');
+                icon.classList.remove('bi-chevron-up');
+                icon.classList.add('bi-chevron-down');
+            } else {
+                menu.classList.add('open');
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-up');
+            }
+        });
+    });
+
+    // Auto-open dropdown if current page is inside
+    dropdownToggles.forEach(toggle => {
+        if (toggle.classList.contains('active')) {
+            const dropdownId = 'dropdown-' + toggle.dataset.dropdown;
+            const menu = document.getElementById(dropdownId);
+            const icon = toggle.querySelector('.rc-dropdown-icon');
+
+            menu.classList.add('open');
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-up');
+        }
     });
 })();
 </script>

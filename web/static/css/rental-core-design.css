@@ -3725,3 +3725,130 @@ body:has(.rc-sidebar.collapsed) .rc-header {
         display: flex !important;
     }
 }
+
+/* ============================================================================
+   SIDEBAR DROPDOWN NAVIGATION
+   ============================================================================ */
+
+/* Dropdown Container */
+.rc-nav-dropdown {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Dropdown Toggle Button */
+.rc-nav-dropdown-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.rc-nav-dropdown-toggle:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rc-nav-dropdown-toggle.active {
+    background: var(--accent-red);
+    color: white;
+}
+
+.rc-nav-dropdown-toggle i.bi:first-child {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    font-size: 1.25rem;
+}
+
+.rc-dropdown-icon {
+    width: 1rem !important;
+    height: 1rem !important;
+    font-size: 1rem !important;
+    transition: transform 0.2s ease;
+    margin-left: auto;
+}
+
+/* Dropdown Menu */
+.rc-nav-dropdown-menu {
+    display: none !important;
+    flex-direction: column !important;
+    gap: 0.25rem;
+    padding: 0.5rem 0 0.5rem 0;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+
+.rc-nav-dropdown-menu.open {
+    display: flex !important;
+    max-height: 500px;
+    opacity: 1;
+}
+
+/* Dropdown Items */
+.rc-nav-dropdown-item {
+    display: flex !important;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem 0.625rem 2.5rem; /* Indented */
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.rc-nav-dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.rc-nav-dropdown-item.active {
+    background: rgba(208, 2, 27, 0.2);
+    color: var(--accent-red);
+}
+
+.rc-nav-dropdown-item i {
+    width: 1rem;
+    height: 1rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+/* Collapsed Sidebar: Hide Dropdowns completely */
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-nav-dropdown {
+        display: none !important;
+    }
+}
+
+/* Ensure dropdown menus are visible */
+.rc-nav-dropdown-menu,
+.rc-nav-dropdown-menu.open {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.rc-nav-dropdown-menu:not(.open) {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide in footer when sidebar collapsed */
+@media (min-width: 768px) {
+    .rc-sidebar.collapsed .rc-sidebar-footer .rc-nav-dropdown {
+        display: none !important;
+    }
+}
