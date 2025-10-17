@@ -384,7 +384,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.10** (Latest) - Simplified Header Bar
+### **v2.11** (Latest) - Sidebar Icon Vertical Centering
+- ✅ **Perfectly Centered Icons**: All sidebar navigation icons now vertically centered
+- ✅ **Flexbox Centering**: Applied display: flex with align-items and justify-content
+- ✅ **Fixed All Icon Types**: Main nav, dropdowns, user menu, and collapsed icons
+- ✅ **Consistent Alignment**: Icons no longer appear bottom-aligned
+- ✅ **Visual Polish**: Professional appearance across all navigation elements
+
+### **v2.10** - Simplified Header Bar
 - ✅ **Removed Company Name**: Cleaner header with only RentalCore branding
 - ✅ **Focused Design**: Simplified header layout for better visual hierarchy
 - ✅ **Maintained Functionality**: All toggle buttons and branding remain intact
