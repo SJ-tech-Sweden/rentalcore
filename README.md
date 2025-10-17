@@ -384,7 +384,18 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.7** (Latest) - Sidebar Layout Fixes
+### **v2.8** (Latest) - Content Positioning Fix
+- ✅ **Fixed Content Behind Sidebar/Header**: Content now displays in available space, not behind fixed elements
+- ✅ **Body-Level Padding**: Applied padding-top for header and padding-left for sidebar to body element
+- ✅ **Works With All Templates**: Fixes positioning for all 60+ templates using navbar.html
+- ✅ **No Wrapper Required**: Content positioned correctly without needing .rc-main-content wrapper
+- ✅ **Smooth Transitions**: Added transitions for padding/margin changes when toggling sidebar
+- ✅ **Responsive Spacing**: Header clearance (3.5rem mobile, 4rem desktop)
+- ✅ **Sidebar Offset**: 16rem for open sidebar, 5rem for collapsed, 0 on mobile
+- ✅ **Template Compatibility**: Works with direct <main> tags after {{template "navbar.html" .}}
+- ✅ **Proper Boundaries**: Header and sidebar correctly define content area boundaries
+
+### **v2.7** - Sidebar Layout Fixes
 - ✅ **Scrollable Sidebar Navigation**: Sidebar nav now scrolls vertically with custom scrollbar
 - ✅ **Fixed Footer Overlap**: User profile section no longer overlaps navigation items
 - ✅ **Proper Main Content Layout**: Main content correctly positioned below header and beside sidebar
