@@ -384,7 +384,20 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.5** (Latest) - Sidebar Navigation Complete (All Pages)
+### **v2.6** (Latest) - Sidebar Navigation with Dropdown Groups
+- ✅ **Dropdown Navigation**: Organized navigation items into collapsible groups
+- ✅ **Products Dropdown**: Own Products, Rental Equipment, Rental Analytics
+- ✅ **Tools Dropdown**: Equipment Packages, Invoices, Analytics, Financial
+- ✅ **Settings Dropdown**: Profile, Company, Users, Security & Audit
+- ✅ **Smooth Animations**: 0.3s transitions for dropdown expand/collapse
+- ✅ **Auto-expand Logic**: Dropdowns open if current page is inside
+- ✅ **Fixes Overlap**: Resolved navigation items overlapping issue
+- ✅ **Indented Items**: Visual hierarchy with 2.5rem left padding
+- ✅ **Chevron Icons**: Dynamic chevron rotation (down/up) for visual feedback
+- ✅ **Active State Handling**: Proper highlighting for active pages in dropdowns
+- ✅ **Responsive Behavior**: Dropdowns hidden when sidebar collapsed on desktop
+
+### **v2.5** - Sidebar Navigation Complete (All Pages)
 - ✅ **Fixed Sidebar on All Pages**: Replaced navbar.html (used by 60+ templates) with sidebar navigation
 - ✅ **Universal Navigation**: Sidebar now appears on Dashboard, Jobs, Devices, and all other pages
 - ✅ **Template Architecture Fix**: Discovered that most templates use navbar.html, not base.html
