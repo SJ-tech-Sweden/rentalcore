@@ -3626,33 +3626,44 @@ body:has(.rc-sidebar.collapsed) .rc-header {
     }
 }
 
-/* Main Content */
-.rc-main-content {
-    padding-top: 3.5rem; /* Space for header */
-    transition: margin-left 0.3s ease;
-    min-height: 100vh;
+/* Main Content Area - applies to all main tags and rc-main-content */
+body {
+    padding-top: 3.5rem; /* Space for fixed header */
+    transition: margin-left 0.3s ease, padding-left 0.3s ease;
 }
 
 @media (min-width: 640px) {
-    .rc-main-content {
+    body {
         padding-top: 4rem;
     }
 }
 
-/* Main content adjusts based on body classes set by JavaScript */
+/* Body margin adjusts based on sidebar state (Desktop only) */
 @media (min-width: 768px) {
-    body.sidebar-open .rc-main-content {
-        margin-left: 16rem; /* 256px = w-64 */
+    body.sidebar-open {
+        padding-left: 16rem; /* 256px = w-64 sidebar width */
     }
 
-    body.sidebar-collapsed .rc-main-content {
-        margin-left: 5rem; /* 80px = w-20 */
+    body.sidebar-collapsed {
+        padding-left: 5rem; /* 80px = w-20 collapsed width */
     }
 }
 
+/* Mobile: no sidebar offset */
 @media (max-width: 767px) {
+    body {
+        padding-left: 0;
+    }
+}
+
+/* Main content wrapper (if used) */
+.rc-main-content {
+    min-height: calc(100vh - 3.5rem);
+}
+
+@media (min-width: 640px) {
     .rc-main-content {
-        margin-left: 0;
+        min-height: calc(100vh - 4rem);
     }
 }
 
