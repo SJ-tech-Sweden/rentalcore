@@ -384,7 +384,12 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.9** (Latest) - User Profile Dropdown Menu
+### **v2.10** (Latest) - Simplified Header Bar
+- ✅ **Removed Company Name**: Cleaner header with only RentalCore branding
+- ✅ **Focused Design**: Simplified header layout for better visual hierarchy
+- ✅ **Maintained Functionality**: All toggle buttons and branding remain intact
+
+### **v2.9** - User Profile Dropdown Menu
 - ✅ **Click-Triggered User Menu**: Click on username to open settings and logout dropdown
 - ✅ **Consolidated User Actions**: All settings and logout in one dropdown menu
 - ✅ **Removed Email Display**: Cleaner footer with just username (no email)
