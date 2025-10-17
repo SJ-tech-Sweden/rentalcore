@@ -333,6 +333,28 @@
                 menu.classList.add('open');
                 icon.classList.remove('bi-chevron-down');
                 icon.classList.add('bi-chevron-up');
+
+                // Auto-scroll to show dropdown items after animation
+                setTimeout(() => {
+                    const sidebarNav = document.querySelector('.rc-sidebar-nav');
+                    const dropdownContainer = this.closest('.rc-nav-dropdown');
+
+                    if (sidebarNav && dropdownContainer) {
+                        // Get the position of the dropdown menu within the sidebar
+                        const menuRect = menu.getBoundingClientRect();
+                        const navRect = sidebarNav.getBoundingClientRect();
+
+                        // Check if dropdown menu is below the visible area
+                        if (menuRect.bottom > navRect.bottom) {
+                            // Scroll to show the dropdown menu
+                            dropdownContainer.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'end',
+                                inline: 'nearest'
+                            });
+                        }
+                    }
+                }, 50); // Small delay to allow CSS transition to start
             }
         });
     });
