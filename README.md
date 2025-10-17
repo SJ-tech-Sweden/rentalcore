@@ -384,7 +384,15 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.13** (Latest) - Auto-Scroll for Sidebar Dropdowns
+### **v2.14** (Latest) - Improved Dropdown Auto-Scroll
+- ✅ **Complete Visibility**: Last dropdown item now fully visible without manual scrolling
+- ✅ **Precise Targeting**: Scrolls directly to last dropdown item instead of container
+- ✅ **Enhanced Timing**: Increased delay to 150ms for complete CSS transition
+- ✅ **Better Detection**: More accurate visibility detection for last item
+- ✅ **Perfect Scrolling**: No more partial visibility of dropdown items
+- ✅ **Works Flawlessly**: Tools, Products, and all future dropdowns fully supported
+
+### **v2.13** - Auto-Scroll for Sidebar Dropdowns
 - ✅ **Automatic Scrolling**: Sidebar auto-scrolls when dropdowns are opened
 - ✅ **Smart Detection**: Only scrolls if dropdown extends below visible area
 - ✅ **Smooth Animation**: Uses smooth scrolling behavior for better UX
