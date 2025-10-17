@@ -337,24 +337,29 @@
                 // Auto-scroll to show dropdown items after animation
                 setTimeout(() => {
                     const sidebarNav = document.querySelector('.rc-sidebar-nav');
-                    const dropdownContainer = this.closest('.rc-nav-dropdown');
 
-                    if (sidebarNav && dropdownContainer) {
-                        // Get the position of the dropdown menu within the sidebar
-                        const menuRect = menu.getBoundingClientRect();
-                        const navRect = sidebarNav.getBoundingClientRect();
+                    if (sidebarNav && menu) {
+                        // Find the last dropdown item
+                        const dropdownItems = menu.querySelectorAll('.rc-nav-dropdown-item');
+                        const lastItem = dropdownItems[dropdownItems.length - 1];
 
-                        // Check if dropdown menu is below the visible area
-                        if (menuRect.bottom > navRect.bottom) {
-                            // Scroll to show the dropdown menu
-                            dropdownContainer.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'end',
-                                inline: 'nearest'
-                            });
+                        if (lastItem) {
+                            // Get positions
+                            const lastItemRect = lastItem.getBoundingClientRect();
+                            const navRect = sidebarNav.getBoundingClientRect();
+
+                            // Check if last item is below the visible area
+                            if (lastItemRect.bottom > navRect.bottom) {
+                                // Scroll to show the last dropdown item completely
+                                lastItem.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'end',
+                                    inline: 'nearest'
+                                });
+                            }
                         }
                     }
-                }, 50); // Small delay to allow CSS transition to start
+                }, 150); // Delay to allow CSS transition to complete
             }
         });
     });
