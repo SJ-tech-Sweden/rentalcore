@@ -384,7 +384,19 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.6** (Latest) - Sidebar Navigation with Dropdown Groups
+### **v2.7** (Latest) - Sidebar Layout Fixes
+- ✅ **Scrollable Sidebar Navigation**: Sidebar nav now scrolls vertically with custom scrollbar
+- ✅ **Fixed Footer Overlap**: User profile section no longer overlaps navigation items
+- ✅ **Proper Main Content Layout**: Main content correctly positioned below header and beside sidebar
+- ✅ **Flexbox Sidebar Structure**: Header (fixed) + Navigation (scrollable) + Footer (fixed)
+- ✅ **Body Class Management**: JavaScript sets `sidebar-open`/`sidebar-collapsed` classes on body
+- ✅ **Custom Scrollbar**: 6px width with subtle white thumb for sidebar navigation
+- ✅ **Improved Footer Background**: Enhanced backdrop blur and opacity for footer
+- ✅ **Responsive Breakpoints**: Fixed mobile/desktop transitions at 767px/768px
+- ✅ **Min-height Content**: Main content fills viewport height properly
+- ✅ **No More :has() Selectors**: Replaced with body class approach for better browser support
+
+### **v2.6** - Sidebar Navigation with Dropdown Groups
 - ✅ **Dropdown Navigation**: Organized navigation items into collapsible groups
 - ✅ **Products Dropdown**: Own Products, Rental Equipment, Rental Analytics
 - ✅ **Tools Dropdown**: Equipment Packages, Invoices, Analytics, Financial
