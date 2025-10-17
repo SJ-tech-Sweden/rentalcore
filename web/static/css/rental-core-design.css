@@ -3419,6 +3419,7 @@ body:has(.rc-sidebar.collapsed) .rc-header {
     color: var(--text-secondary);
     transition: all 0.2s ease;
     position: relative;
+    font-size: 1rem;
 }
 
 .rc-nav-item:hover {
@@ -3445,6 +3446,7 @@ body:has(.rc-sidebar.collapsed) .rc-header {
 .rc-nav-label {
     font-weight: 500;
     white-space: nowrap;
+    font-size: 1rem;
 }
 
 /* Cross-link special styling */
@@ -3850,6 +3852,8 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     width: 100%;
+    font-size: 1rem;
+    font-family: inherit;
 }
 
 .rc-nav-dropdown-toggle:hover {
