@@ -74,24 +74,64 @@
             <div class="rc-card">
                 <div class="rc-card-body">
                     {{if .jobs}}
+
+                    <!-- Filter Bar -->
+                    <div class="rc-mb-lg" style="display: flex; gap: var(--space-md); flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="filterCustomer" placeholder="Filter by customer..." class="rc-input" style="max-width: 200px;">
+                        <select id="filterStatus" class="rc-select" style="max-width: 150px;">
+                            <option value="">All Statuses</option>
+                            {{range .statuses}}
+                            <option value="{{.StatusID}}">{{.Status}}</option>
+                            {{end}}
+                        </select>
+                        <input type="number" id="filterMinDevices" placeholder="Min devices" class="rc-input" style="max-width: 120px;" min="0">
+                        <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Clear Filters
+                        </button>
+                    </div>
+
                     <div class="rc-table-responsive">
-                        <table class="rc-table">
+                        <table class="rc-table" id="jobsTable">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Title</th>
-                                    <th>Customer</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Status</th>
-                                    <th>Devices</th>
-                                    <th>Revenue</th>
+                                    <th class="sortable" onclick="sortTable('id')" style="cursor: pointer;">
+                                        ID <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('title')" style="cursor: pointer;">
+                                        Title <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('customer')" style="cursor: pointer;">
+                                        Customer <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('startDate')" style="cursor: pointer;">
+                                        Start Date <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('endDate')" style="cursor: pointer;">
+                                        End Date <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('status')" style="cursor: pointer;">
+                                        Status <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('devices')" style="cursor: pointer;">
+                                        Devices <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
+                                    <th class="sortable" onclick="sortTable('revenue')" style="cursor: pointer;">
+                                        Revenue <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
+                                    </th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {{range .jobs}}
-                                <tr data-job-id="{{.JobID}}">
+                                <tr data-job-id="{{.JobID}}"
+                                    data-customer="{{.CustomerName}}"
+                                    data-status-id="{{.StatusID}}"
+                                    data-status-name="{{.StatusName}}"
+                                    data-device-count="{{.DeviceCount}}"
+                                    data-revenue="{{.TotalRevenue}}"
+                                    data-start-date="{{if .StartDate}}{{.StartDate.Format "2006-01-02"}}{{else}}{{end}}"
+                                    data-end-date="{{if .EndDate}}{{.EndDate.Format "2006-01-02"}}{{else}}{{end}}"
+                                    data-title="{{.Description}}">
                                     <td><span class="rc-text-mono">{{.JobID}}</span></td>
                                     <td>{{.Description}}</td>
                                     <td>{{.CustomerName}}</td>
@@ -3306,6 +3346,123 @@
             displayEditJobSelectedFiles();
         }
     }
+
+    // Table Sorting and Filtering
+    let currentSort = { column: null, ascending: true };
+
+    function sortTable(column) {
+        const table = document.getElementById('jobsTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        // Toggle sort direction if same column
+        if (currentSort.column === column) {
+            currentSort.ascending = !currentSort.ascending;
+        } else {
+            currentSort.column = column;
+            currentSort.ascending = true;
+        }
+
+        // Sort rows
+        rows.sort((a, b) => {
+            let aVal, bVal;
+
+            switch(column) {
+                case 'id':
+                    aVal = parseInt(a.dataset.jobId);
+                    bVal = parseInt(b.dataset.jobId);
+                    break;
+                case 'title':
+                    aVal = (a.dataset.title || '').toLowerCase();
+                    bVal = (b.dataset.title || '').toLowerCase();
+                    break;
+                case 'customer':
+                    aVal = (a.dataset.customer || '').toLowerCase();
+                    bVal = (b.dataset.customer || '').toLowerCase();
+                    break;
+                case 'startDate':
+                    aVal = a.dataset.startDate || '';
+                    bVal = b.dataset.startDate || '';
+                    break;
+                case 'endDate':
+                    aVal = a.dataset.endDate || '';
+                    bVal = b.dataset.endDate || '';
+                    break;
+                case 'status':
+                    aVal = (a.dataset.statusName || '').toLowerCase();
+                    bVal = (b.dataset.statusName || '').toLowerCase();
+                    break;
+                case 'devices':
+                    aVal = parseInt(a.dataset.deviceCount);
+                    bVal = parseInt(b.dataset.deviceCount);
+                    break;
+                case 'revenue':
+                    aVal = parseFloat(a.dataset.revenue);
+                    bVal = parseFloat(b.dataset.revenue);
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (aVal < bVal) return currentSort.ascending ? -1 : 1;
+            if (aVal > bVal) return currentSort.ascending ? 1 : -1;
+            return 0;
+        });
+
+        // Update icons
+        table.querySelectorAll('th.sortable i').forEach(icon => {
+            icon.className = 'bi bi-arrow-down-up';
+            icon.style.opacity = '0.5';
+        });
+
+        const activeHeader = table.querySelector(`th[onclick="sortTable('${column}')"] i`);
+        if (activeHeader) {
+            activeHeader.className = currentSort.ascending ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+            activeHeader.style.opacity = '1';
+        }
+
+        // Re-append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    function filterTable() {
+        const customerFilter = document.getElementById('filterCustomer').value.toLowerCase();
+        const statusFilter = document.getElementById('filterStatus').value;
+        const minDevices = parseInt(document.getElementById('filterMinDevices').value) || 0;
+
+        const table = document.getElementById('jobsTable');
+        const rows = table.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const customer = (row.dataset.customer || '').toLowerCase();
+            const statusId = row.dataset.statusId;
+            const deviceCount = parseInt(row.dataset.deviceCount);
+
+            const customerMatch = !customerFilter || customer.includes(customerFilter);
+            const statusMatch = !statusFilter || statusId === statusFilter;
+            const devicesMatch = deviceCount >= minDevices;
+
+            if (customerMatch && statusMatch && devicesMatch) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function clearFilters() {
+        document.getElementById('filterCustomer').value = '';
+        document.getElementById('filterStatus').value = '';
+        document.getElementById('filterMinDevices').value = '';
+        filterTable();
+    }
+
+    // Attach filter event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('filterCustomer')?.addEventListener('input', filterTable);
+        document.getElementById('filterStatus')?.addEventListener('change', filterTable);
+        document.getElementById('filterMinDevices')?.addEventListener('input', filterTable);
+    });
 
     </script>
     

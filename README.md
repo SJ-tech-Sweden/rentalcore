@@ -385,7 +385,18 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.23** (Latest) - Device Tree View Button Fix
+### **v2.24** (Latest) - Jobs Table Filtering and Sorting
+- ✅ **Column Sorting**: Click column headers to sort ascending/descending
+- ✅ **Sort Indicators**: Dynamic arrow icons show current sort state
+- ✅ **Customer Filter**: Real-time text search for customer names
+- ✅ **Status Filter**: Dropdown to filter by job status
+- ✅ **Device Count Filter**: Minimum device count filter
+- ✅ **Clear Filters**: One-click button to reset all filters
+- ✅ **Smart Sorting**: Handles numbers, dates, and text correctly
+- ✅ **Visual Feedback**: Active sort column highlighted
+- ✅ **Fixes GitLab Issue #6**: Complete table filtering and sorting
+
+### **v2.23** - Device Tree View Button Fix
 - ✅ **Tree View Button Works**: Fixed unresponsive "Tree View" button in job creation form
 - ✅ **Event Handler Added**: Added click event handler for toggleTreeView button
 - ✅ **Smart Date Validation**: Prompts user to select dates before loading device tree
