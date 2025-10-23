@@ -642,7 +642,8 @@
         // Device selection functionality
         let selectedDevices = new Set();
         let deviceTreeData = null;
-        
+        let expandedNodes = new Set(); // Track expanded tree nodes
+
         document.addEventListener('DOMContentLoaded', function() {
             // Listen for date changes
             const startDateInput = document.querySelector('input[name="start_date"]');
@@ -825,15 +826,20 @@
         }
         
         function renderCategoryHtml(category) {
+            const nodeId = `category-${category.id}`;
+            const isExpanded = expandedNodes.has(nodeId);
+            const displayStyle = isExpanded ? 'block' : 'none';
+            const chevronClass = isExpanded ? 'bi bi-chevron-right tree-chevron expanded' : 'bi bi-chevron-right tree-chevron';
+
             let html = `
                 <div class="tree-category">
-                    <div class="tree-category-header" onclick="toggleTreeNode('category-${category.id}')">
-                        <i class="bi bi-chevron-right tree-chevron" id="chevron-category-${category.id}"></i>
+                    <div class="tree-category-header" onclick="toggleTreeNode('${nodeId}')">
+                        <i class="${chevronClass}" id="chevron-${nodeId}"></i>
                         <i class="bi bi-folder2 tree-icon category-icon"></i>
                         <span class="tree-title">${category.name}</span>
                         <span class="tree-count">${category.device_count} devices</span>
                     </div>
-                    <div class="tree-content" id="category-${category.id}" style="display: none;">
+                    <div class="tree-content" id="${nodeId}" style="display: ${displayStyle};">
             `;
             
             // Direct devices in category
@@ -855,15 +861,20 @@
         }
         
         function renderSubcategoryHtml(subcategory) {
+            const nodeId = `subcategory-${subcategory.id}`;
+            const isExpanded = expandedNodes.has(nodeId);
+            const displayStyle = isExpanded ? 'block' : 'none';
+            const chevronClass = isExpanded ? 'bi bi-chevron-right tree-chevron expanded' : 'bi bi-chevron-right tree-chevron';
+
             let html = `
                 <div class="tree-subcategory">
-                    <div class="tree-subcategory-header" onclick="toggleTreeNode('subcategory-${subcategory.id}')">
-                        <i class="bi bi-chevron-right tree-chevron" id="chevron-subcategory-${subcategory.id}"></i>
+                    <div class="tree-subcategory-header" onclick="toggleTreeNode('${nodeId}')">
+                        <i class="${chevronClass}" id="chevron-${nodeId}"></i>
                         <i class="bi bi-folder tree-icon subcategory-icon"></i>
                         <span class="tree-title">${subcategory.name}</span>
                         <span class="tree-count">${subcategory.device_count} devices</span>
                     </div>
-                    <div class="tree-content" id="subcategory-${subcategory.id}" style="display: none;">
+                    <div class="tree-content" id="${nodeId}" style="display: ${displayStyle};">
             `;
             
             // Direct devices in subcategory
@@ -885,15 +896,20 @@
         }
         
         function renderSubbiercategoryHtml(subbiercategory) {
+            const nodeId = `subbiercategory-${subbiercategory.id}`;
+            const isExpanded = expandedNodes.has(nodeId);
+            const displayStyle = isExpanded ? 'block' : 'none';
+            const chevronClass = isExpanded ? 'bi bi-chevron-right tree-chevron expanded' : 'bi bi-chevron-right tree-chevron';
+
             let html = `
                 <div class="tree-subbiercategory">
-                    <div class="tree-subbiercategory-header" onclick="toggleTreeNode('subbiercategory-${subbiercategory.id}')">
-                        <i class="bi bi-chevron-right tree-chevron" id="chevron-subbiercategory-${subbiercategory.id}"></i>
+                    <div class="tree-subbiercategory-header" onclick="toggleTreeNode('${nodeId}')">
+                        <i class="${chevronClass}" id="chevron-${nodeId}"></i>
                         <i class="bi bi-folder-fill tree-icon subbiercategory-icon"></i>
                         <span class="tree-title">${subbiercategory.name}</span>
                         <span class="tree-count">${subbiercategory.device_count} devices</span>
                     </div>
-                    <div class="tree-content" id="subbiercategory-${subbiercategory.id}" style="display: none;">
+                    <div class="tree-content" id="${nodeId}" style="display: ${displayStyle};">
             `;
             
             // Devices in subbiercategory
@@ -939,14 +955,16 @@
         function toggleTreeNode(nodeId) {
             const contentDiv = document.getElementById(nodeId);
             const chevron = document.getElementById('chevron-' + nodeId);
-            
+
             if (contentDiv && chevron) {
                 if (contentDiv.style.display === 'none') {
                     contentDiv.style.display = 'block';
                     chevron.classList.add('expanded');
+                    expandedNodes.add(nodeId); // Track expanded state
                 } else {
                     contentDiv.style.display = 'none';
                     chevron.classList.remove('expanded');
+                    expandedNodes.delete(nodeId); // Remove from expanded state
                 }
             }
         }

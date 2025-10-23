@@ -385,7 +385,16 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.25** (Latest) - Smart Product/Amount Selection
+### **v2.26** (Latest) - Persistent Tree Expand State
+- ✅ **Expand State Tracking**: Tree nodes remember their expanded/collapsed state
+- ✅ **No Auto-Collapse**: Selecting a device no longer collapses the tree
+- ✅ **Smart State Restoration**: Expanded nodes stay open when tree re-renders
+- ✅ **All Levels**: Works for categories, subcategories, and product groups
+- ✅ **Visual Feedback**: Chevron icons reflect current state
+- ✅ **Improved UX**: Users can select multiple devices without re-expanding
+- ✅ **Fixes GitLab Issue #8**: Tree view auto-collapse prevention
+
+### **v2.25** - Smart Product/Amount Selection
 - ✅ **Quick Add Button**: New "Quick Add by Product" button in device selection
 - ✅ **Product Dropdown**: Auto-populated with all available products from device tree
 - ✅ **Quantity Input**: Specify how many devices to add
