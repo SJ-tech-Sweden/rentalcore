@@ -78,8 +78,18 @@ func (Job) TableName() string {
 	return "jobs"
 }
 
+func (j *Job) BeforeCreate(tx *gorm.DB) error {
+	// Set a temporary job_code before insert to satisfy NOT NULL constraint
+	// The actual code will be set in AfterCreate once we have the JobID
+	if j.JobCode == "" {
+		j.JobCode = "PENDING"
+	}
+	return nil
+}
+
 func (j *Job) AfterCreate(tx *gorm.DB) error {
 	code := fmt.Sprintf("JOB%06d", j.JobID)
+	j.JobCode = code
 	return tx.Model(j).Update("job_code", code).Error
 }
 

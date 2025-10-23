@@ -385,7 +385,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.14** (Latest) - Improved Dropdown Auto-Scroll
+### **v2.22** (Latest) - Job Creation Fix
+- ✅ **Fixed HTTP 500 Error**: Fixed job creation failure caused by missing job_code
+- ✅ **BeforeCreate Hook**: Added BeforeCreate hook to set temporary job_code before INSERT
+- ✅ **Database Constraint Fix**: Satisfies NOT NULL constraint on job_code column
+- ✅ **Automatic Job Codes**: Job codes still generated as JOB000123 format after insert
+- ✅ **Production Ready**: Job creation now works reliably without errors
+
+### **v2.14** - Improved Dropdown Auto-Scroll
 - ✅ **Complete Visibility**: Last dropdown item now fully visible without manual scrolling
 - ✅ **Precise Targeting**: Scrolls directly to last dropdown item instead of container
 - ✅ **Enhanced Timing**: Increased delay to 150ms for complete CSS transition
