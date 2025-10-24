@@ -385,7 +385,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.28** (Latest) - Device Availability Check Fix
+### **v2.29** (Latest) - Job Title Display Update
+- ✅ **JobCode Display**: Show JobCode (e.g., JOB000123) instead of description in jobs table
+- ✅ **Cleaner UI**: Title column now shows structured job codes
+- ✅ **Consistent Formatting**: Job codes displayed with monospace font
+- ✅ **Better Identification**: Easier to reference specific jobs by code
+- ✅ **Fixes GitLab Issue #10**: Description removed from job title display
+
+### **v2.28** - Device Availability Check Fix
 - ✅ **Nil Pointer Fix**: Fixed panic in IsDeviceAvailableForJob when checking device availability
 - ✅ **Proper Error Handling**: Added nil check before calling err.Error()
 - ✅ **Stability Improvement**: Prevents crashes during device assignment checks

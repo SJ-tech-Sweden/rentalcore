@@ -131,9 +131,9 @@
                                     data-revenue="{{.TotalRevenue}}"
                                     data-start-date="{{if .StartDate}}{{.StartDate.Format "2006-01-02"}}{{else}}{{end}}"
                                     data-end-date="{{if .EndDate}}{{.EndDate.Format "2006-01-02"}}{{else}}{{end}}"
-                                    data-title="{{.Description}}">
+                                    data-title="{{.JobCode}}">
                                     <td><span class="rc-text-mono">{{.JobID}}</span></td>
-                                    <td>{{.Description}}</td>
+                                    <td><span class="rc-text-mono">{{.JobCode}}</span></td>
                                     <td>{{.CustomerName}}</td>
                                     <td><span class="rc-text-sm">{{if .StartDate}}{{.StartDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
                                     <td><span class="rc-text-sm">{{if .EndDate}}{{.EndDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
