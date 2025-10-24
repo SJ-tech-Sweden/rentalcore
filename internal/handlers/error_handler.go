@@ -22,16 +22,25 @@ func SafeHTML(c *gin.Context, statusCode int, templateName string, data gin.H) {
 	if data == nil {
 		data = gin.H{}
 	}
-	
+
 	// Get user context if not already provided
 	if _, exists := data["user"]; !exists {
 		user, _ := GetCurrentUser(c)
 		data["user"] = user
 	}
-	
+
 	// Ensure title is always provided
 	if _, exists := data["title"]; !exists {
 		data["title"] = "TS Jobscanner"
+	}
+
+	// Add scanner_enabled flag from context if available
+	if _, exists := data["scanner_enabled"]; !exists {
+		if scannerEnabled, exists := c.Get("scanner_enabled"); exists {
+			data["scanner_enabled"] = scannerEnabled
+		} else {
+			data["scanner_enabled"] = true // Default to enabled for backwards compatibility
+		}
 	}
 	
 	// Attempt to render the template

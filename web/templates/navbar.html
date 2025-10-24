@@ -75,10 +75,12 @@
             <span class="rc-nav-label">Dashboard</span>
         </a>
 
+        {{if .scanner_enabled}}
         <a href="/scan" class="rc-nav-item {{if eq .currentPage "scan"}}active{{end}}" title="Scanner">
             <i class="bi bi-upc-scan"></i>
             <span class="rc-nav-label">Scanner</span>
         </a>
+        {{end}}
 
         <a href="/jobs" class="rc-nav-item {{if eq .currentPage "jobs"}}active{{end}}" title="Jobs">
             <i class="bi bi-briefcase"></i>

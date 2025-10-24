@@ -19,6 +19,7 @@ type Config struct {
 	Security SecurityConfig `json:"security"`
 	Logging  LoggingConfig  `json:"logging"`
 	Backup   BackupConfig   `json:"backup"`
+	Features FeaturesConfig `json:"features"`
 }
 
 type DatabaseConfig struct {
@@ -105,6 +106,10 @@ type BackupConfig struct {
 	Interval      int    `json:"interval"`
 	RetentionDays int    `json:"retention_days"`
 	Path          string `json:"path"`
+}
+
+type FeaturesConfig struct {
+	ScannerEnabled bool `json:"scanner_enabled"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -235,6 +240,9 @@ func getDefaultConfig() *Config {
 			RetentionDays: 30,
 			Path:          "backups/",
 		},
+		Features: FeaturesConfig{
+			ScannerEnabled: true, // Enabled by default for backwards compatibility
+		},
 	}
 }
 
@@ -343,5 +351,10 @@ func loadFromEnvironment(config *Config) {
 		if r, err := strconv.Atoi(retention); err == nil {
 			config.Backup.RetentionDays = r
 		}
+	}
+
+	// Features configuration
+	if scannerEnabled := os.Getenv("SCANNER_ENABLED"); scannerEnabled != "" {
+		config.Features.ScannerEnabled = scannerEnabled == "true"
 	}
 }

@@ -385,7 +385,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.26** (Latest) - Persistent Tree Expand State
+### **v2.27** (Latest) - Scanner Feature Toggle
+- ✅ **Feature Flag System**: New `SCANNER_ENABLED` environment variable
+- ✅ **Configurable Scanner**: Scanner functionality can now be disabled without removing code
+- ✅ **UI Integration**: Scanner nav link automatically hidden when disabled
+- ✅ **Route Protection**: Scanner routes conditionally registered based on config
+- ✅ **API Protection**: Scanner API endpoints conditionally enabled
+- ✅ **Backwards Compatible**: Scanner enabled by default (set `SCANNER_ENABLED=false` to disable)
+- ✅ **Clean Architecture**: Code remains in place, only activation controlled
+- ✅ **Fixes GitLab Issue #12**: Scanner function can be disabled via configuration
+
+### **v2.26** - Persistent Tree Expand State
 - ✅ **Expand State Tracking**: Tree nodes remember their expanded/collapsed state
 - ✅ **No Auto-Collapse**: Selecting a device no longer collapses the tree
 - ✅ **Smart State Restoration**: Expanded nodes stay open when tree re-renders
