@@ -385,7 +385,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.27** (Latest) - Scanner Feature Toggle
+### **v2.28** (Latest) - Device Availability Check Fix
+- ✅ **Nil Pointer Fix**: Fixed panic in IsDeviceAvailableForJob when checking device availability
+- ✅ **Proper Error Handling**: Added nil check before calling err.Error()
+- ✅ **Stability Improvement**: Prevents crashes during device assignment checks
+- ✅ **Database Query Safety**: Ensures graceful handling of "not found" cases
+- ✅ **Fixes GitLab Issue #11**: Device availability check no longer crashes
+
+### **v2.27** - Scanner Feature Toggle
 - ✅ **Feature Flag System**: New `SCANNER_ENABLED` environment variable
 - ✅ **Configurable Scanner**: Scanner functionality can now be disabled without removing code
 - ✅ **UI Integration**: Scanner nav link automatically hidden when disabled

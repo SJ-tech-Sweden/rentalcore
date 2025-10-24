@@ -591,7 +591,8 @@ func (r *DeviceRepository) IsDeviceAvailableForJob(deviceID string, jobID uint, 
 		return false, &conflictingJob, nil
 	}
 
-	if err.Error() != "record not found" {
+	// Check if error is something other than "not found" - must check err != nil first
+	if err != nil && err.Error() != "record not found" {
 		log.Printf("❌ IsDeviceAvailableForJob: Database error checking conflicts: %v", err)
 		return false, nil, fmt.Errorf("database error checking device availability: %v", err)
 	}
