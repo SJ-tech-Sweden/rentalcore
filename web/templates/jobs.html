@@ -1265,7 +1265,7 @@
         }
         
         return `
-            <div class="${classes}" ${onclick}>
+            <div class="${classes}" data-device-id="${device.device_id}" ${onclick}>
                 <div class="device-info">
                     <div class="device-name">${device.product_name}</div>
                     <div class="device-details">
@@ -1337,9 +1337,18 @@
     }
 
     function updateEditDeviceTreeDisplay() {
-        if (editDeviceTreeData) {
-            renderEditDeviceTree(editDeviceTreeData);
-        }
+        // Instead of re-rendering entire tree (which collapses all nodes),
+        // just update the selected/unselected visual state of devices
+        document.querySelectorAll('.tree-device').forEach(deviceEl => {
+            const deviceId = deviceEl.dataset.deviceId;
+            if (deviceId) {
+                if (editSelectedDevices.has(deviceId)) {
+                    deviceEl.classList.add('selected');
+                } else {
+                    deviceEl.classList.remove('selected');
+                }
+            }
+        });
     }
 
     function findEditDeviceInTree(deviceId) {
