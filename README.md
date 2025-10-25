@@ -385,7 +385,15 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.33** (Latest) - Device Tree Auto-Load
+### **v2.34** (Latest) - Device Tree Backend Fix
+- ✅ **Backend API Updated**: Dates now optional in `/api/v1/devices/tree/availability`
+- ✅ **Fixed Date Requirement**: Backend no longer returns error when dates missing
+- ✅ **All Devices Available**: Without dates, all devices shown as available
+- ✅ **Date Filtering Works**: When dates provided, proper availability checking
+- ✅ **Complete Fix**: Both frontend and backend now support date-optional loading
+- ✅ **Job Creation Works**: Device tree now truly loads on new job creation
+
+### **v2.33** - Device Tree Auto-Load
 - ✅ **Always Load Device Tree**: Removes date dependency for loading device tree
 - ✅ **Automatic Loading**: Tree loads immediately on page load/modal open
 - ✅ **Optional Date Filtering**: If dates provided, they filter availability
