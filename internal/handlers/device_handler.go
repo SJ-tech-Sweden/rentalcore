@@ -773,32 +773,37 @@ func (h *DeviceHandler) GetDeviceTreeWithAvailability(c *gin.Context) {
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
 	jobID := c.Query("job_id") // Optional - exclude this job from availability check
-	
-	if startDate == "" || endDate == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "start_date and end_date are required"})
-		return
+
+	var treeData interface{}
+	var err error
+
+	// If dates are provided, use availability checking
+	if startDate != "" && endDate != "" {
+		// Parse dates
+		start, parseErr := time.Parse("2006-01-02", startDate)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format. Use YYYY-MM-DD"})
+			return
+		}
+
+		end, parseErr := time.Parse("2006-01-02", endDate)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format. Use YYYY-MM-DD"})
+			return
+		}
+
+		// Get tree data with availability information
+		treeData, err = h.buildTreeDataWithAvailability(start, end, jobID)
+	} else {
+		// No dates provided - return all devices as available
+		treeData, err = h.buildTreeDataWithAllAvailable(jobID)
 	}
-	
-	// Parse dates
-	start, err := time.Parse("2006-01-02", startDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format. Use YYYY-MM-DD"})
-		return
-	}
-	
-	end, err := time.Parse("2006-01-02", endDate)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format. Use YYYY-MM-DD"})
-		return
-	}
-	
-	// Get tree data with availability information
-	treeData, err := h.buildTreeDataWithAvailability(start, end, jobID)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"treeData": treeData})
 }
 
@@ -864,6 +869,21 @@ func (h *DeviceHandler) buildTreeData() ([]TreeCategory, error) {
 }
 
 // buildTreeDataWithAvailability creates tree structure with device availability for date range
+// buildTreeDataWithAllAvailable returns tree data with all devices marked as available
+func (h *DeviceHandler) buildTreeDataWithAllAvailable(excludeJobID string) ([]TreeCategory, error) {
+	// Get tree data without checking availability
+	treeCategories, err := h.buildOptimizedTreeData()
+	if err != nil {
+		return nil, err
+	}
+
+	// Mark all devices as available
+	emptyConflicts := make(map[string]string)
+	h.updateTreeAvailability(treeCategories, emptyConflicts)
+
+	return treeCategories, nil
+}
+
 func (h *DeviceHandler) buildTreeDataWithAvailability(startDate, endDate time.Time, excludeJobID string) ([]TreeCategory, error) {
 	// Get conflicting jobs for the date range first (more efficient)
 	var conflictingJobs []struct {
