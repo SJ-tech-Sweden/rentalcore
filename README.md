@@ -385,7 +385,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.34** (Latest) - Device Tree Backend Fix
+### **v2.35** (Latest) - Edit Modal Device Tree Fix
+- ✅ **Edit Modal Fixed**: Device tree now loads automatically in edit job modal
+- ✅ **Removed Date Check**: No longer checks for dates before loading tree
+- ✅ **Immediate Loading**: Tree appears instantly when opening edit modal
+- ✅ **Consistent Behavior**: Same auto-load behavior as job creation form
+- ✅ **Complete Coverage**: All modals now auto-load device tree
+
+### **v2.34** - Device Tree Backend Fix
 - ✅ **Backend API Updated**: Dates now optional in `/api/v1/devices/tree/availability`
 - ✅ **Fixed Date Requirement**: Backend no longer returns error when dates missing
 - ✅ **All Devices Available**: Without dates, all devices shown as available
