@@ -156,7 +156,7 @@
                     <span class="rc-breadcrumb-item rc-breadcrumb-current">Job #{{.job.JobID}}</span>
                 </nav>
                 
-                <h1 class="rc-heading-1 rc-mb-sm">{{.job.Description}}</h1>
+                <h1 class="rc-heading-1 rc-mb-sm">Job #{{.job.JobID}}</h1>
                 <div class="rc-flex rc-flex-gap-md" style="align-items: center;">
                     <span class="rc-text-secondary">
                         <i class="bi bi-person"></i> {{.job.Customer.GetDisplayName}}
@@ -185,6 +185,12 @@
                     </div>
                     <div class="rc-card-body">
                         <div class="info-grid">
+                            {{if .job.Description}}
+                            <div class="info-item" style="grid-column: span 2;">
+                                <label>Description</label>
+                                <span>{{.job.Description}}</span>
+                            </div>
+                            {{end}}
                             <div class="info-item">
                                 <label>Start Date</label>
                                 <span>{{if .job.StartDate}}{{.job.StartDate.Format "02.01.2006"}}{{else}}-{{end}}</span>
