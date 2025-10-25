@@ -385,7 +385,18 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.30** (Latest) - Multiple GitLab Issues Resolved
+### **v2.31** (Latest) - Quick Add by Product/Quantity
+- ✅ **Quick Add Interface** (Issue #7): New Quick Add section in job edit modal
+- ✅ **Product Dropdown**: Auto-populated with all available products and device counts
+- ✅ **Quantity Selection**: Specify how many devices to add in one click
+- ✅ **Smart Auto-Selection**: System automatically selects requested number of available devices
+- ✅ **Availability Validation**: Shows warnings if not enough devices available
+- ✅ **Duplicate Prevention**: Skips already-selected devices
+- ✅ **Real-time Feedback**: Success/warning messages with auto-dismiss
+- ✅ **Auto-Reset**: Form resets after successful add for quick repeated use
+- ✅ **UX Enhancement**: Dramatically speeds up device assignment workflow
+
+### **v2.30** - Multiple GitLab Issues Resolved
 - ✅ **Scanner Disabled** (Issue #12): Scanner functionality disabled via config (`SCANNER_ENABLED=false`)
 - ✅ **Uncategorized Devices** (Issue #11): Devices without product/category now appear in "Uncategorized Devices" section
 - ✅ **Job Title Fix** (Issue #10): Job detail page now shows "Job #ID" instead of description as main heading
