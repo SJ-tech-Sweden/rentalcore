@@ -998,12 +998,15 @@ func (h *DeviceHandler) buildOptimizedTreeData() ([]TreeCategory, error) {
 // buildTreeFromDevices constructs the hierarchical tree from a flat list of devices
 // COMPLETELY REWRITTEN with proper nested structure building
 func (h *DeviceHandler) buildTreeFromDevices(devices []models.Device) ([]TreeCategory, error) {
-	
+
 	// Group devices by their hierarchy path
 	categoryGroups := make(map[uint]map[string]map[string][]models.Device)
-	
+	uncategorizedDevices := []models.Device{} // Track devices without proper category
+
 	for _, device := range devices {
 		if device.Product == nil || device.Product.Category == nil {
+			// Instead of skipping, collect uncategorized devices
+			uncategorizedDevices = append(uncategorizedDevices, device)
 			continue
 		}
 		
@@ -1165,9 +1168,25 @@ func (h *DeviceHandler) buildTreeFromDevices(devices []models.Device) ([]TreeCat
 	sort.Slice(treeCategories, func(i, j int) bool {
 		return treeCategories[i].Name < treeCategories[j].Name
 	})
-	
-	
-	
+
+	// Add uncategorized devices as a separate category if any exist
+	if len(uncategorizedDevices) > 0 {
+		uncategorizedCategory := TreeCategory{
+			ID:            0, // Special ID for uncategorized
+			Name:          "⚠️ Uncategorized Devices",
+			DeviceCount:   len(uncategorizedDevices),
+			DirectDevices: []TreeDevice{},
+			Subcategories: []TreeSubcategory{},
+		}
+
+		for _, device := range uncategorizedDevices {
+			uncategorizedCategory.DirectDevices = append(uncategorizedCategory.DirectDevices, h.convertToTreeDevice(device))
+		}
+
+		// Add uncategorized category at the end
+		treeCategories = append(treeCategories, uncategorizedCategory)
+	}
+
 	return treeCategories, nil
 }
 
