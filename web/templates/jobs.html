@@ -763,6 +763,32 @@
                                             </div>
                                         </div>
                                         <div class="rc-card-body">
+                                            <!-- Quick Add by Product Section -->
+                                            <div class="rc-mb-lg" style="background: rgba(0, 174, 199, 0.1); padding: var(--space-md); border-radius: 8px; border: 1px solid rgba(0, 174, 199, 0.3);">
+                                                <div class="rc-flex rc-flex-between rc-flex-align-center rc-mb-sm">
+                                                    <h6 class="rc-heading-6" style="margin: 0; color: var(--info);">
+                                                        <i class="bi bi-lightning-charge-fill"></i> Quick Add by Product
+                                                    </h6>
+                                                    <small style="color: var(--text-muted);">Select product and quantity to auto-add devices</small>
+                                                </div>
+                                                <div class="rc-flex rc-flex-gap-md rc-flex-align-end" style="flex-wrap: wrap;">
+                                                    <div style="flex: 1; min-width: 250px;">
+                                                        <label class="rc-label" style="font-size: 0.875rem;">Product</label>
+                                                        <select id="quickAddProductSelect" class="rc-select" style="width: 100%;">
+                                                            <option value="">-- Select a product --</option>
+                                                        </select>
+                                                    </div>
+                                                    <div style="width: 120px;">
+                                                        <label class="rc-label" style="font-size: 0.875rem;">Quantity</label>
+                                                        <input type="number" id="quickAddQuantity" class="rc-input" placeholder="1" min="1" value="1" style="width: 100%;">
+                                                    </div>
+                                                    <button type="button" onclick="quickAddDevicesByProduct()" class="rc-btn rc-btn-primary">
+                                                        <i class="bi bi-plus-circle"></i> Add Devices
+                                                    </button>
+                                                </div>
+                                                <div id="quickAddFeedback" class="rc-mt-sm" style="display: none; font-size: 0.875rem;"></div>
+                                            </div>
+
                                             <div id="editDeviceSelectionContainer">
                                                 <div id="loadingEditDevices" class="rc-flex rc-flex-center rc-py-xl">
                                                     <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
@@ -1170,6 +1196,142 @@
         
         html += '</div>';
         container.innerHTML = html;
+
+        // Populate product dropdown for quick add
+        populateQuickAddProducts(treeData);
+    }
+
+    function populateQuickAddProducts(treeData) {
+        const select = document.getElementById('quickAddProductSelect');
+        if (!select || !treeData) return;
+
+        // Clear existing options except first
+        select.innerHTML = '<option value="">-- Select a product --</option>';
+
+        // Collect all unique products from the tree
+        const products = new Map(); // productName -> array of devices
+
+        function collectProducts(devices) {
+            if (!devices) return;
+            devices.forEach(device => {
+                if (device.product_name && device.available) {
+                    if (!products.has(device.product_name)) {
+                        products.set(device.product_name, []);
+                    }
+                    products.get(device.product_name).push(device);
+                }
+            });
+        }
+
+        // Traverse tree to collect all devices
+        treeData.forEach(category => {
+            collectProducts(category.direct_devices);
+            if (category.subcategories) {
+                category.subcategories.forEach(sub => {
+                    collectProducts(sub.direct_devices);
+                    if (sub.subbiercategories) {
+                        sub.subbiercategories.forEach(subsub => {
+                            collectProducts(subsub.devices);
+                        });
+                    }
+                });
+            }
+        });
+
+        // Sort products alphabetically and add to dropdown
+        const sortedProducts = Array.from(products.keys()).sort();
+        sortedProducts.forEach(productName => {
+            const deviceCount = products.get(productName).length;
+            const option = document.createElement('option');
+            option.value = productName;
+            option.textContent = `${productName} (${deviceCount} available)`;
+            select.appendChild(option);
+        });
+    }
+
+    function quickAddDevicesByProduct() {
+        const productName = document.getElementById('quickAddProductSelect').value;
+        const quantity = parseInt(document.getElementById('quickAddQuantity').value) || 1;
+        const feedback = document.getElementById('quickAddFeedback');
+
+        if (!productName) {
+            feedback.innerHTML = '<span style="color: var(--warning);"><i class="bi bi-exclamation-triangle"></i> Please select a product</span>';
+            feedback.style.display = 'block';
+            setTimeout(() => feedback.style.display = 'none', 3000);
+            return;
+        }
+
+        if (quantity < 1) {
+            feedback.innerHTML = '<span style="color: var(--warning);"><i class="bi bi-exclamation-triangle"></i> Quantity must be at least 1</span>';
+            feedback.style.display = 'block';
+            setTimeout(() => feedback.style.display = 'none', 3000);
+            return;
+        }
+
+        // Find all available devices for this product
+        const availableDevices = [];
+
+        function findDevicesByProduct(devices) {
+            if (!devices) return;
+            devices.forEach(device => {
+                if (device.product_name === productName &&
+                    device.available &&
+                    !editSelectedDevices.has(device.device_id)) {
+                    availableDevices.push(device);
+                }
+            });
+        }
+
+        // Traverse tree to find matching devices
+        if (editDeviceTreeData) {
+            editDeviceTreeData.forEach(category => {
+                findDevicesByProduct(category.direct_devices);
+                if (category.subcategories) {
+                    category.subcategories.forEach(sub => {
+                        findDevicesByProduct(sub.direct_devices);
+                        if (sub.subbiercategories) {
+                            sub.subbiercategories.forEach(subsub => {
+                                findDevicesByProduct(subsub.devices);
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        if (availableDevices.length === 0) {
+            feedback.innerHTML = '<span style="color: var(--error);"><i class="bi bi-x-circle"></i> No available devices found for this product</span>';
+            feedback.style.display = 'block';
+            setTimeout(() => feedback.style.display = 'none', 3000);
+            return;
+        }
+
+        // Select the requested quantity (or all available if less)
+        const toSelect = Math.min(quantity, availableDevices.length);
+        let added = 0;
+
+        for (let i = 0; i < toSelect; i++) {
+            editSelectedDevices.add(availableDevices[i].device_id);
+            added++;
+        }
+
+        // Update displays
+        updateEditSelectedDevicesDisplay();
+        updateEditSelectedDevicesInput();
+        updateEditDeviceTreeDisplay();
+
+        // Show feedback
+        if (added === quantity) {
+            feedback.innerHTML = `<span style="color: var(--success);"><i class="bi bi-check-circle"></i> Successfully added ${added} device(s)</span>`;
+        } else {
+            feedback.innerHTML = `<span style="color: var(--warning);"><i class="bi bi-exclamation-triangle"></i> Only ${added} of ${quantity} requested devices were available</span>`;
+        }
+        feedback.style.display = 'block';
+        setTimeout(() => feedback.style.display = 'none', 3000);
+
+        // Reset inputs
+        document.getElementById('quickAddProductSelect').value = '';
+        document.getElementById('quickAddQuantity').value = '1';
     }
 
     function renderEditCategoryHtml(category) {
