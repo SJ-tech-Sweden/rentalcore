@@ -326,6 +326,77 @@ body {
     overflow-x: hidden;
 }
 
+/* ===== GLOBAL SCROLLBAR STYLING ===== */
+/* WebKit Browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: rgba(136, 136, 136, 0.5);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(136, 136, 136, 0.7);
+    background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+    background: rgba(136, 136, 136, 0.9);
+    background-clip: padding-box;
+}
+
+/* Firefox Scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(136, 136, 136, 0.5) rgba(0, 0, 0, 0.2);
+}
+
+/* Thin scrollbar variant for specific elements */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+/* ===== SELECT DROPDOWN OPTION STYLING ===== */
+select option {
+    background-color: #1a1a1a;
+    color: #FFFFFF;
+    padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+    background-color: #2a2a2a;
+    color: #00f5ff;
+}
+
+select option:disabled {
+    color: #666666;
+    background-color: #1a1a1a;
+}
+
+/* ===== SELECT ELEMENT ENHANCEMENT ===== */
+select {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #FFFFFF;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+select:focus {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
 /* Responsive Container System */
 .rc-container {
     width: 100%;
