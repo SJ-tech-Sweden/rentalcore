@@ -385,7 +385,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.29** (Latest) - Job Title Display Update
+### **v2.30** (Latest) - Multiple GitLab Issues Resolved
+- ✅ **Scanner Disabled** (Issue #12): Scanner functionality disabled via config (`SCANNER_ENABLED=false`)
+- ✅ **Uncategorized Devices** (Issue #11): Devices without product/category now appear in "Uncategorized Devices" section
+- ✅ **Job Title Fix** (Issue #10): Job detail page now shows "Job #ID" instead of description as main heading
+- ✅ **Category Filter** (Issue #9): Added job category filter dropdown in jobs table
+- ✅ **Tree Collapse Fix** (Issue #8): Device tree no longer auto-collapses when selecting items
+- ✅ **SQL Improvements**: Added category_name to job list query with proper GROUP BY
+- ✅ **DOM Optimization**: Efficient visual state updates without full tree re-rendering
+- ✅ **UI/UX Enhancements**: Better navigation and filtering experience
+
+### **v2.29** - Job Title Display Update
 - ✅ **JobCode Display**: Show JobCode (e.g., JOB000123) instead of description in jobs table
 - ✅ **Cleaner UI**: Title column now shows structured job codes
 - ✅ **Consistent Formatting**: Job codes displayed with monospace font
