@@ -167,11 +167,8 @@
                 </div>
             </div>
             <div class="rc-flex rc-flex-gap-sm">
-                <a href="/jobs/{{.job.JobID}}/edit" class="rc-btn rc-btn-outline rc-btn-sm">
+                <a href="/jobs/{{.job.JobID}}/edit" class="rc-btn rc-btn-primary rc-btn-sm">
                     <i class="bi bi-pencil"></i> Edit
-                </a>
-                <a href="/scan/{{.job.JobID}}" class="rc-btn rc-btn-primary rc-btn-sm">
-                    <i class="bi bi-qr-code-scan"></i> Scan Devices
                 </a>
             </div>
         </div>
@@ -221,9 +218,6 @@
                 <div class="rc-card">
                     <div class="rc-card-header">
                         <h3 class="rc-card-title"><i class="bi bi-box-seam"></i> Equipment</h3>
-                        <a href="/scan/{{.job.JobID}}" class="rc-btn rc-btn-primary rc-btn-sm">
-                            <i class="bi bi-plus-lg"></i> Add Devices
-                        </a>
                     </div>
                     <div class="rc-card-body">
                         {{if .productGroups}}
@@ -355,7 +349,7 @@
     // Remove device from job
     function removeDeviceFromJob(jobId, deviceId) {
         if (confirm('Remove this device from the job?')) {
-            fetch(`/scan/${jobId}/devices/${deviceId}`, {
+            fetch(`/jobs/${jobId}/devices/${deviceId}`, {
                 method: 'DELETE'
             })
             .then(response => {

@@ -146,9 +146,7 @@
                                     <td><span class="rc-text-sm">{{if .EndDate}}{{.EndDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
                                     <td><span class="rc-badge rc-badge-secondary">{{.StatusName}}</span></td>
                                     <td>
-                                        <button type="button" class="device-count-button" onclick="redirectToScan('{{.JobID}}')" title="Click to scan devices for this job">
-                                            {{.DeviceCount}} devices
-                                        </button>
+                                        <span class="rc-text-mono">{{.DeviceCount}} devices</span>
                                     </td>
                                     <td><span class="rc-text-mono">€{{printf "%.2f" .TotalRevenue}}</span></td>
                                     <td>
@@ -982,10 +980,6 @@
         });
     }
 
-    // Redirect to scan page for specific job
-    function redirectToScan(jobID) {
-        window.location.href = `/scan/${jobID}`;
-    }
 
     // New Job Modal
     function showNewJob() {
@@ -1031,29 +1025,29 @@
                         setTimeout(function() {
                             const startInput = document.querySelector('#newJobModal input[name="start_date"]');
                             const endInput = document.querySelector('#newJobModal input[name="end_date"]');
-                            
+
                             console.log('DEBUG: Modal date inputs found:', {
                                 startInput: !!startInput,
                                 endInput: !!endInput,
                                 startValue: startInput?.value,
                                 endValue: endInput?.value
                             });
-                            
+
                             if (startInput && endInput) {
                                 // Always set up live calculation
                                 setupLiveEndDateCalculation(startInput, endInput);
-                                
+
                                 // Only set default dates if both fields are empty
                                 if (!startInput.value && !endInput.value) {
                                 const today = new Date();
                                 const currentYear = today.getFullYear();
                                 const month = String(today.getMonth() + 1).padStart(2, '0');
                                 const day = String(today.getDate()).padStart(2, '0');
-                                
+
                                 // Set start date to today
                                 const todayString = `${currentYear}-${month}-${day}`;
                                 startInput.value = todayString;
-                                
+
                                 // Set end date to tomorrow
                                 const tomorrow = new Date(today);
                                 tomorrow.setDate(today.getDate() + 1);
@@ -1061,9 +1055,23 @@
                                 const tomorrowDay = String(tomorrow.getDate()).padStart(2, '0');
                                 const tomorrowString = `${tomorrow.getFullYear()}-${tomorrowMonth}-${tomorrowDay}`;
                                 endInput.value = tomorrowString;
-                                
+
                                 console.log('DEBUG: Modal - Set default dates:', todayString, 'to', tomorrowString);
                                 }
+                            }
+
+                            // CRITICAL: Manually trigger device tree loading for modal
+                            // DOMContentLoaded won't fire for dynamically injected content
+                            console.log('DEBUG: Manually triggering device tree load for new job modal');
+                            if (typeof window.initializeJobFormDates === 'function') {
+                                window.initializeJobFormDates();
+                            }
+
+                            // Also try calling loadDeviceTree directly if it exists
+                            const loadBtn = document.querySelector('#newJobModal #refreshDeviceTree');
+                            if (loadBtn) {
+                                console.log('DEBUG: Found refresh button, triggering click');
+                                loadBtn.click();
                             }
                         }, 100);
                     }
