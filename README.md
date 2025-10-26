@@ -130,17 +130,69 @@ nano docker-compose.yml  # Adjust for your environment
 ```
 
 ### 3. Deploy
+
+**🎉 On a fresh system, the database is automatically initialized!**
+
+The `RentalCore.sql` file is automatically imported when you start the stack for the first time. No manual database setup required!
+
 ```bash
-# Start the application
+# Start the application (database auto-initializes on first run)
 docker-compose up -d
 
 # Check status
 docker-compose ps
 docker-compose logs -f rentalcore
 
+# Wait for MySQL to initialize (first run takes ~30 seconds)
+# Watch the logs to see when initialization is complete
+docker-compose logs -f mysql
+
 # Access the application
-open http://localhost:8080
+open http://localhost:8081
 ```
+
+**📝 How Auto-Initialization Works:**
+- On **first start**, MySQL automatically imports `/opt/dev/cores/RentalCore.sql`
+- The database schema and default admin user are created automatically
+- This only happens when the `mysql-data` volume is empty (fresh install)
+
+**🔄 To Reset Database (Fresh Install):**
+```bash
+# Stop and remove volumes (⚠️ DELETES ALL DATA!)
+docker-compose down -v
+
+# Start again (triggers fresh database init)
+docker-compose up -d
+```
+
+**⚠️ Common Issues on Fresh System:**
+
+1. **Restart Loop on First Start?**
+   - **Normal!** MySQL needs 60-90 seconds to import the database
+   - Wait and monitor: `docker-compose logs -f mysql`
+   - Once you see "ready for connections", services will start automatically
+
+2. **Can't Login with admin/admin?**
+   - You likely have an existing MySQL volume from a previous install
+   - **Solution:** `docker-compose down -v` then `docker-compose up -d`
+   - This will delete all data and reinitialize the database
+
+3. **Services Won't Start?**
+   - Check logs: `docker-compose logs --tail=100`
+   - Pull images: `docker-compose pull`
+   - Check ports: `sudo lsof -i :8081 :3306`
+
+**📖 Detailed Troubleshooting:** See [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) for complete deployment instructions and troubleshooting.
+
+### 🔑 Default Login Credentials
+
+The admin user is **automatically created** on first database initialization:
+
+- **Username:** `admin`
+- **Password:** `admin`
+- **Email:** `admin@localhost`
+
+**⚠️ IMPORTANT:** Change the default password immediately after first login for security!
 
 ### 🔄 Integrated Deployment with WarehouseCore
 
