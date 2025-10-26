@@ -81,7 +81,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// Check if user has 2FA enabled
 	var twoFAEnabled bool
 	h.db.Raw("SELECT COALESCE(is_enabled, false) FROM user_2fa WHERE user_id = ?", user.UserID).Scan(&twoFAEnabled)
-	
+
 	if twoFAEnabled {
 		// Store user info in session temporarily for 2FA verification
 		tempSessionID := h.generateSessionID()
@@ -91,7 +91,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			ExpiresAt: time.Now().Add(5 * time.Minute), // Short-lived for 2FA verification
 			CreatedAt: time.Now(),
 		}
-		
+
 		if err := h.db.Create(&tempSession).Error; err != nil {
 			c.HTML(http.StatusInternalServerError, "login.html", gin.H{
 				"title": "Login",
@@ -99,7 +99,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		// Redirect to 2FA verification page
 		cookieDomain := getCookieDomain(c)
 		c.SetCookie("temp_session_id", tempSessionID, 300, "/", cookieDomain, false, true) // 5 minutes
@@ -339,7 +339,7 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 		// Check backup codes
 		var backupCodesJSON string
 		h.db.Raw("SELECT backup_codes FROM user_2fa WHERE user_id = ?", user.UserID).Scan(&backupCodesJSON)
-		
+
 		if backupCodesJSON != "" {
 			var backupCodes []string
 			if json.Unmarshal([]byte(backupCodesJSON), &backupCodes) == nil {
@@ -404,7 +404,7 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		log.Printf("DEBUG: AuthMiddleware: Request URL: %s", c.Request.URL.Path)
-		
+
 		sessionID, err := c.Cookie("session_id")
 		if err != nil || sessionID == "" {
 			log.Printf("DEBUG: AuthMiddleware: No session cookie found for %s, redirecting to /login", c.Request.URL.Path)
@@ -448,8 +448,8 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 		// session.ExpiresAt = time.Now().Add(sessionTimeout)
 		// h.db.Save(&session)
 
-		// Store user in context
-		c.Set("user", user)
+		// Store user in context (as pointer for downstream middlewares)
+		c.Set("user", &user)
 		c.Set("userID", session.UserID)
 		c.Next()
 	}
@@ -461,7 +461,7 @@ func (h *AuthHandler) validateSession(sessionID string) bool {
 	if err := h.db.Where("session_id = ? AND expires_at > ?", sessionID, time.Now()).First(&session).Error; err != nil {
 		return false
 	}
-	
+
 	// Also check if the user is still active
 	var user models.User
 	return h.db.Where("userID = ? AND is_active = ?", session.UserID, true).First(&user).Error == nil
@@ -554,11 +554,11 @@ func (h *AuthHandler) CleanupExpiredSessions() error {
 	if result.Error != nil {
 		return result.Error
 	}
-	
+
 	if result.RowsAffected > 0 {
 		fmt.Printf("DEBUG: Cleaned up %d expired sessions\n", result.RowsAffected)
 	}
-	
+
 	return nil
 }
 
@@ -567,7 +567,7 @@ func (h *AuthHandler) StartSessionCleanup() {
 	go func() {
 		ticker := time.NewTicker(30 * time.Minute) // Clean up every 30 minutes
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
@@ -617,6 +617,9 @@ func (h *AuthHandler) CreateUser(username, email, password, firstName, lastName 
 // GetCurrentUser returns the current authenticated user
 func GetCurrentUser(c *gin.Context) (*models.User, bool) {
 	if user, exists := c.Get("user"); exists {
+		if uPtr, ok := user.(*models.User); ok && uPtr != nil {
+			return uPtr, true
+		}
 		if u, ok := user.(models.User); ok {
 			return &u, true
 		}
@@ -649,7 +652,7 @@ func GetAppDomains(c *gin.Context) (string, string) {
 // ListUsers displays all users
 func (h *AuthHandler) ListUsers(c *gin.Context) {
 	fmt.Printf("DEBUG: ListUsers called - URL: %s\n", c.Request.URL.Path)
-	
+
 	var users []models.User
 	if err := h.db.Order("created_at DESC").Find(&users).Error; err != nil {
 		fmt.Printf("DEBUG: Database error: %v\n", err)
@@ -661,7 +664,7 @@ func (h *AuthHandler) ListUsers(c *gin.Context) {
 	fmt.Printf("DEBUG: Found %d users\n", len(users))
 	currentUser, exists := GetCurrentUser(c)
 	fmt.Printf("DEBUG: Current user exists: %v, User: %+v\n", exists, currentUser)
-	
+
 	fmt.Printf("DEBUG: Rendering users_list.html with currentPage = 'users'\n")
 	c.HTML(http.StatusOK, "users_list.html", gin.H{
 		"title":       "User Management",
@@ -676,16 +679,16 @@ func (h *AuthHandler) ListUsers(c *gin.Context) {
 func (h *AuthHandler) NewUserForm(c *gin.Context) {
 	// Debug: Let's see what's happening
 	fmt.Printf("DEBUG: NewUserForm called - URL: %s\n", c.Request.URL.Path)
-	
+
 	currentUser, exists := GetCurrentUser(c)
 	fmt.Printf("DEBUG: User exists: %v, User: %+v\n", exists, currentUser)
-	
+
 	if !exists || currentUser == nil {
 		fmt.Printf("DEBUG: No user found, redirecting to login\n")
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
 	}
-	
+
 	fmt.Printf("DEBUG: Rendering user_form.html template\n")
 	c.HTML(http.StatusOK, "user_form.html", gin.H{
 		"title":    "Create New User",
@@ -703,7 +706,7 @@ func (h *AuthHandler) CreateUserWeb(c *gin.Context) {
 	firstName := c.PostForm("first_name")
 	lastName := c.PostForm("last_name")
 	isActiveStr := c.PostForm("is_active")
-	
+
 	isActive := isActiveStr == "on" || isActiveStr == "true"
 
 	if username == "" || email == "" || password == "" {
@@ -730,7 +733,7 @@ func (h *AuthHandler) CreateUserWeb(c *gin.Context) {
 		} else {
 			errorMsg = err.Error()
 		}
-		
+
 		currentUser, _ := GetCurrentUser(c)
 		c.HTML(http.StatusInternalServerError, "user_form.html", gin.H{
 			"title": "Create New User",
@@ -753,11 +756,11 @@ func (h *AuthHandler) CreateUserWeb(c *gin.Context) {
 // GetUser displays user details
 func (h *AuthHandler) GetUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var user models.User
 	if err := h.db.Where("userID = ?", userID).First(&user).Error; err != nil {
 		currentUser, _ := GetCurrentUser(c)
-	c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
+		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
 		return
 	}
 
@@ -772,11 +775,11 @@ func (h *AuthHandler) GetUser(c *gin.Context) {
 // EditUserForm displays the edit user form
 func (h *AuthHandler) EditUserForm(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var user models.User
 	if err := h.db.Where("userID = ?", userID).First(&user).Error; err != nil {
 		currentUser, _ := GetCurrentUser(c)
-	c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
+		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
 		return
 	}
 
@@ -791,11 +794,11 @@ func (h *AuthHandler) EditUserForm(c *gin.Context) {
 // UpdateUser handles user updates
 func (h *AuthHandler) UpdateUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	var user models.User
 	if err := h.db.Where("userID = ?", userID).First(&user).Error; err != nil {
 		currentUser, _ := GetCurrentUser(c)
-	c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
+		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "User not found", "user": currentUser})
 		return
 	}
 
@@ -805,7 +808,7 @@ func (h *AuthHandler) UpdateUser(c *gin.Context) {
 	firstName := c.PostForm("first_name")
 	lastName := c.PostForm("last_name")
 	isActiveStr := c.PostForm("is_active")
-	
+
 	isActive := isActiveStr == "on" || isActiveStr == "true"
 
 	if username == "" || email == "" {
@@ -873,7 +876,7 @@ func (h *AuthHandler) UpdateUser(c *gin.Context) {
 // DeleteUser handles user deletion
 func (h *AuthHandler) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
-	
+
 	// Don't allow deleting the current user
 	currentUser, exists := GetCurrentUser(c)
 	if exists && currentUser.UserID == parseUserID(userID) {
@@ -913,15 +916,14 @@ func parseUserID(userIDStr string) uint {
 	if userIDStr == "" {
 		return 0
 	}
-	
+
 	// Convert string to uint
 	if id, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
 		return uint(id)
 	}
-	
+
 	return 0
 }
-
 
 // ================================================================
 // ADMIN USER MANAGEMENT FUNCTIONS
@@ -1044,7 +1046,7 @@ func (h *AuthHandler) AdminBlockUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("User %s successfully", statusText),
+		"message":   fmt.Sprintf("User %s successfully", statusText),
 		"oldStatus": oldStatus,
 		"newStatus": request.IsActive,
 	})

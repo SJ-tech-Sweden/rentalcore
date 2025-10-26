@@ -26,8 +26,13 @@ func getCurrentUser(c *gin.Context) (*models.User, bool) {
 	if !exists {
 		return nil, false
 	}
-	user, ok := userVal.(*models.User)
-	return user, ok
+	if user, ok := userVal.(*models.User); ok && user != nil {
+		return user, true
+	}
+	if user, ok := userVal.(models.User); ok {
+		return &user, true
+	}
+	return nil, false
 }
 
 // RequireRole middleware ensures user has one of the required roles
