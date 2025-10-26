@@ -321,16 +321,17 @@ func (DeviceAssignmentHistory) TableName() string {
 
 // User represents a user account for authentication
 type User struct {
-	UserID       uint       `json:"userID" gorm:"primaryKey;column:userID"`
-	Username     string     `json:"username" gorm:"unique;not null;column:username"`
-	Email        string     `json:"email" gorm:"unique;not null;column:email"`
-	PasswordHash string     `json:"-" gorm:"not null;column:password_hash"`
-	FirstName    string     `json:"firstName" gorm:"column:first_name"`
-	LastName     string     `json:"lastName" gorm:"column:last_name"`
-	IsActive     bool       `json:"isActive" gorm:"default:true;column:is_active"`
-	CreatedAt    time.Time  `json:"createdAt" gorm:"column:created_at"`
-	UpdatedAt    time.Time  `json:"updatedAt" gorm:"column:updated_at"`
-	LastLogin    *time.Time `json:"lastLogin" gorm:"column:last_login"`
+	UserID              uint       `json:"userID" gorm:"primaryKey;column:userID"`
+	Username            string     `json:"username" gorm:"unique;not null;column:username"`
+	Email               string     `json:"email" gorm:"unique;not null;column:email"`
+	PasswordHash        string     `json:"-" gorm:"not null;column:password_hash"`
+	FirstName           string     `json:"firstName" gorm:"column:first_name"`
+	LastName            string     `json:"lastName" gorm:"column:last_name"`
+	IsActive            bool       `json:"isActive" gorm:"default:true;column:is_active"`
+	CreatedAt           time.Time  `json:"createdAt" gorm:"column:created_at"`
+	UpdatedAt           time.Time  `json:"updatedAt" gorm:"column:updated_at"`
+	LastLogin           *time.Time `json:"lastLogin" gorm:"column:last_login"`
+	ForcePasswordChange bool       `json:"forcePasswordChange" gorm:"default:false;column:force_password_change"`
 }
 
 func (User) TableName() string {

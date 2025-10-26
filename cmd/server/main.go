@@ -620,9 +620,17 @@ func setupRoutes(r *gin.Engine,
 	r.GET("/login/2fa", authHandler.Login2FAForm)
 	r.POST("/login/2fa", authHandler.Login2FAVerify)
 	r.GET("/logout", authHandler.Logout)
-	
+
 	// Passkey authentication routes (no auth required for login)
 	auth := r.Group("/auth")
+	{
+		// Force password change (requires session but no role check)
+		auth.GET("/force-password-change", authHandler.ShowForcePasswordChange)
+		auth.POST("/force-password-change", authHandler.HandleForcePasswordChange)
+	}
+
+	// Additional auth routes
+	auth = r.Group("/auth")
 	{
 		passkey := auth.Group("/passkey")
 		{

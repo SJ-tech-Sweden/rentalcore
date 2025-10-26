@@ -137,6 +137,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.SetCookie("session_id", sessionID, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
 	fmt.Printf("DEBUG: Login successful, session created: %s with cookie domain: %s\n", sessionID, cookieDomain)
 
+	// Check if password change is required
+	if user.ForcePasswordChange {
+		fmt.Printf("DEBUG: User %s must change password on first login\n", user.Username)
+		c.Redirect(http.StatusSeeOther, "/auth/force-password-change")
+		return
+	}
+
 	// Redirect to home
 	c.Redirect(http.StatusSeeOther, "/")
 }
@@ -154,6 +161,119 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// Redirect to login
 	c.Redirect(http.StatusSeeOther, "/login")
+}
+
+// ShowForcePasswordChange displays the forced password change form
+func (h *AuthHandler) ShowForcePasswordChange(c *gin.Context) {
+	// Ensure user is logged in
+	sessionID, err := c.Cookie("session_id")
+	if err != nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	// Verify session
+	var session models.Session
+	if err := h.db.Where("session_id = ? AND expires_at > ?", sessionID, time.Now()).First(&session).Error; err != nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	// Get user
+	var user models.User
+	if err := h.db.First(&user, session.UserID).Error; err != nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	c.HTML(http.StatusOK, "force_password_change.html", gin.H{
+		"title":    "Password Change Required",
+		"username": user.Username,
+	})
+}
+
+// HandleForcePasswordChange processes the forced password change
+func (h *AuthHandler) HandleForcePasswordChange(c *gin.Context) {
+	var changeData struct {
+		CurrentPassword string `form:"current_password" binding:"required"`
+		NewPassword     string `form:"new_password" binding:"required,min=8"`
+		ConfirmPassword string `form:"confirm_password" binding:"required"`
+	}
+
+	if err := c.ShouldBind(&changeData); err != nil {
+		c.HTML(http.StatusBadRequest, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "Please fill out all fields. Password must be at least 8 characters.",
+		})
+		return
+	}
+
+	// Verify passwords match
+	if changeData.NewPassword != changeData.ConfirmPassword {
+		c.HTML(http.StatusBadRequest, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "New passwords do not match",
+		})
+		return
+	}
+
+	// Get session
+	sessionID, err := c.Cookie("session_id")
+	if err != nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	var session models.Session
+	if err := h.db.Where("session_id = ? AND expires_at > ?", sessionID, time.Now()).First(&session).Error; err != nil {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	// Get user
+	var user models.User
+	if err := h.db.First(&user, session.UserID).Error; err != nil {
+		c.HTML(http.StatusInternalServerError, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "An error occurred. Please try again.",
+		})
+		return
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(changeData.CurrentPassword)); err != nil {
+		c.HTML(http.StatusUnauthorized, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "Current password is incorrect",
+		})
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(changeData.NewPassword), 14)
+	if err != nil {
+		c.HTML(http.StatusInternalServerError, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "An error occurred. Please try again.",
+		})
+		return
+	}
+
+	// Update user password and remove force flag
+	user.PasswordHash = string(hashedPassword)
+	user.ForcePasswordChange = false
+	if err := h.db.Save(&user).Error; err != nil {
+		c.HTML(http.StatusInternalServerError, "force_password_change.html", gin.H{
+			"title": "Password Change Required",
+			"error": "An error occurred saving your password. Please try again.",
+		})
+		return
+	}
+
+	fmt.Printf("DEBUG: User %s successfully changed password on first login\n", user.Username)
+
+	// Redirect to home with success message
+	c.Redirect(http.StatusSeeOther, "/?password_changed=1")
 }
 
 // Login2FAForm shows the 2FA verification page
