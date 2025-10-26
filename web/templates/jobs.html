@@ -138,7 +138,9 @@
                                     data-revenue="{{.TotalRevenue}}"
                                     data-start-date="{{if .StartDate}}{{.StartDate.Format "2006-01-02"}}{{else}}{{end}}"
                                     data-end-date="{{if .EndDate}}{{.EndDate.Format "2006-01-02"}}{{else}}{{end}}"
-                                    data-title="{{.JobCode}}">
+                                    data-title="{{.JobCode}}"
+                                    onclick="showJobDetails({{.JobID}})"
+                                    style="cursor: pointer;">
                                     <td><span class="rc-text-mono">{{.JobID}}</span></td>
                                     <td><span class="rc-text-mono">{{.JobCode}}</span></td>
                                     <td>{{.CustomerName}}</td>
@@ -149,7 +151,7 @@
                                         <span class="rc-text-mono">{{.DeviceCount}} devices</span>
                                     </td>
                                     <td><span class="rc-text-mono">€{{printf "%.2f" .TotalRevenue}}</span></td>
-                                    <td>
+                                    <td onclick="event.stopPropagation()">
                                         <div class="rc-flex rc-flex-gap-xs">
                                             <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" title="View Details" onclick="showJobDetails({{.JobID}})">
                                                 <i class="bi bi-eye"></i>
