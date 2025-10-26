@@ -385,7 +385,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.36** (Latest) - New Job Modal Device Tree Fix
+### **v2.37** (Latest) - Scanner Completely Disabled
+- ✅ **Scanner Fully Removed**: All scan buttons and links removed from UI
+- ✅ **Home Page Updated**: Replaced "Start Scanning" with "Manage Jobs" button
+- ✅ **Quick Actions Cleaned**: Removed "Scan QR Code" from quick actions menu
+- ✅ **Job Detail Page**: Removed scan device buttons from job detail view
+- ✅ **Jobs Table Updated**: Device count now displayed as plain text (no scan redirect)
+- ✅ **API Endpoint Fixed**: Changed remove device endpoint from `/scan/` to `/jobs/`
+- ✅ **Routes Already Protected**: Scan routes only registered when scanner_enabled=true
+- ✅ **Clean UI**: No scan-related functionality visible to users
+
+### **v2.36** - New Job Modal Device Tree Fix
 - ✅ **New Job Modal Fixed**: Device tree now loads automatically when creating new job
 - ✅ **Dynamic Form Loading**: Fixed DOMContentLoaded issue with dynamically injected forms
 - ✅ **Manual Initialization**: Added manual trigger for tree loading after form injection
