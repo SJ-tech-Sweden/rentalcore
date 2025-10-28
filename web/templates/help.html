@@ -14,95 +14,335 @@
     <link rel="stylesheet" href="/static/css/rental-core-design.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .rc-max-w-3xl { max-width: 52rem; }
+        .rc-max-w-2xl { max-width: 40rem; }
+
+        .rc-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .rc-pill.rc-pill-sm {
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .rc-help-hero {
+            position: relative;
+            border-radius: var(--radius-2xl);
+            padding: clamp(2.4rem, 5vw, 4rem);
+            border: 1px solid var(--surface-3);
+            background:
+                radial-gradient(120% 120% at 15% 15%, rgba(208, 2, 27, 0.24), transparent 60%),
+                radial-gradient(120% 120% at 80% 20%, rgba(255, 255, 255, 0.08), transparent 65%),
+                linear-gradient(135deg, var(--surface-2) 0%, var(--surface-1) 100%);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+        }
+
+        .rc-help-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 75% 0%, rgba(255, 255, 255, 0.08), transparent 55%);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .rc-help-hero-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(1.5rem, 3vw, 2.5rem);
+            align-items: center;
+        }
+
+        .rc-help-summary {
+            display: grid;
+            gap: var(--space-sm);
+        }
+
+        .rc-help-cta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            align-items: center;
+        }
+
+        .rc-help-cta .rc-btn {
+            backdrop-filter: blur(6px);
+        }
+
+        .rc-section-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-support-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            padding: var(--space-xl);
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+            box-shadow: var(--shadow-md);
+            display: grid;
+            gap: var(--space-sm);
+        }
+
+        .rc-support-card i {
+            color: var(--accent-red);
+            font-size: 1.8rem;
+        }
+
+        .rc-stepper {
+            display: grid;
+            gap: var(--space-lg);
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .rc-step {
+            border-left: 3px solid rgba(208, 2, 27, 0.45);
+            padding-left: var(--space-lg);
+            display: grid;
+            gap: var(--space-xs);
+        }
+
+        .rc-resource-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            padding: var(--space-lg);
+            background: rgba(255, 255, 255, 0.02);
+            display: grid;
+            gap: var(--space-sm);
+        }
+
+        .rc-resource-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+        }
+
+        .rc-resource-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        .rc-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-status-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: var(--space-lg);
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+            text-align: center;
+        }
+
+        .rc-status-card h3 {
+            margin-bottom: var(--space-xs);
+            font-size: 2rem;
+        }
+
+        .rc-help-footer {
+            border-radius: var(--radius-2xl);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: clamp(1.8rem, 3vw, 2.6rem);
+            background: linear-gradient(135deg, rgba(208, 2, 27, 0.18), rgba(255, 255, 255, 0.02));
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-md);
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 900px) {
+            .rc-help-hero-content {
+                text-align: center;
+            }
+            .rc-help-cta {
+                justify-content: center;
+            }
+            .rc-help-footer {
+                text-align: center;
+            }
+            .rc-help-footer .rc-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body class="rc-animate-fade-in">
     {{template "navbar.html" .}}
 
     <main class="rc-container rc-mt-lg rc-mb-3xl">
-        <div class="rc-hero rc-mb-xl">
-            <h1 class="rc-heading-1"><i class="bi bi-question-circle"></i> Need a hand?</h1>
-            <p class="rc-text-lg rc-text-muted">Quick answers and onboarding resources to get your team moving.</p>
-        </div>
+        <section class="rc-help-hero rc-mb-2xl">
+            <div class="rc-help-hero-content">
+                <div class="rc-help-summary">
+                    <h1 class="rc-heading-1"><i class="bi bi-question-circle"></i> Help centre</h1>
+                    <p class="rc-text-lg rc-text-muted rc-max-w-3xl">
+                        Whether you are onboarding a new warehouse crew or dialing in the latest scanner workflow, you’ll find battle-tested playbooks here.
+                    </p>
+                    <div class="rc-help-cta">
+                        <a href="/contact" class="rc-btn rc-btn-primary rc-btn-lg">
+                            <i class="bi bi-chat-dots"></i> Talk to support
+                        </a>
+                        <a href="/about" class="rc-btn rc-btn-ghost rc-btn-lg">
+                            <i class="bi bi-people"></i> Meet the team
+                        </a>
+                    </div>
+                </div>
+                <div class="rc-card rc-card-elevated">
+                    <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-sm">
+                        <div class="rc-flex rc-flex-between rc-flex-wrap rc-flex-gap-sm">
+                            <span class="rc-text-xs rc-text-muted">Latest rollout</span>
+                            <span class="rc-pill rc-pill-sm">v1.61 widgets</span>
+                        </div>
+                        <h3 class="rc-heading-4 rc-mb-xs">Release digest</h3>
+                        <p class="rc-text-sm rc-text-muted">
+                            Dashboard widgets are now user-specific. Head to the home page, tap “customize”, and pick the cards that matter for your role.
+                        </p>
+                        <a href="/dashboard" class="rc-btn rc-btn-outline rc-btn-sm rc-align-self-start">
+                            <i class="bi bi-sliders2"></i> Configure my widgets
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <section class="rc-grid rc-grid-3 rc-grid-gap-lg rc-mb-2xl">
-            <article class="rc-card rc-card-hover">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-3 rc-mb-sm"><i class="bi bi-rocket"></i> Getting started</h2>
-                    <p class="rc-text-sm rc-text-muted rc-mb-md">Start with these essentials to configure RentalCore for your organisation.</p>
-                    <ul class="rc-list rc-list-spaced">
-                        <li><strong>Company setup:</strong> review branding, legal info and default templates in <code>Settings → Company</code>.</li>
-                        <li><strong>Users & roles:</strong> grant access via <code>System → Security → Roles</code> and assign least privilege.</li>
-                        <li><strong>Inventory import:</strong> bulk-load devices and cases from CSV using the <em>Bulk Operations</em> tool.</li>
-                    </ul>
+        <section class="rc-section-grid rc-mb-2xl">
+            <article class="rc-support-card">
+                <i class="bi bi-rocket-takeoff"></i>
+                <h2 class="rc-heading-3">Launch checklist</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Configure the platform in under an hour with these steps, tailored for admins bringing a new site online.
+                </p>
+                <div class="rc-stepper">
+                    <div class="rc-step">
+                        <span class="rc-text-xs rc-text-muted">Step 1</span>
+                        <h3 class="rc-heading-5">Company profile</h3>
+                        <p class="rc-text-xs rc-text-muted">Upload branding, set invoice defaults, add legal footer copy.</p>
+                    </div>
+                    <div class="rc-step">
+                        <span class="rc-text-xs rc-text-muted">Step 2</span>
+                        <h3 class="rc-heading-5">Access control</h3>
+                        <p class="rc-text-xs rc-text-muted">Provision roles, invite crew, switch on mandatory 2FA for finance.</p>
+                    </div>
+                    <div class="rc-step">
+                        <span class="rc-text-xs rc-text-muted">Step 3</span>
+                        <h3 class="rc-heading-5">Inventory import</h3>
+                        <p class="rc-text-xs rc-text-muted">Upload devices, cables, and case maps via the bulk upload templates.</p>
+                    </div>
                 </div>
             </article>
 
-            <article class="rc-card rc-card-hover">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-3 rc-mb-sm"><i class="bi bi-diagram-3"></i> Daily workflows</h2>
-                    <p class="rc-text-sm rc-text-muted rc-mb-md">Follow these flows to keep jobs, devices and cables in sync.</p>
-                    <ul class="rc-list rc-list-spaced">
-                        <li><strong>Create a job:</strong> <code>Jobs → New</code>, assign customer, schedule dates and select devices.</li>
-                        <li><strong>Track device readiness:</strong> update pack status from the job detail modal or scanner board.</li>
-                        <li><strong>Cable lookup:</strong> filter by plug type, length and cross-section in the enhanced cable view.</li>
-                    </ul>
-                </div>
+            <article class="rc-support-card">
+                <i class="bi bi-diagram-3"></i>
+                <h2 class="rc-heading-3">Live workflows</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Keep show days calm with these day-to-day routines crafted alongside the warehouse floor.
+                </p>
+                <ul class="rc-list rc-list-spaced rc-text-sm">
+                    <li><strong>Job planning:</strong> create the job, add packages, reserve crew, and lock status “Prep”.</li>
+                    <li><strong>Pack validation:</strong> use the scan board for live pack progress, trigger alerts for missing gear.</li>
+                    <li><strong>Rental reconciliation:</strong> capture rental equipment returns, flag damages, attach photos directly from the job detail.</li>
+                </ul>
             </article>
 
-            <article class="rc-card rc-card-hover">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-3 rc-mb-sm"><i class="bi bi-shield-check"></i> Troubleshooting</h2>
-                    <p class="rc-text-sm rc-text-muted rc-mb-md">Resolve common issues with these quick checks.</p>
-                    <ul class="rc-list rc-list-spaced">
-                        <li><strong>Missing device:</strong> verify it isn’t assigned to an overlapping job via <code>Devices → Availability</code>.</li>
-                        <li><strong>Scanner offline:</strong> restart the dedicated service with <code>./restart-dev.sh</code> on the host.</li>
-                        <li><strong>Export fails:</strong> confirm the archive directory is writable and retry the export from Analytics.</li>
-                    </ul>
-                </div>
+            <article class="rc-support-card">
+                <i class="bi bi-life-preserver"></i>
+                <h2 class="rc-heading-3">Rapid fixes</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Most issues are solved within minutes—start with these diagnostic shortcuts.
+                </p>
+                <ul class="rc-list rc-list-spaced rc-text-sm">
+                    <li><strong>Scanner stuck offline?</strong> Run <code>./restart-dev.sh</code> then re-authenticate via Passkey.</li>
+                    <li><strong>Device unavailable?</strong> Open <code>Devices → Availability</code> and clear finished jobs.</li>
+                    <li><strong>Exports failing?</strong> Check archive permissions, then rerun the export via Analytics.</li>
+                </ul>
+                <a href="/contact" class="rc-btn rc-btn-outline rc-btn-sm rc-align-self-start">
+                    <i class="bi bi-telephone"></i> Escalate to Ops
+                </a>
             </article>
         </section>
 
         <section class="rc-card rc-mb-2xl">
             <div class="rc-card-header">
-                <h2 class="rc-card-title"><i class="bi bi-collection"></i> Knowledge base highlights</h2>
+                <h2 class="rc-card-title"><i class="bi bi-collection"></i> Featured knowledge base articles</h2>
             </div>
-            <div class="rc-card-body">
-                <div class="rc-grid rc-grid-2 rc-grid-gap-lg">
-                    <div>
-                        <h3 class="rc-heading-5 rc-mb-sm">Operations</h3>
-                        <ul class="rc-list rc-list-inline rc-text-sm">
-                            <li><i class="bi bi-link-45deg"></i> Scan board quick reference</li>
-                            <li><i class="bi bi-link-45deg"></i> Rental equipment reconciliation</li>
-                            <li><i class="bi bi-link-45deg"></i> Cable maintenance checklist</li>
-                        </ul>
+            <div class="rc-card-body rc-section-grid">
+                <div class="rc-resource-card">
+                    <h3 class="rc-heading-5">Operations · Logistics</h3>
+                    <p class="rc-text-xs rc-text-muted">Keep physically moving parts perfectly aligned with the digital timeline.</p>
+                    <div class="rc-resource-links">
+                        <a href="#"><i class="bi bi-link-45deg"></i> Scan board cheat sheet</a>
+                        <a href="#"><i class="bi bi-link-45deg"></i> Cable QC checklist</a>
+                        <a href="#"><i class="bi bi-link-45deg"></i> Rental return playbook</a>
                     </div>
-                    <div>
-                        <h3 class="rc-heading-5 rc-mb-sm">Admin & reporting</h3>
-                        <ul class="rc-list rc-list-inline rc-text-sm">
-                            <li><i class="bi bi-link-45deg"></i> Advanced analytics filters</li>
-                            <li><i class="bi bi-link-45deg"></i> Financial statement exports</li>
-                            <li><i class="bi bi-link-45deg"></i> Security & compliance review</li>
-                        </ul>
+                </div>
+                <div class="rc-resource-card">
+                    <h3 class="rc-heading-5">Admin · Reporting</h3>
+                    <p class="rc-text-xs rc-text-muted">Trusted data for finance, leadership, and inspectors.</p>
+                    <div class="rc-resource-links">
+                        <a href="#"><i class="bi bi-link-45deg"></i> Revenue reconciliation</a>
+                        <a href="#"><i class="bi bi-link-45deg"></i> Audit log reviews</a>
+                        <a href="#"><i class="bi bi-link-45deg"></i> Fleet health analytics</a>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section class="rc-card rc-card-accent">
-            <div class="rc-card-body rc-flex rc-flex-between rc-flex-wrap">
-                <div>
-                    <h2 class="rc-heading-3 rc-mb-xs">Still stuck?</h2>
-                    <p class="rc-text-sm rc-text-muted">Reach out to the platform team with a short Loom or screenshot so we can help faster.</p>
+        <section class="rc-card rc-mb-2xl">
+            <div class="rc-card-header">
+                <h2 class="rc-card-title"><i class="bi bi-activity"></i> Support status</h2>
+            </div>
+            <div class="rc-card-body rc-status-grid">
+                <div class="rc-status-card">
+                    <h3>15 min</h3>
+                    <p class="rc-text-xs rc-text-muted">P1 response (show critical)</p>
                 </div>
-                <div class="rc-flex rc-flex-gap-sm rc-flex-wrap">
-                    <a href="/contact" class="rc-btn rc-btn-primary rc-btn-lg">
-                        <i class="bi bi-envelope"></i> Contact Support
-                    </a>
-                    <a href="/about" class="rc-btn rc-btn-outline rc-btn-lg">
-                        <i class="bi bi-people"></i> Meet the Team
-                    </a>
+                <div class="rc-status-card">
+                    <h3>2 h</h3>
+                    <p class="rc-text-xs rc-text-muted">P2 response (time sensitive)</p>
+                </div>
+                <div class="rc-status-card">
+                    <h3>24 h</h3>
+                    <p class="rc-text-xs rc-text-muted">P3 response (roadmap / questions)</p>
+                </div>
+                <div class="rc-status-card">
+                    <h3>99.9%</h3>
+                    <p class="rc-text-xs rc-text-muted">Platform uptime rolling 30 days</p>
                 </div>
             </div>
+        </section>
+
+        <section class="rc-help-footer">
+            <div class="rc-max-w-2xl">
+                <h2 class="rc-heading-3 rc-mb-xs">Need something bespoke?</h2>
+                <p class="rc-text-sm rc-text-muted">Drop us a Loom or screenshot with a short description and we’ll book a design session with the product team.</p>
+            </div>
+            <a href="/contact" class="rc-btn rc-btn-primary rc-btn-lg">
+                <i class="bi bi-envelope-open-heart"></i> Create a ticket
+            </a>
         </section>
     </main>
 

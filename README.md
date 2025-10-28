@@ -729,6 +729,11 @@ All documentation is organized in the `docs/` folder for easy access:
 - ✅ **Smoother Transitions**: All interactive elements use 0.3s ease transitions
 - ✅ **Professional Polish**: Modern, polished look matching profile settings throughout app
 
+### **v1.62** - Support Experience Refresh
+- ✅ **Help / About / Contact makeover**: New gradient heroes, richer layouts, and responsive grids aligned with the dashboard aesthetic
+- ✅ **Clearer support playbooks**: Channel tiles, SLA chips, and onboarding checklists make it easier to find the right escalation path
+- ✅ **Contact call-to-action**: Structured contact details with callback option and status references keep crews in the loop
+
 ### **v1.61** - Customizable Dashboard Widgets
 - ✅ **Per-User Metrics**: Dashboard cards can be tailored per user and persist across sessions
 - ✅ **Direct Module Shortcuts**: Every widget links straight to the relevant management section

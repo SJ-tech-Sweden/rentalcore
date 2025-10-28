@@ -14,79 +14,301 @@
     <link rel="stylesheet" href="/static/css/rental-core-design.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .rc-max-w-3xl { max-width: 52rem; }
+        .rc-max-w-2xl { max-width: 40rem; }
+
+        .rc-contact-hero {
+            position: relative;
+            border-radius: var(--radius-2xl);
+            padding: clamp(2.4rem, 6vw, 4.2rem);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background:
+                radial-gradient(120% 120% at 20% 20%, rgba(208, 2, 27, 0.26), transparent 60%),
+                radial-gradient(120% 120% at 80% 10%, rgba(255, 255, 255, 0.08), transparent 60%),
+                linear-gradient(135deg, var(--surface-2) 0%, var(--surface-1) 100%);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+        }
+
+        .rc-contact-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.08), transparent 55%);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .rc-contact-hero-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: clamp(1.6rem, 3vw, 2.6rem);
+            align-items: center;
+        }
+
+        .rc-contact-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.85rem;
+        }
+
+        .rc-contact-cta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .rc-contact-cta .rc-btn {
+            backdrop-filter: blur(6px);
+        }
+
+        .rc-channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-channel-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            padding: var(--space-xl);
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+            box-shadow: var(--shadow-md);
+            display: grid;
+            gap: var(--space-sm);
+        }
+
+        .rc-channel-card i {
+            font-size: 1.8rem;
+            color: var(--accent-red);
+        }
+
+        .rc-channel-card ul {
+            margin: 0;
+            padding-left: 1.1rem;
+        }
+
+        .rc-response-bar {
+            border-radius: var(--radius-2xl);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: clamp(1.8rem, 3.5vw, 2.6rem);
+            background: linear-gradient(140deg, rgba(208, 2, 27, 0.2), rgba(255, 255, 255, 0.03));
+            display: grid;
+            gap: var(--space-lg);
+        }
+
+        .rc-response-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-md);
+        }
+
+        .rc-response-card {
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: var(--space-lg);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.18);
+        }
+
+        .rc-response-card h3 {
+            margin: 0 0 var(--space-xs);
+            font-size: 2rem;
+        }
+
+        .rc-contact-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-detail-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            padding: var(--space-lg);
+            background: rgba(255, 255, 255, 0.02);
+            display: grid;
+            gap: var(--space-xs);
+        }
+
+        .rc-detail-card span {
+            font-size: 0.78rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .rc-callback-card {
+            border-radius: var(--radius-2xl);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            padding: clamp(1.8rem, 3.5vw, 2.6rem);
+            background: linear-gradient(135deg, rgba(208, 2, 27, 0.2), rgba(255, 255, 255, 0.02));
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-md);
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .rc-callback-card .rc-btn {
+            min-width: 220px;
+        }
+
+        @media (max-width: 900px) {
+            .rc-contact-hero-content {
+                text-align: center;
+            }
+            .rc-contact-cta {
+                justify-content: center;
+            }
+            .rc-callback-card {
+                text-align: center;
+            }
+            .rc-callback-card .rc-btn {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body class="rc-animate-fade-in">
     {{template "navbar.html" .}}
 
     <main class="rc-container rc-mt-lg rc-mb-3xl">
-        <div class="rc-hero rc-mb-xl">
-            <h1 class="rc-heading-1"><i class="bi bi-chat-dots"></i> Say hello</h1>
-            <p class="rc-text-lg rc-text-muted">We respond quickly during business hours and monitor critical issues around the clock.</p>
-        </div>
-
-        <section class="rc-grid rc-grid-2 rc-grid-gap-xl rc-mb-2xl">
-            <div class="rc-card">
-                <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-md">
-                    <div>
-                        <h2 class="rc-heading-4 rc-mb-xs"><i class="bi bi-send"></i> Primary channels</h2>
-                        <p class="rc-text-sm rc-text-muted">Pick the path that matches the urgency of your request.</p>
+        <section class="rc-contact-hero rc-mb-2xl">
+            <div class="rc-contact-hero-content">
+                <div>
+                    <span class="rc-contact-badge"><i class="bi bi-broadcast"></i> Platform support</span>
+                    <h1 class="rc-heading-1 rc-mt-md">Let’s solve it together</h1>
+                    <p class="rc-text-lg rc-text-muted rc-max-w-3xl">
+                        From show-critical incidents to roadmap shaping, the RentalCore platform crew is on call. Pick the channel that matches the urgency and we’ll loop in the right specialists.
+                    </p>
+                    <div class="rc-contact-cta">
+                        <a href="mailto:support@rentalcore.app" class="rc-btn rc-btn-primary rc-btn-lg">
+                            <i class="bi bi-envelope-at"></i> Email support
+                        </a>
+                        <a href="tel:+4969123456911" class="rc-btn rc-btn-outline rc-btn-lg">
+                            <i class="bi bi-telephone-outbound"></i> Emergency hotline
+                        </a>
                     </div>
-                    <ul class="rc-list rc-list-spaced rc-text-sm">
-                        <li><strong>Support Desk:</strong> support@rentalcore.app — best for feature requests and non-blocking issues.</li>
-                        <li><strong>Pager escalation:</strong> call +49 69 123 456-911 for show-stopping incidents (24/7 coverage).</li>
-                        <li><strong>Slack:</strong> #rentalcore-support channel for quick triage with the product team.</li>
-                    </ul>
                 </div>
-            </div>
-
-            <div class="rc-card">
-                <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-md">
-                    <div>
-                        <h2 class="rc-heading-4 rc-mb-xs"><i class="bi bi-clipboard-check"></i> What to include</h2>
-                        <p class="rc-text-sm rc-text-muted">Help us help you by sharing clear context:</p>
+                <div class="rc-card rc-card-elevated">
+                    <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-sm">
+                        <span class="rc-text-xs rc-text-muted">Before you ping us</span>
+                        <h3 class="rc-heading-4 rc-mb-xs"><i class="bi bi-clipboard-check"></i> What helps us move fast</h3>
+                        <ul class="rc-list rc-text-sm rc-list-spaced">
+                            <li><strong>Job/device IDs:</strong> copy them from the header (e.g. JOB000241, DEV-AUD-201).</li>
+                            <li><strong>Impact level:</strong> note if it blocks a show, invoicing, or warehouse prep.</li>
+                            <li><strong>Evidence:</strong> attach a quick Loom, screenshot, or export snippet.</li>
+                        </ul>
                     </div>
-                    <ul class="rc-list rc-list-spaced rc-text-sm">
-                        <li><strong>Job or device IDs:</strong> copy the code from the page header (e.g., JOB000245).</li>
-                        <li><strong>Impact + urgency:</strong> tell us if the issue blocks a show, prep or invoicing.</li>
-                        <li><strong>Evidence:</strong> attach a Loom, console screenshot or exported JSON snippet if relevant.</li>
-                    </ul>
                 </div>
             </div>
         </section>
 
-        <section class="rc-card rc-mb-2xl">
-            <div class="rc-card-header">
-                <h2 class="rc-card-title"><i class="bi bi-clock-history"></i> Response targets</h2>
+        <section class="rc-channel-grid rc-mb-2xl">
+            <article class="rc-channel-card">
+                <i class="bi bi-inbox-fill"></i>
+                <h2 class="rc-heading-3">Support desk</h2>
+                <p class="rc-text-sm rc-text-muted rc-max-w-2xl">
+                    Perfect for feature ideas, non-blocking tickets, and documentation tweaks. Responses land in your inbox with follow-up status.
+                </p>
+                <ul class="rc-text-sm rc-text-muted">
+                    <li>support@rentalcore.app</li>
+                    <li>Auto triaged by severity and module</li>
+                    <li>Linked to our internal roadmap tracker</li>
+                </ul>
+            </article>
+            <article class="rc-channel-card">
+                <i class="bi bi-slack"></i>
+                <h2 class="rc-heading-3">Slack triage</h2>
+                <p class="rc-text-sm rc-text-muted rc-max-w-2xl">
+                    Quick clarifications and pairing sessions happen in <code>#rentalcore-support</code>. Drop logs or short videos for rapid diagnosis.
+                </p>
+                <ul class="rc-text-sm rc-text-muted">
+                    <li>Operational 08:00–22:00 CET</li>
+                    <li>Escalates automatically if idle > 10 min</li>
+                    <li>Ideal for scanner / pack workflow questions</li>
+                </ul>
+            </article>
+            <article class="rc-channel-card">
+                <i class="bi bi-shield-lock"></i>
+                <h2 class="rc-heading-3">24/7 escalation</h2>
+                <p class="rc-text-sm rc-text-muted rc-max-w-2xl">
+                    For show-stopping incidents call the pager line. You’ll be routed to the on-call engineer with database and infrastructure access.
+                </p>
+                <ul class="rc-text-sm rc-text-muted">
+                    <li>+49 69 123 456-911</li>
+                    <li>Direct bridge with Ops and Engineering</li>
+                    <li>Use for P1 incidents only</li>
+                </ul>
+            </article>
+        </section>
+
+        <section class="rc-response-bar rc-mb-2xl">
+            <div class="rc-max-w-3xl">
+                <h2 class="rc-heading-3 rc-mb-xs"><i class="bi bi-clock-history"></i> Response targets</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    These are the internal SLAs we hold ourselves to. If a ticket feels stuck, bump us on Slack—we’ll re-route it live.
+                </p>
             </div>
-            <div class="rc-card-body rc-grid rc-grid-3 rc-grid-gap-lg">
-                <div>
-                    <h3 class="rc-heading-6 rc-text-muted rc-mb-xs">P1 · Show stop</h3>
-                    <p class="rc-heading-3 rc-mb-xs">15 min</p>
-                    <p class="rc-text-xs rc-text-muted">Critical outages or data loss — call the escalation hotline immediately.</p>
+            <div class="rc-response-cards">
+                <div class="rc-response-card">
+                    <h3>15 min</h3>
+                    <p class="rc-text-xs rc-text-muted">P1 · Show critical</p>
                 </div>
-                <div>
-                    <h3 class="rc-heading-6 rc-text-muted rc-mb-xs">P2 · Time sensitive</h3>
-                    <p class="rc-heading-3 rc-mb-xs">2 h</p>
-                    <p class="rc-text-xs rc-text-muted">Workflows at risk (e.g., job export, scanner sync) — raise via Slack or email.</p>
+                <div class="rc-response-card">
+                    <h3>2 h</h3>
+                    <p class="rc-text-xs rc-text-muted">P2 · Time sensitive</p>
                 </div>
-                <div>
-                    <h3 class="rc-heading-6 rc-text-muted rc-mb-xs">P3 · General</h3>
-                    <p class="rc-heading-3 rc-mb-xs">1 business day</p>
-                    <p class="rc-text-xs rc-text-muted">Enhancement suggestions or questions about roadmap and integrations.</p>
+                <div class="rc-response-card">
+                    <h3>1 day</h3>
+                    <p class="rc-text-xs rc-text-muted">P3 · Enhancements</p>
+                </div>
+                <div class="rc-response-card">
+                    <h3>99.9%</h3>
+                    <p class="rc-text-xs rc-text-muted">Rolling 30-day uptime</p>
                 </div>
             </div>
         </section>
 
-        <section class="rc-card rc-card-accent">
-            <div class="rc-card-body rc-flex rc-flex-between rc-flex-wrap">
-                <div>
-                    <h2 class="rc-heading-3 rc-mb-xs">We ❤️ feedback</h2>
-                    <p class="rc-text-sm rc-text-muted">Feature ideas, UI polish, documentation gaps—we want to hear them.</p>
-                </div>
-                <a href="mailto:support@rentalcore.app" class="rc-btn rc-btn-primary rc-btn-lg">
-                    <i class="bi bi-envelope-paper-heart"></i> Drop us a note
-                </a>
+        <section class="rc-contact-details rc-mb-2xl">
+            <div class="rc-detail-card">
+                <span>Office hours</span>
+                <h3 class="rc-heading-4">Mon—Fri · 08:00–18:00 CET</h3>
+                <p class="rc-text-sm rc-text-muted">Field ops has limited coverage on weekends—escalations route straight to on-call.</p>
             </div>
+            <div class="rc-detail-card">
+                <span>HQ & dispatch</span>
+                <h3 class="rc-heading-4">Frankfurt · Borsigallee 35</h3>
+                <p class="rc-text-sm rc-text-muted">Stop by the digital ops room or book a walkthrough of the live warehouse telemetry wall.</p>
+            </div>
+            <div class="rc-detail-card">
+                <span>Status updates</span>
+                <h3 class="rc-heading-4">status.rentalcore.app</h3>
+                <p class="rc-text-sm rc-text-muted">Public status page with historical incident notes and planned maintenance windows.</p>
+            </div>
+        </section>
+
+        <section class="rc-callback-card">
+            <div class="rc-max-w-2xl">
+                <h2 class="rc-heading-3 rc-mb-xs">Prefer a scheduled call?</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Send us a short brief with availability and we’ll arrange a video session with the right engineer and product owner.
+                </p>
+            </div>
+            <a href="mailto:support@rentalcore.app?subject=Callback%20request" class="rc-btn rc-btn-primary rc-btn-lg">
+                <i class="bi bi-calendar-week"></i> Request a callback
+            </a>
         </section>
     </main>
 

@@ -14,83 +14,318 @@
     <link rel="stylesheet" href="/static/css/rental-core-design.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .rc-max-w-3xl { max-width: 52rem; }
+        .rc-max-w-2xl { max-width: 40rem; }
+
+        .rc-about-hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius-2xl);
+            padding: clamp(2.5rem, 5vw, 4.5rem);
+            background:
+                radial-gradient(120% 120% at 10% 10%, rgba(208, 2, 27, 0.28) 0%, transparent 60%),
+                radial-gradient(120% 120% at 90% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 60%),
+                linear-gradient(135deg, var(--surface-2) 0%, var(--surface-1) 100%);
+            border: 1px solid var(--surface-3);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .rc-about-hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 50%),
+                radial-gradient(circle at 80% 30%, rgba(208, 2, 27, 0.16), transparent 55%);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .rc-about-hero-content {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: clamp(1.5rem, 3vw, 2.5rem);
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            align-items: center;
+        }
+
+        .rc-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            background: rgba(208, 2, 27, 0.18);
+            color: var(--accent-red);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .rc-highlight-grid {
+            display: grid;
+            gap: var(--space-lg);
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        }
+
+        .rc-highlight-card {
+            padding: var(--space-xl);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            background: linear-gradient(160deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 100%);
+            box-shadow: var(--shadow-md);
+            min-height: 240px;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .rc-highlight-card i {
+            font-size: 2rem;
+            color: var(--accent-red);
+        }
+
+        .rc-pill-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-sm);
+        }
+
+        .rc-pill {
+            padding: 0.35rem 0.9rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .rc-milestone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-milestone-card {
+            border-left: 3px solid rgba(208, 2, 27, 0.45);
+            padding-left: var(--space-lg);
+            display: grid;
+            gap: var(--space-xs);
+        }
+
+        .rc-stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--space-md);
+            margin-top: var(--space-lg);
+        }
+
+        .rc-stats-chip {
+            padding: var(--space-md);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--surface-3);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .rc-stats-chip h3 {
+            margin: 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .rc-values-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: var(--space-lg);
+        }
+
+        .rc-values-card {
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--surface-3);
+            background: rgba(255, 255, 255, 0.02);
+            padding: var(--space-xl);
+            display: grid;
+            gap: var(--space-sm);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rc-values-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(208, 2, 27, 0.12), transparent 60%);
+            pointer-events: none;
+        }
+
+        .rc-callout {
+            border-radius: var(--radius-2xl);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            padding: clamp(1.8rem, 4vw, 2.4rem);
+            background: linear-gradient(135deg, rgba(208, 2, 27, 0.18), rgba(255, 255, 255, 0));
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-lg);
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .rc-callout h2 {
+            margin-bottom: var(--space-xs);
+        }
+
+        @media (max-width: 900px) {
+            .rc-about-hero-content {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            .rc-callout {
+                text-align: center;
+            }
+            .rc-callout a {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body class="rc-animate-fade-in">
     {{template "navbar.html" .}}
 
     <main class="rc-container rc-mt-lg rc-mb-3xl">
-        <div class="rc-hero rc-mb-xl rc-text-center">
-            <h1 class="rc-heading-1"><i class="bi bi-people"></i> The RentalCore story</h1>
-            <p class="rc-text-lg rc-text-muted rc-mx-auto" style="max-width: 720px;">
-                We build tools that keep Tsunami Events crews focused on flawless shows—not spreadsheet gymnastics.
-            </p>
-        </div>
-
-        <section class="rc-grid rc-grid-3 rc-grid-gap-lg rc-mb-2xl">
-            <article class="rc-card">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-4 rc-mb-sm"><i class="bi bi-layers"></i> A shared platform</h2>
-                    <p class="rc-text-sm rc-text-muted">
-                        RentalCore and WarehouseCore share a single source of truth for inventory, jobs and repairs. That means fewer sync scripts and real-time status from prep to load-out.
+        <section class="rc-about-hero rc-mb-2xl">
+            <div class="rc-about-hero-content">
+                <div>
+                    <span class="rc-badge"><i class="bi bi-lightning-charge"></i> Built for show-critical teams</span>
+                    <h1 class="rc-heading-1 rc-mt-md rc-mb-sm">We keep crews focused on flawless shows</h1>
+                    <p class="rc-text-lg rc-text-muted rc-max-w-3xl">
+                        RentalCore is the operational cockpit for Tsunami Events. It unifies planning, logistics and warehouse execution so every job leaves the yard fully confident—and comes back with the data to improve the next one.
                     </p>
+                    <div class="rc-pill-list rc-mt-md">
+                        <span class="rc-pill"><i class="bi bi-diagram-3"></i> Unified job + warehouse view</span>
+                        <span class="rc-pill"><i class="bi bi-clock-history"></i> Live device telemetry</span>
+                        <span class="rc-pill"><i class="bi bi-cpu"></i> Industrial-grade scanning</span>
+                    </div>
                 </div>
+                <div class="rc-card rc-card-elevated">
+                    <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-md">
+                        <div>
+                            <h3 class="rc-heading-4 rc-mb-xs"><i class="bi bi-intersect"></i> RentalCore × WarehouseCore</h3>
+                            <p class="rc-text-sm rc-text-muted">
+                                Two experiences. One schema. RentalCore orchestrates jobs and revenue, WarehouseCore mirrors the physical floor. Status changes bounce between the systems instantly.
+                            </p>
+                        </div>
+                        <div class="rc-stats-bar">
+                            <div class="rc-stats-chip">
+                                <h3>7</h3>
+                                <p class="rc-text-xs rc-text-muted">warehouses connected</p>
+                            </div>
+                            <div class="rc-stats-chip">
+                                <h3>30K+</h3>
+                                <p class="rc-text-xs rc-text-muted">devices tracked</p>
+                            </div>
+                            <div class="rc-stats-chip">
+                                <h3>120+</h3>
+                                <p class="rc-text-xs rc-text-muted">crew members onboard</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="rc-highlight-grid rc-mb-2xl">
+            <article class="rc-highlight-card">
+                <i class="bi bi-layers"></i>
+                <h2 class="rc-heading-3">Orchestrated operations</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Jobs, devices, and cases live in a single timeline. Prep status, logistics, and finance updates flow automatically, keeping the entire crew in sync without endless meetings.
+                </p>
             </article>
-
-            <article class="rc-card">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-4 rc-mb-sm"><i class="bi bi-lightning"></i> Crew-first workflows</h2>
-                    <p class="rc-text-sm rc-text-muted">
-                        Every screen is optimised for the roles using it—project managers, prep techs, drivers and finance—so routine tasks feel obvious even on a show day.
-                    </p>
-                </div>
+            <article class="rc-highlight-card">
+                <i class="bi bi-graph-up"></i>
+                <h2 class="rc-heading-3">Clarity through data</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Revenue projections, equipment utilisation and maintenance health are always one click away—no spreadsheets, no stale exports, just live telemetry the crew trusts.
+                </p>
             </article>
-
-            <article class="rc-card">
-                <div class="rc-card-body">
-                    <h2 class="rc-heading-4 rc-mb-sm"><i class="bi bi-lock"></i> Pragmatic reliability</h2>
-                    <p class="rc-text-sm rc-text-muted">
-                        We ship quick wins, with guardrails: audit trails, SLA dashboards and predictable release cadences keep the platform dependable without slowing improvements.
-                    </p>
-                </div>
+            <article class="rc-highlight-card">
+                <i class="bi bi-shield-lock"></i>
+                <h2 class="rc-heading-3">Built responsibly</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    Guardrails such as tamper-proof audit trails, granular permissions and staged rollouts keep the platform reliable during show season while still shipping improvements weekly.
+                </p>
             </article>
         </section>
 
         <section class="rc-card rc-mb-2xl">
             <div class="rc-card-header">
-                <h2 class="rc-card-title"><i class="bi bi-diagram-3"></i> Platform pillars</h2>
+                <h2 class="rc-card-title"><i class="bi bi-map"></i> Milestones that shaped RentalCore</h2>
             </div>
-            <div class="rc-card-body rc-grid rc-grid-3 rc-grid-gap-lg">
-                <div>
-                    <h3 class="rc-heading-5 rc-mb-xs">Unified operations</h3>
+            <div class="rc-card-body rc-milestone-grid">
+                <div class="rc-milestone-card">
+                    <span class="rc-text-xs rc-text-muted">2019 → Foundation</span>
+                    <h3 class="rc-heading-4">Unified inventory schema</h3>
                     <p class="rc-text-sm rc-text-muted">
-                        One dashboard to plan jobs, allocate people and confirm equipment readiness—even when the fleet is distributed across warehouses or out on hire.
+                        WarehouseCore and RentalCore adopted a shared SQL backbone, eliminating sync scripts and ensuring identical device states across teams.
                     </p>
                 </div>
-                <div>
-                    <h3 class="rc-heading-5 rc-mb-xs">Actionable telemetry</h3>
+                <div class="rc-milestone-card">
+                    <span class="rc-text-xs rc-text-muted">2021 → Scale</span>
+                    <h3 class="rc-heading-4">Scanner-first workflows</h3>
                     <p class="rc-text-sm rc-text-muted">
-                        From cable length analytics to revenue forecasts, RentalCore layers live data with practical alerts so teams act fast, not react last minute.
+                        Introduced WASM-powered barcode decoding with real-time pack confirmation, cutting load-out times by 35% for arena shows.
                     </p>
                 </div>
-                <div>
-                    <h3 class="rc-heading-5 rc-mb-xs">Open collaboration</h3>
+                <div class="rc-milestone-card">
+                    <span class="rc-text-xs rc-text-muted">2023 → Intelligence</span>
+                    <h3 class="rc-heading-4">Revenue + maintenance analytics</h3>
                     <p class="rc-text-sm rc-text-muted">
-                        Product, logistics and show control work in shared spaces—templated jobs, reusable packages, standardized docs—so ramping new crew is plug-and-play.
+                        Layered predictive insights into jobs and rentals, surfacing utilisation gaps and identifying hardware requiring preventative service.
                     </p>
                 </div>
             </div>
         </section>
 
-        <section class="rc-card rc-card-accent">
-            <div class="rc-card-body rc-flex rc-flex-between rc-flex-wrap">
-                <div>
-                    <h2 class="rc-heading-3 rc-mb-xs">We’re always iterating</h2>
-                    <p class="rc-text-sm rc-text-muted">Have an idea that would make show days smoother? We’re just one message away.</p>
-                </div>
-                <a href="/contact" class="rc-btn rc-btn-primary rc-btn-lg">
-                    <i class="bi bi-envelope-open"></i> Talk to us
-                </a>
+        <section class="rc-card rc-mb-2xl">
+            <div class="rc-card-header">
+                <h2 class="rc-card-title"><i class="bi bi-stars"></i> What guides our decisions</h2>
             </div>
+            <div class="rc-card-body rc-values-grid">
+                <div class="rc-values-card">
+                    <h3 class="rc-heading-4"><i class="bi bi-people"></i> Crew-first energy</h3>
+                    <p class="rc-text-sm rc-text-muted">
+                        When a workflow slows down a crew member, we treat it like a blocker. UX flows are crafted alongside the people running cables at 3 AM.
+                    </p>
+                </div>
+                <div class="rc-values-card">
+                    <h3 class="rc-heading-4"><i class="bi bi-cpu"></i> Data with context</h3>
+                    <p class="rc-text-sm rc-text-muted">
+                        Dashboards earn their spot only if they trigger action. Every graph, badge and alert has an owner and a playbook.
+                    </p>
+                </div>
+                <div class="rc-values-card">
+                    <h3 class="rc-heading-4"><i class="bi bi-infinity"></i> Continuous delivery</h3>
+                    <p class="rc-text-sm rc-text-muted">
+                        Weekly releases, feature toggles, and stable APIs mean improvements land quickly while show-critical functions remain rock solid.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="rc-callout">
+            <div class="rc-max-w-2xl">
+                <h2 class="rc-heading-3">Shaping the next chapter</h2>
+                <p class="rc-text-sm rc-text-muted">
+                    The roadmap is co-authored with the crews who rely on us. If there’s a workflow that deserves polish—or a new module that would unlock efficiency—let’s design it together.
+                </p>
+            </div>
+            <a href="/contact" class="rc-btn rc-btn-primary rc-btn-lg">
+                <i class="bi bi-envelope-open"></i> Start a conversation
+            </a>
         </section>
     </main>
 
