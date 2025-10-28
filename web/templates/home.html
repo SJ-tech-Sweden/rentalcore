@@ -35,7 +35,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .rc-hero::before {
             content: '';
             position: absolute;
@@ -48,24 +48,135 @@
                 radial-gradient(circle at 70% 30%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
             z-index: -1;
         }
-        
+
         .rc-card:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
-        
-        .rc-stat-card {
-            background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%);
-            border: 1px solid var(--surface-3);
-            border-radius: var(--radius-lg);
+
+        .rc-widget-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: var(--space-md);
+        }
+
+        .rc-widget-card {
+            display: block;
+            text-decoration: none;
             padding: var(--space-lg);
-            text-align: center;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--surface-3);
+            background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%);
+            color: var(--text-primary);
             transition: var(--transition-normal);
         }
-        
-        .rc-stat-card:hover {
-            transform: translateY(-2px);
+
+        .rc-widget-card:hover {
+            transform: translateY(-4px);
             box-shadow: var(--shadow-glow);
+            border-color: var(--accent-red);
+        }
+
+        .rc-widget-icon {
+            font-size: 2.5rem;
+            color: var(--accent-red);
+            margin-bottom: var(--space-sm);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rc-widget-card .rc-text-xs {
+            color: var(--text-muted);
+            margin-top: var(--space-xs);
+            display: block;
+        }
+
+        .rc-widget-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-md);
+            margin-bottom: var(--space-md);
+        }
+
+        .rc-widget-config {
+            border: 1px dashed var(--surface-3);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            background: var(--surface-1);
+            margin-top: var(--space-lg);
+        }
+
+        .rc-widget-config[hidden] {
+            display: none;
+        }
+
+        .rc-widget-option-grid {
+            gap: var(--space-sm);
+        }
+
+        .rc-widget-option {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-sm);
+            padding: var(--space-sm);
+            border: 1px solid var(--surface-3);
+            border-radius: var(--radius-md);
+            background: var(--surface-2);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .rc-widget-option:hover {
+            border-color: var(--accent-red);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .rc-widget-option input {
+            margin-top: 0.25rem;
+        }
+
+        .rc-widget-option-body {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+        }
+
+        .rc-widget-option-title {
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
+        .rc-widget-option-desc {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .rc-widget-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--space-sm);
+            margin-top: var(--space-md);
+        }
+
+        .rc-widget-message {
+            margin-top: var(--space-sm);
+            min-height: 1.5rem;
+        }
+
+        .rc-widget-message[data-status="error"] {
+            color: var(--accent-red);
+        }
+
+        .rc-widget-message[data-status="success"] {
+            color: var(--accent-green);
+        }
+
+        .rc-widget-message[data-status="pending"] {
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -93,37 +204,66 @@
             </div>
         </div>
 
-        <!-- Statistics Cards -->
-        <div class="rc-grid rc-grid-4 rc-mb-xl">
-            <div class="rc-card" style="text-align: center;">
-                <div style="font-size: 2.5rem; color: var(--accent-red); margin-bottom: var(--space-sm);">
-                    <i class="bi bi-people"></i>
+        <!-- Dashboard Widgets -->
+        <section class="rc-mb-xl">
+            <div class="rc-widget-toolbar">
+                <div>
+                    <h2 class="rc-heading-2">Key Metrics</h2>
+                    <p class="rc-text-sm rc-text-muted">Choose the insights that welcome you each time you log in.</p>
                 </div>
-                <h3 class="rc-heading-3">{{.stats.TotalCustomers}}</h3>
-                <p class="rc-text-sm">Active Customers</p>
+                <button type="button" id="dashboard-widget-toggle" class="rc-btn rc-btn-ghost rc-btn-sm" aria-expanded="false" aria-controls="dashboard-widget-config">
+                    <i class="bi bi-sliders"></i> Customize
+                </button>
             </div>
-            <div class="rc-card" style="text-align: center;">
-                <div style="font-size: 2.5rem; color: var(--accent-red); margin-bottom: var(--space-sm);">
-                    <i class="bi bi-cpu"></i>
-                </div>
-                <h3 class="rc-heading-3">{{.stats.TotalDevices}}</h3>
-                <p class="rc-text-sm">Equipment Items</p>
+            <div class="rc-widget-grid" id="dashboard-widget-grid">
+                {{if .dashboardWidgets}}
+                    {{range .dashboardWidgets}}
+                    <a href="{{.Link}}" class="rc-card rc-widget-card" data-widget-key="{{.Key}}">
+                        <div class="rc-widget-icon">
+                            <i class="bi {{.Icon}}"></i>
+                        </div>
+                        <h3 class="rc-heading-3">{{.Value}}</h3>
+                        <p class="rc-text-sm">{{.Title}}</p>
+                        <span class="rc-text-xs">{{.Description}}</span>
+                    </a>
+                    {{end}}
+                {{else}}
+                    <div class="rc-card rc-widget-card">
+                        <div class="rc-widget-icon">
+                            <i class="bi bi-sliders"></i>
+                        </div>
+                        <h3 class="rc-heading-3">No widgets selected</h3>
+                        <p class="rc-text-sm">Use the customize button to choose the metrics you want to see here.</p>
+                    </div>
+                {{end}}
             </div>
-            <div class="rc-card" style="text-align: center;">
-                <div style="font-size: 2.5rem; color: var(--accent-red); margin-bottom: var(--space-sm);">
-                    <i class="bi bi-briefcase"></i>
-                </div>
-                <h3 class="rc-heading-3">{{.stats.ActiveJobs}}</h3>
-                <p class="rc-text-sm">Active Jobs</p>
+            <div class="rc-widget-config" id="dashboard-widget-config" hidden data-active-widgets='{{.activeWidgetKeys}}'>
+                {{ $active := .activeWidgetSet }}
+                <form id="dashboard-widget-form">
+                    <div class="rc-grid rc-grid-2 rc-widget-option-grid">
+                        {{range .availableWidgets}}
+                        <label class="rc-widget-option">
+                            <input type="checkbox" name="widgets" value="{{.Key}}" {{if index $active .Key}}checked{{end}}>
+                            <span class="rc-widget-option-body">
+                                <span class="rc-widget-option-title">
+                                    <i class="bi {{.Icon}}"></i> {{.Title}}
+                                </span>
+                                <span class="rc-widget-option-desc">{{.Description}}</span>
+                                <span class="rc-widget-option-desc">Opens {{.Title}}.</span>
+                            </span>
+                        </label>
+                        {{end}}
+                    </div>
+                    <div class="rc-widget-actions">
+                        <button type="button" class="rc-btn rc-btn-ghost" id="dashboard-widget-cancel">Cancel</button>
+                        <button type="submit" class="rc-btn rc-btn-primary">
+                            <i class="bi bi-check-circle"></i> Save selection
+                        </button>
+                    </div>
+                    <p class="rc-text-xs rc-widget-message" id="dashboard-widget-message"></p>
+                </form>
             </div>
-            <div class="rc-card" style="text-align: center;">
-                <div style="font-size: 2.5rem; color: var(--accent-red); margin-bottom: var(--space-sm);">
-                    <i class="bi bi-box"></i>
-                </div>
-                <h3 class="rc-heading-3">{{.stats.TotalCases}}</h3>
-                <p class="rc-text-sm">Equipment Cases</p>
-            </div>
-        </div>
+        </section>
 
         <!-- Core Management -->
         <div class="rc-card rc-mb-xl">
@@ -273,6 +413,96 @@
     </footer>
 
     <!-- JavaScript -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const toggleButton = document.getElementById("dashboard-widget-toggle");
+            const configPanel = document.getElementById("dashboard-widget-config");
+            const cancelButton = document.getElementById("dashboard-widget-cancel");
+            const form = document.getElementById("dashboard-widget-form");
+            const message = document.getElementById("dashboard-widget-message");
+
+            if (!configPanel || !toggleButton || !form) {
+                return;
+            }
+
+            let initialSelection = [];
+            try {
+                initialSelection = JSON.parse(configPanel.dataset.activeWidgets || "[]");
+            } catch (err) {
+                initialSelection = [];
+            }
+
+            const resetFormToInitial = () => {
+                const selectionSet = new Set(initialSelection);
+                form.querySelectorAll('input[name="widgets"]').forEach((checkbox) => {
+                    checkbox.checked = selectionSet.has(checkbox.value);
+                });
+            };
+
+            const setMessage = (text, status) => {
+                if (!message) {
+                    return;
+                }
+                message.textContent = text;
+                if (status) {
+                    message.dataset.status = status;
+                } else {
+                    delete message.dataset.status;
+                }
+            };
+
+            const togglePanel = (show) => {
+                configPanel.hidden = !show;
+                toggleButton.setAttribute("aria-expanded", show ? "true" : "false");
+                if (!show) {
+                    setMessage("", "");
+                    resetFormToInitial();
+                }
+            };
+
+            toggleButton.addEventListener("click", () => {
+                togglePanel(configPanel.hidden);
+            });
+
+            cancelButton?.addEventListener("click", () => {
+                togglePanel(false);
+            });
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const selected = Array.from(form.querySelectorAll('input[name="widgets"]:checked')).map((input) => input.value);
+                if (selected.length === 0) {
+                    setMessage("Please select at least one widget.", "error");
+                    return;
+                }
+
+                setMessage("Saving your preferences…", "pending");
+                try {
+                    const response = await fetch("/api/v1/users/me/dashboard/widgets", {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ widgets: selected }),
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json().catch(() => ({}));
+                        throw new Error(data.error || "Failed to save widget preferences.");
+                    }
+
+                    const data = await response.json().catch(() => ({}));
+                    initialSelection = data.widgets || selected;
+                    setMessage("Preferences saved. Reloading…", "success");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 600);
+                } catch (error) {
+                    setMessage(error.message, "error");
+                }
+            });
+        });
+    </script>
     <script src="/static/js/rental-core-design.js"></script>
 </body>
 </html>

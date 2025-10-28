@@ -1708,6 +1708,20 @@ CREATE TABLE `user_preferences` (
 -- --------------------------------------------------------
 
 --
+-- Tabellenstruktur für Tabelle `user_dashboard_widgets`
+--
+
+CREATE TABLE `user_dashboard_widgets` (
+  `id` bigint UNSIGNED NOT NULL,
+  `user_id` bigint UNSIGNED NOT NULL,
+  `widgets` json NOT NULL,
+  `created_at` datetime(3) DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime(3) DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Tabellenstruktur für Tabelle `user_profiles`
 --
 
@@ -2615,6 +2629,13 @@ ALTER TABLE `user_preferences`
   ADD UNIQUE KEY `user_id` (`user_id`);
 
 --
+-- Indizes für die Tabelle `user_dashboard_widgets`
+--
+ALTER TABLE `user_dashboard_widgets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `idx_user_dashboard_widgets_user` (`user_id`);
+
+--
 -- Indizes für die Tabelle `user_profiles`
 --
 ALTER TABLE `user_profiles`
@@ -3049,6 +3070,12 @@ ALTER TABLE `user_passkeys`
   MODIFY `passkey_id` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT für Tabelle `user_dashboard_widgets`
+--
+ALTER TABLE `user_dashboard_widgets`
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT für Tabelle `user_preferences`
 --
 ALTER TABLE `user_preferences`
@@ -3411,6 +3438,12 @@ ALTER TABLE `subcategories`
 --
 ALTER TABLE `user_preferences`
   ADD CONSTRAINT `fk_user_preferences_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints der Tabelle `user_dashboard_widgets`
+--
+ALTER TABLE `user_dashboard_widgets`
+  ADD CONSTRAINT `fk_dashboard_widgets_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`userID`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints der Tabelle `user_profiles`

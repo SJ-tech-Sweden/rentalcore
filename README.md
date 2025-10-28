@@ -78,6 +78,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
   - **Responsive Tables**: Card transformation for mobile, horizontal scroll with sticky columns
   - **Adaptive Forms**: Single-column mobile, multi-column desktop with responsive grids
   - **Touch-Optimized**: 44px minimum touch targets, enhanced focus states
+- **🆕 Personalized Dashboard Widgets**: User-level control over homepage metrics with quick links to core modules
 - **PWA Support**: Progressive Web App features for mobile deployment
 - **Multi-language Support**: Internationalization ready
 - **Document Management**: File upload, signature collection, document archival
@@ -727,6 +728,12 @@ All documentation is organized in the `docs/` folder for easy access:
 - ✅ **Enhanced Dropdown Items**: Pure white text, red icon accents on hover, slide effect (6px)
 - ✅ **Smoother Transitions**: All interactive elements use 0.3s ease transitions
 - ✅ **Professional Polish**: Modern, polished look matching profile settings throughout app
+
+### **v1.61** - Customizable Dashboard Widgets
+- ✅ **Per-User Metrics**: Dashboard cards can be tailored per user and persist across sessions
+- ✅ **Direct Module Shortcuts**: Every widget links straight to the relevant management section
+- ✅ **New Preferences API**: Added `/api/v1/users/me/dashboard/widgets` for loading and saving selections
+- ✅ **Database Support**: Introduced `user_dashboard_widgets` table for storing widget preferences
 
 ### **v2.2** - Pure Grayscale Design & Gradients
 - ✅ **Removed All Bluish Colors**: Eliminated all remaining blue/cyan tints from UI

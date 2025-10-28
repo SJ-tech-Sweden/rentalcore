@@ -1263,6 +1263,19 @@ func setupRoutes(r *gin.Engine,
 				apiInvoices.GET("/products/:productId/devices", invoiceHandler.GetDevicesByProduct)
 			}
 
+			// User preferences API
+			apiUsers := api.Group("/users")
+			{
+				apiMe := apiUsers.Group("/me")
+				{
+					dashboard := apiMe.Group("/dashboard")
+					{
+						dashboard.GET("/widgets", homeHandler.GetDashboardWidgetPreferences)
+						dashboard.PUT("/widgets", homeHandler.UpdateDashboardWidgetPreferences)
+					}
+				}
+			}
+
 			// Security API
 			apiSecurity := api.Group("/security")
 			{
