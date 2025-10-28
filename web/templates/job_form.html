@@ -174,16 +174,24 @@
                 <form method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
                     
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
-                        <div class="rc-form-group">
+                        <div class="rc-form-group" data-role="customer-section">
                             <label class="rc-label">Customer *</label>
-                            <select class="rc-select" name="customer_id" required>
-                                <option value="">Select Customer</option>
-                                {{range .customers}}
-                                <option value="{{.CustomerID}}" {{if eq .CustomerID $.job.CustomerID}}selected{{end}}>
-                                    {{.GetDisplayName}}
-                                </option>
-                                {{end}}
-                            </select>
+                            <div class="rc-flex rc-flex-gap-sm rc-flex-wrap" style="align-items: center;">
+                                <select class="rc-select" name="customer_id" required data-role="customer-select">
+                                    <option value="">Select Customer</option>
+                                    {{range .customers}}
+                                    <option value="{{.CustomerID}}" {{if eq .CustomerID $.job.CustomerID}}selected{{end}}>
+                                        {{.GetDisplayName}}
+                                    </option>
+                                    {{end}}
+                                </select>
+                                <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" data-action="open-new-customer">
+                                    <i class="bi bi-person-plus"></i> New Customer
+                                </button>
+                            </div>
+                            <p class="rc-text-xs rc-text-muted rc-mt-xs">
+                                Need a new customer? Create it without leaving this form.
+                            </p>
                         </div>
                         
                         <div class="rc-form-group">
@@ -344,6 +352,66 @@
                                 <i class="bi bi-plus-lg"></i> Create Job
                             {{end}}
                         </button>
+                    </div>
+
+                    <!-- Inline Customer Creation Modal -->
+                    <div class="rc-modal" data-role="customer-modal" style="display: none;">
+                        <div class="rc-modal-overlay" data-action="close-customer-modal"></div>
+                        <div class="rc-modal-content" style="max-width: 620px;">
+                            <div class="rc-modal-header">
+                                <h3 class="rc-modal-title">
+                                    <i class="bi bi-person-plus"></i> New Customer
+                                </h3>
+                                <button type="button" class="rc-modal-close" data-action="close-customer-modal">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div class="rc-modal-body">
+                                <div class="rc-alert rc-alert-error rc-alert-sm" data-role="customer-error" style="display: none;"></div>
+                                <div class="rc-alert rc-alert-success rc-alert-sm" data-role="customer-success" style="display: none;"></div>
+                                <div class="rc-grid rc-grid-2 rc-grid-gap-md rc-mt-md">
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Company Name</label>
+                                        <input type="text" class="rc-input" data-field="company_name" placeholder="Company (optional)">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Customer Type</label>
+                                        <select class="rc-select" data-field="customer_type" data-default-value="Kunde">
+                                            <option value="Kunde" selected>Customer</option>
+                                            <option value="Lieferant">Supplier</option>
+                                        </select>
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">First Name</label>
+                                        <input type="text" class="rc-input" data-field="first_name" placeholder="First name">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Last Name</label>
+                                        <input type="text" class="rc-input" data-field="last_name" placeholder="Last name">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Email</label>
+                                        <input type="email" class="rc-input" data-field="email" placeholder="email@example.com">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Phone</label>
+                                        <input type="text" class="rc-input" data-field="phone_number" placeholder="+49 ...">
+                                    </div>
+                                </div>
+                                <div class="rc-form-group rc-mt-md">
+                                    <label class="rc-label">Notes</label>
+                                    <textarea class="rc-input" rows="3" data-field="notes" placeholder="Additional information"></textarea>
+                                </div>
+                            </div>
+                            <div class="rc-flex rc-flex-between rc-flex-wrap" style="gap: var(--space-sm); padding: var(--space-md); border-top: 1px solid var(--surface-3); background: var(--surface-1);">
+                                <button type="button" class="rc-btn rc-btn-secondary rc-btn-sm" data-action="close-customer-modal">
+                                    <i class="bi bi-x-lg"></i> Cancel
+                                </button>
+                                <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" data-action="submit-new-customer">
+                                    <i class="bi bi-check2-circle"></i> Create Customer
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -639,12 +707,191 @@
     <script src="/static/js/rental-core-design.js"></script>
     
     <script>
+        if (typeof window.setupCustomerInlineCreation !== 'function') {
+            window.setupCustomerInlineCreation = function(rootElement) {
+                const root = rootElement || document;
+                const customerSection = root.querySelector('[data-role="customer-section"]');
+                const select = customerSection ? customerSection.querySelector('[data-role="customer-select"]') : null;
+                const openBtn = customerSection ? customerSection.querySelector('[data-action="open-new-customer"]') : null;
+                const modal = root.querySelector('[data-role="customer-modal"]');
+
+                if (!customerSection || !select || !openBtn || !modal || customerSection.dataset.customerInlineReady === 'true') {
+                    return;
+                }
+
+                customerSection.dataset.customerInlineReady = 'true';
+
+                const closeElements = modal.querySelectorAll('[data-action="close-customer-modal"]');
+                const submitButton = modal.querySelector('[data-action="submit-new-customer"]');
+                const errorBox = modal.querySelector('[data-role="customer-error"]');
+                const successBox = modal.querySelector('[data-role="customer-success"]');
+                const fieldInputs = modal.querySelectorAll('[data-field]');
+
+                if (!submitButton) {
+                    return;
+                }
+
+                const originalSubmitText = submitButton.innerHTML;
+
+                function clearMessages() {
+                    if (errorBox) {
+                        errorBox.style.display = 'none';
+                    }
+                    if (successBox) {
+                        successBox.style.display = 'none';
+                    }
+                }
+
+                function renderMessage(box, icon, message) {
+                    if (!box) return;
+                    box.innerHTML = `<i class="bi bi-${icon}"></i> ${message}`;
+                    box.style.display = 'block';
+                }
+
+                function resetFields() {
+                    fieldInputs.forEach(el => {
+                        if (el.tagName === 'SELECT') {
+                            const defaultValue = el.getAttribute('data-default-value');
+                            el.value = defaultValue || (el.options.length ? el.options[0].value : '');
+                        } else {
+                            el.value = '';
+                        }
+                    });
+                }
+
+                function valueOrNull(field) {
+                    const element = modal.querySelector(`[data-field="${field}"]`);
+                    if (!element) return null;
+                    const value = element.value.trim();
+                    return value ? value : null;
+                }
+
+                function openModal() {
+                    clearMessages();
+                    resetFields();
+                    modal.style.display = 'flex';
+                    setTimeout(() => {
+                        const focusField = modal.querySelector('[data-field="company_name"]') || modal.querySelector('[data-field="first_name"]');
+                        if (focusField) {
+                            focusField.focus();
+                        }
+                    }, 60);
+                }
+
+                function closeModal() {
+                    modal.style.display = 'none';
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalSubmitText;
+                    clearMessages();
+                }
+
+                function upsertCustomerOption(customerID, displayName) {
+                    let option = Array.from(select.options).find(opt => opt.value == customerID);
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = customerID;
+                        if (select.options.length > 0 && select.options[0].value === '') {
+                            select.insertBefore(option, select.options[1] || null);
+                        } else {
+                            select.appendChild(option);
+                        }
+                    }
+                    option.textContent = displayName;
+                    option.selected = true;
+                    select.value = customerID;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                openBtn.addEventListener('click', openModal);
+                closeElements.forEach(el => el.addEventListener('click', closeModal));
+                modal.addEventListener('click', event => {
+                    if (event.target === modal || event.target.dataset.action === 'close-customer-modal') {
+                        closeModal();
+                    }
+                });
+
+                submitButton.addEventListener('click', () => {
+                    if (submitButton.disabled) {
+                        return;
+                    }
+
+                    clearMessages();
+
+                    const payload = {
+                        companyname: valueOrNull('company_name'),
+                        firstname: valueOrNull('first_name'),
+                        lastname: valueOrNull('last_name'),
+                        email: valueOrNull('email'),
+                        phonenumber: valueOrNull('phone_number'),
+                        notes: valueOrNull('notes'),
+                        customertype: valueOrNull('customer_type') || 'Kunde',
+                    };
+
+                    if (!payload.companyname && !(payload.firstname && payload.lastname)) {
+                        renderMessage(errorBox, 'exclamation-triangle', 'Provide a company name or both first and last name.');
+                        return;
+                    }
+
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+                    fetch('/api/v1/customers', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(payload),
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(data => {
+                                    throw new Error(data && data.error ? data.error : 'Failed to create customer');
+                                }).catch(() => {
+                                    throw new Error('Failed to create customer');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(customer => {
+                            const customerID = customer.customerID ?? customer.CustomerID;
+                            if (!customerID) {
+                                throw new Error('Customer created but ID missing');
+                            }
+
+                            const company = (customer.companyname ?? customer.CompanyName ?? payload.companyname) || '';
+                            const first = (customer.firstname ?? customer.FirstName ?? payload.firstname) || '';
+                            const last = (customer.lastname ?? customer.LastName ?? payload.lastname) || '';
+                            const displayName = company.trim() || `${first} ${last}`.trim() || 'New Customer';
+
+                            upsertCustomerOption(customerID, displayName);
+
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalSubmitText;
+                            renderMessage(successBox, 'check-circle', 'Customer created successfully.');
+
+                            setTimeout(() => {
+                                closeModal();
+                            }, 700);
+                        })
+                        .catch(error => {
+                            renderMessage(errorBox, 'exclamation-triangle', error.message || 'Failed to create customer.');
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalSubmitText;
+                        });
+                });
+            };
+        }
+
         // Device selection functionality
         let selectedDevices = new Set();
         let deviceTreeData = null;
         let expandedNodes = new Set(); // Track expanded tree nodes
 
         document.addEventListener('DOMContentLoaded', function() {
+            if (typeof window.setupCustomerInlineCreation === 'function') {
+                window.setupCustomerInlineCreation(document);
+            }
             // Listen for date changes
             const startDateInput = document.querySelector('input[name="start_date"]');
             const endDateInput = document.querySelector('input[name="end_date"]');

@@ -982,6 +982,182 @@
         });
     }
 
+    if (typeof window.setupCustomerInlineCreation !== 'function') {
+        window.setupCustomerInlineCreation = function(rootElement) {
+            const root = rootElement || document;
+            const customerSection = root.querySelector('[data-role="customer-section"]');
+            const select = customerSection ? customerSection.querySelector('[data-role="customer-select"]') : null;
+            const openBtn = customerSection ? customerSection.querySelector('[data-action="open-new-customer"]') : null;
+            const modal = root.querySelector('[data-role="customer-modal"]');
+
+            if (!customerSection || !select || !openBtn || !modal || customerSection.dataset.customerInlineReady === 'true') {
+                return;
+            }
+
+            customerSection.dataset.customerInlineReady = 'true';
+
+            const closeElements = modal.querySelectorAll('[data-action="close-customer-modal"]');
+            const submitButton = modal.querySelector('[data-action="submit-new-customer"]');
+            const errorBox = modal.querySelector('[data-role="customer-error"]');
+            const successBox = modal.querySelector('[data-role="customer-success"]');
+            const fieldInputs = modal.querySelectorAll('[data-field]');
+
+            if (!submitButton) {
+                return;
+            }
+
+            const originalSubmitText = submitButton.innerHTML;
+
+            function clearMessages() {
+                if (errorBox) {
+                    errorBox.style.display = 'none';
+                }
+                if (successBox) {
+                    successBox.style.display = 'none';
+                }
+            }
+
+            function renderMessage(box, icon, message) {
+                if (!box) return;
+                box.innerHTML = `<i class="bi bi-${icon}"></i> ${message}`;
+                box.style.display = 'block';
+            }
+
+            function resetFields() {
+                fieldInputs.forEach(el => {
+                    if (el.tagName === 'SELECT') {
+                        const defaultValue = el.getAttribute('data-default-value');
+                        el.value = defaultValue || (el.options.length ? el.options[0].value : '');
+                    } else {
+                        el.value = '';
+                    }
+                });
+            }
+
+            function valueOrNull(field) {
+                const element = modal.querySelector(`[data-field="${field}"]`);
+                if (!element) return null;
+                const value = element.value.trim();
+                return value ? value : null;
+            }
+
+            function openModal() {
+                clearMessages();
+                resetFields();
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    const focusField = modal.querySelector('[data-field="company_name"]') || modal.querySelector('[data-field="first_name"]');
+                    if (focusField) {
+                        focusField.focus();
+                    }
+                }, 60);
+            }
+
+            function closeModal() {
+                modal.style.display = 'none';
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalSubmitText;
+                clearMessages();
+            }
+
+            function upsertCustomerOption(customerID, displayName) {
+                let option = Array.from(select.options).find(opt => opt.value == customerID);
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = customerID;
+                    if (select.options.length > 0 && select.options[0].value === '') {
+                        select.insertBefore(option, select.options[1] || null);
+                    } else {
+                        select.appendChild(option);
+                    }
+                }
+                option.textContent = displayName;
+                option.selected = true;
+                select.value = customerID;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            openBtn.addEventListener('click', openModal);
+            closeElements.forEach(el => el.addEventListener('click', closeModal));
+            modal.addEventListener('click', event => {
+                if (event.target === modal || event.target.dataset.action === 'close-customer-modal') {
+                    closeModal();
+                }
+            });
+
+            submitButton.addEventListener('click', () => {
+                if (submitButton.disabled) {
+                    return;
+                }
+
+                clearMessages();
+
+                const payload = {
+                    companyname: valueOrNull('company_name'),
+                    firstname: valueOrNull('first_name'),
+                    lastname: valueOrNull('last_name'),
+                    email: valueOrNull('email'),
+                    phonenumber: valueOrNull('phone_number'),
+                    notes: valueOrNull('notes'),
+                    customertype: valueOrNull('customer_type') || 'Kunde',
+                };
+
+                if (!payload.companyname && !(payload.firstname && payload.lastname)) {
+                    renderMessage(errorBox, 'exclamation-triangle', 'Provide a company name or both first and last name.');
+                    return;
+                }
+
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+                fetch('/api/v1/customers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(payload),
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => {
+                                throw new Error(data && data.error ? data.error : 'Failed to create customer');
+                            }).catch(() => {
+                                throw new Error('Failed to create customer');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(customer => {
+                        const customerID = customer.customerID ?? customer.CustomerID;
+                        if (!customerID) {
+                            throw new Error('Customer created but ID missing');
+                        }
+
+                        const company = (customer.companyname ?? customer.CompanyName ?? payload.companyname) || '';
+                        const first = (customer.firstname ?? customer.FirstName ?? payload.firstname) || '';
+                        const last = (customer.lastname ?? customer.LastName ?? payload.lastname) || '';
+                        const displayName = company.trim() || `${first} ${last}`.trim() || 'New Customer';
+
+                        upsertCustomerOption(customerID, displayName);
+
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalSubmitText;
+                        renderMessage(successBox, 'check-circle', 'Customer created successfully.');
+
+                        setTimeout(() => {
+                            closeModal();
+                        }, 700);
+                    })
+                    .catch(error => {
+                        renderMessage(errorBox, 'exclamation-triangle', error.message || 'Failed to create customer.');
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalSubmitText;
+                    });
+            });
+        };
+    }
+
 
     // New Job Modal
     function showNewJob() {
@@ -1013,6 +1189,9 @@
                 
                 if (form) {
                     content.innerHTML = form.outerHTML;
+                    if (typeof window.setupCustomerInlineCreation === 'function') {
+                        window.setupCustomerInlineCreation(content);
+                    }
                     
                     // Update form action to handle modal submission
                     const modalForm = content.querySelector('form');
