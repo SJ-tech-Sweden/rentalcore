@@ -138,14 +138,23 @@
         </div>
 
         {{if .connectors}}
-        <div class="connector-legend rc-card rc-mb-lg">
-            <div class="rc-card-header">
-                <h4 class="rc-card-title">
-                    <i class="bi bi-plug"></i> Connector Overview
-                </h4>
-                <p class="rc-text-sm rc-text-muted">Visual reference for available plug types</p>
+        <div class="connector-legend rc-card rc-mb-lg" id="connectorOverviewCard">
+            <div class="rc-card-header connector-overview-header">
+                <div class="connector-overview-title">
+                    <h4 class="rc-card-title">
+                        <i class="bi bi-plug"></i> Connector Overview
+                    </h4>
+                    <p class="rc-text-sm rc-text-muted">Visual reference for available plug types</p>
+                </div>
+                <button type="button"
+                        class="rc-btn rc-btn-ghost rc-btn-sm connector-overview-toggle"
+                        id="toggleConnectorOverview"
+                        aria-expanded="false">
+                    <i class="bi bi-chevron-down toggle-icon"></i>
+                    <span class="toggle-label">Show overview</span>
+                </button>
             </div>
-            <div class="rc-card-body">
+            <div class="rc-card-body" id="connectorOverviewBody" hidden>
                 <div class="connector-legend-grid">
                     {{range .connectors}}
                     <div class="connector-legend-item">
@@ -247,6 +256,7 @@
         </div>
         
 <script>
+const connectorPairs = {{.connectorPairs}};
 let currentPage = {{if .pageNumber}}{{.pageNumber}}{{else}}1{{end}};
 const totalPages = {{if .totalPages}}{{.totalPages}}{{else}}1{{end}};
 
@@ -291,9 +301,118 @@ function updateButtonStates() {
         }
         
         // Update page display and button states on load
+function setupConnectorOverviewToggle() {
+    const toggleButton = document.getElementById('toggleConnectorOverview');
+    const overviewBody = document.getElementById('connectorOverviewBody');
+
+    if (!toggleButton || !overviewBody) {
+        return;
+    }
+
+    const toggleLabel = toggleButton.querySelector('.toggle-label');
+    const toggleIcon = toggleButton.querySelector('.toggle-icon');
+
+    const applyState = (expanded) => {
+        if (expanded) {
+            overviewBody.removeAttribute('hidden');
+        } else {
+            overviewBody.setAttribute('hidden', '');
+        }
+
+        toggleButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+        if (toggleLabel) {
+            toggleLabel.textContent = expanded ? 'Hide overview' : 'Show overview';
+        }
+
+        if (toggleIcon) {
+            toggleIcon.classList.toggle('bi-chevron-down', !expanded);
+            toggleIcon.classList.toggle('bi-chevron-up', expanded);
+        }
+    };
+
+    applyState(false);
+
+    toggleButton.addEventListener('click', () => {
+        const isExpanded = toggleButton.getAttribute('aria-expanded') === 'true';
+        applyState(!isExpanded);
+    });
+}
+
+function initializeConnectorFilters() {
+    const connector1Select = document.querySelector('select[name="connector1"]');
+    const connector2Select = document.querySelector('select[name="connector2"]');
+
+    if (!connector1Select || !connector2Select) {
+        return;
+    }
+
+    const allOptions = Array.from(connector2Select.options).map(option => ({
+        value: option.value,
+        label: option.textContent
+    }));
+
+    const defaultOption = allOptions[0];
+    const remainingOptions = allOptions.slice(1);
+
+    const rebuildConnector2 = (allowedValues) => {
+        const previousValue = connector2Select.value;
+        connector2Select.innerHTML = '';
+
+        const anyOption = document.createElement('option');
+        anyOption.value = defaultOption ? defaultOption.value : '';
+        anyOption.textContent = defaultOption ? defaultOption.label : 'Any Connector';
+        connector2Select.appendChild(anyOption);
+
+        remainingOptions.forEach(opt => {
+            if (!allowedValues || allowedValues.has(opt.value)) {
+                const optionElement = document.createElement('option');
+                optionElement.value = opt.value;
+                optionElement.textContent = opt.label;
+                connector2Select.appendChild(optionElement);
+            }
+        });
+
+        let nextValue = '';
+        if (!allowedValues) {
+            nextValue = previousValue;
+        } else if (allowedValues.has(previousValue)) {
+            nextValue = previousValue;
+        }
+
+        connector2Select.value = nextValue;
+        connector2Select.disabled = allowedValues !== null && connector2Select.options.length <= 1;
+    };
+
+    const syncConnector2Options = () => {
+        const selectedFirst = connector1Select.value;
+        if (!selectedFirst) {
+            rebuildConnector2(null);
+            return;
+        }
+
+        const allowedRaw = connectorPairs[selectedFirst];
+        const allowed = Array.isArray(allowedRaw) ? allowedRaw : [];
+        const allowedSet = new Set(allowed.map(value => String(value)));
+        rebuildConnector2(allowedSet);
+    };
+
+    connector1Select.addEventListener('change', () => {
+        syncConnector2Options();
+    });
+
+    syncConnector2Options();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelector('.rc-flex span').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    const pageIndicator = document.querySelector('.rc-flex span');
+    if (pageIndicator) {
+        pageIndicator.textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    }
+
     updateButtonStates();
+    setupConnectorOverviewToggle();
+    initializeConnectorFilters();
 });
 
 const advancedPanel = document.getElementById('advancedFiltersPanel');
@@ -485,6 +604,38 @@ if (minRange && maxRange && minInput && maxInput) {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: var(--space-md);
+    }
+
+    .connector-overview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-md);
+    }
+
+    .connector-overview-title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .connector-overview-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-xs);
+        color: var(--text-muted);
+    }
+
+    .connector-overview-toggle:hover {
+        color: var(--text-primary);
+    }
+
+    .connector-overview-toggle .toggle-icon {
+        transition: transform 0.2s ease;
+    }
+
+    .connector-overview-toggle[aria-expanded="true"] .toggle-icon {
+        transform: rotate(180deg);
     }
 
     .connector-legend-item {

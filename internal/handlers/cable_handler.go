@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
@@ -124,8 +126,17 @@ func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 	cableTypes, _ := h.cableRepo.GetAllCableTypes()
 	connectors, _ := h.cableRepo.GetAllCableConnectors()
 
+	connectorPairsJSON := template.JS("{}")
+	if connectorPairs, err := h.cableRepo.GetConnectorPairings(); err != nil {
+		log.Printf("⚠️  Failed to load connector pairings: %v", err)
+	} else if jsonData, err := json.Marshal(connectorPairs); err != nil {
+		log.Printf("⚠️  Failed to marshal connector pairings: %v", err)
+	} else {
+		connectorPairsJSON = template.JS(jsonData)
+	}
+
 	// Get total cable count for pagination
-	totalCables, err := h.cableRepo.GetTotalCount()
+	totalCables, err := h.cableRepo.GetGroupedTotalCount(params)
 	if err != nil {
 		log.Printf("❌ Error getting total cable count: %v", err)
 		totalCables = 0
@@ -154,6 +165,7 @@ func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 		"hasNextPage":       page < totalPages,
 		"totalPages":        totalPages,
 		"totalCables":       totalCables,
+		"connectorPairs":    connectorPairsJSON,
 	})
 
 	templateTime := time.Since(templateStart)

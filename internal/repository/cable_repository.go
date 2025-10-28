@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"go-barcode-webapp/internal/models"
+
+	"gorm.io/gorm"
 )
 
 type CableRepository struct {
@@ -44,26 +46,7 @@ func (r *CableRepository) List(params *models.FilterParams) ([]models.Cable, err
 		Preload("Connector2Info").
 		Preload("TypeInfo")
 
-	if params.SearchTerm != "" {
-		searchPattern := "%" + params.SearchTerm + "%"
-		query = query.Where("name LIKE ?", searchPattern)
-	}
-
-	if params.Connector1ID != nil {
-		query = query.Where("connector1 = ?", *params.Connector1ID)
-	}
-	if params.Connector2ID != nil {
-		query = query.Where("connector2 = ?", *params.Connector2ID)
-	}
-	if params.CableTypeID != nil {
-		query = query.Where("typ = ?", *params.CableTypeID)
-	}
-	if params.MinLength != nil {
-		query = query.Where("length >= ?", *params.MinLength)
-	}
-	if params.MaxLength != nil {
-		query = query.Where("length <= ?", *params.MaxLength)
-	}
+	query = applyCableFilters(query, params)
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit)
@@ -88,10 +71,7 @@ func (r *CableRepository) ListGrouped(params *models.FilterParams) ([]models.Cab
 		Group("typ, connector1, connector2, length, mm2, name").
 		Order("name ASC")
 
-	if params.SearchTerm != "" {
-		searchPattern := "%" + params.SearchTerm + "%"
-		query = query.Where("name LIKE ?", searchPattern)
-	}
+	query = applyCableFilters(query, params)
 
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit)
@@ -159,6 +139,14 @@ func (r *CableRepository) GetTotalCount() (int, error) {
 	return int(count), err
 }
 
+func (r *CableRepository) GetGroupedTotalCount(params *models.FilterParams) (int, error) {
+	query := applyCableFilters(r.db.Model(&models.Cable{}), params)
+
+	var count int64
+	err := query.Distinct("typ", "connector1", "connector2", "length", "mm2", "name").Count(&count).Error
+	return int(count), err
+}
+
 // GetLengthBounds returns minimum and maximum cable lengths for slider defaults
 func (r *CableRepository) GetLengthBounds() (float64, float64, error) {
 	var result struct {
@@ -204,4 +192,70 @@ func (r *CableRepository) GetAllCableConnectors() ([]models.CableConnector, erro
 		return nil, err
 	}
 	return connectors, nil
+}
+
+func (r *CableRepository) GetConnectorPairings() (map[int][]int, error) {
+	type pair struct {
+		Connector1 int
+		Connector2 int
+	}
+
+	var pairs []pair
+	if err := r.db.Model(&models.Cable{}).
+		Select("DISTINCT connector1, connector2").
+		Find(&pairs).Error; err != nil {
+		return nil, err
+	}
+
+	result := make(map[int][]int)
+	for _, p := range pairs {
+		result[p.Connector1] = appendUnique(result[p.Connector1], p.Connector2)
+		result[p.Connector2] = appendUnique(result[p.Connector2], p.Connector1)
+	}
+	return result, nil
+}
+
+func appendUnique(slice []int, value int) []int {
+	for _, v := range slice {
+		if v == value {
+			return slice
+		}
+	}
+	return append(slice, value)
+}
+
+func applyCableFilters(query *gorm.DB, params *models.FilterParams) *gorm.DB {
+	if params == nil {
+		return query
+	}
+
+	if params.SearchTerm != "" {
+		searchPattern := "%" + params.SearchTerm + "%"
+		query = query.Where("name LIKE ?", searchPattern)
+	}
+
+	if params.Connector1ID != nil && params.Connector2ID != nil {
+		query = query.Where(
+			"(connector1 = ? AND connector2 = ?) OR (connector1 = ? AND connector2 = ?)",
+			*params.Connector1ID,
+			*params.Connector2ID,
+			*params.Connector2ID,
+			*params.Connector1ID,
+		)
+	} else if params.Connector1ID != nil {
+		query = query.Where("(connector1 = ?) OR (connector2 = ?)", *params.Connector1ID, *params.Connector1ID)
+	} else if params.Connector2ID != nil {
+		query = query.Where("(connector1 = ?) OR (connector2 = ?)", *params.Connector2ID, *params.Connector2ID)
+	}
+
+	if params.CableTypeID != nil {
+		query = query.Where("typ = ?", *params.CableTypeID)
+	}
+	if params.MinLength != nil {
+		query = query.Where("length >= ?", *params.MinLength)
+	}
+	if params.MaxLength != nil {
+		query = query.Where("length <= ?", *params.MaxLength)
+	}
+	return query
 }
