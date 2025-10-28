@@ -26,20 +26,63 @@ func NewCableHandler(cableRepo *repository.CableRepository) *CableHandler {
 func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 	startTime := time.Now()
 	log.Printf("🚀 CableHandler.ListCablesWeb() started")
-	
+
 	user, _ := GetCurrentUser(c)
-	
+
 	params := &models.FilterParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
 		log.Printf("❌ Error binding query parameters: %v", err)
 		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/error?code=400&message=Bad Request&details=%s", err.Error()))
 		return
 	}
-	
+
 	// Handle search parameter
 	searchParam := c.Query("search")
 	if searchParam != "" {
 		params.SearchTerm = searchParam
+	}
+
+	if connector1Str := c.Query("connector1"); connector1Str != "" {
+		if id, err := strconv.ParseUint(connector1Str, 10, 32); err == nil && id > 0 {
+			tmp := uint(id)
+			params.Connector1ID = &tmp
+		}
+	}
+
+	if connector2Str := c.Query("connector2"); connector2Str != "" {
+		if id, err := strconv.ParseUint(connector2Str, 10, 32); err == nil && id > 0 {
+			tmp := uint(id)
+			params.Connector2ID = &tmp
+		}
+	}
+
+	if cableTypeStr := c.Query("cable_type"); cableTypeStr != "" {
+		if id, err := strconv.ParseUint(cableTypeStr, 10, 32); err == nil && id > 0 {
+			tmp := uint(id)
+			params.CableTypeID = &tmp
+		}
+	}
+
+	if lengthMinStr := c.Query("length_min"); lengthMinStr != "" {
+		if val, err := strconv.ParseFloat(lengthMinStr, 64); err == nil && val >= 0 {
+			params.MinLength = &val
+		}
+	}
+
+	if lengthMaxStr := c.Query("length_max"); lengthMaxStr != "" {
+		if val, err := strconv.ParseFloat(lengthMaxStr, 64); err == nil && val >= 0 {
+			params.MaxLength = &val
+		}
+	}
+
+	lengthMin, lengthMax, boundsErr := h.cableRepo.GetLengthBounds()
+	if boundsErr != nil {
+		log.Printf("⚠️  Failed to determine cable length bounds: %v", boundsErr)
+		lengthMin = 0
+		lengthMax = 0
+	}
+	if lengthMax < lengthMin {
+		lengthMax = lengthMin
 	}
 
 	// Handle pagination
@@ -47,7 +90,7 @@ func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 	if page < 1 {
 		page = 1
 	}
-	
+
 	limit := 20 // Cables per page
 	params.Limit = limit
 	params.Offset = (page - 1) * limit
@@ -61,20 +104,33 @@ func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 	cableGroups, err := h.cableRepo.ListGrouped(params)
 	dbTime := time.Since(dbStart)
 	log.Printf("⏱️  Database query took: %v", dbTime)
-	
+
 	if err != nil {
 		log.Printf("❌ Database error: %v", err)
 		c.Redirect(http.StatusSeeOther, fmt.Sprintf("/error?code=500&message=Database Error&details=%s", err.Error()))
 		return
 	}
-	
+
+	selectedLengthMin := lengthMin
+	selectedLengthMax := lengthMax
+	if params.MinLength != nil {
+		selectedLengthMin = *params.MinLength
+	}
+	if params.MaxLength != nil {
+		selectedLengthMax = *params.MaxLength
+	}
+
+	// Load reference data for filters
+	cableTypes, _ := h.cableRepo.GetAllCableTypes()
+	connectors, _ := h.cableRepo.GetAllCableConnectors()
+
 	// Get total cable count for pagination
 	totalCables, err := h.cableRepo.GetTotalCount()
 	if err != nil {
 		log.Printf("❌ Error getting total cable count: %v", err)
 		totalCables = 0
 	}
-	
+
 	totalPages := (totalCables + limit - 1) / limit
 	if totalPages == 0 {
 		totalPages = 1
@@ -82,18 +138,24 @@ func (h *CableHandler) ListCablesWeb(c *gin.Context) {
 
 	templateStart := time.Now()
 	SafeHTML(c, http.StatusOK, "cables_standalone.html", gin.H{
-		"title":        "Cables",
-		"cableGroups":  cableGroups,
-		"params":       params,
-		"user":         user,
-		"viewType":     viewType,
-		"currentPage":  "cables",
-		"pageNumber":   page,
-		"hasNextPage":  page < totalPages,
-		"totalPages":   totalPages,
-		"totalCables":  totalCables,
+		"title":             "Cables",
+		"cableGroups":       cableGroups,
+		"params":            params,
+		"connectors":        connectors,
+		"cableTypes":        cableTypes,
+		"lengthMin":         lengthMin,
+		"lengthMax":         lengthMax,
+		"selectedLengthMin": selectedLengthMin,
+		"selectedLengthMax": selectedLengthMax,
+		"user":              user,
+		"viewType":          viewType,
+		"currentPage":       "cables",
+		"pageNumber":        page,
+		"hasNextPage":       page < totalPages,
+		"totalPages":        totalPages,
+		"totalCables":       totalCables,
 	})
-	
+
 	templateTime := time.Since(templateStart)
 	totalTime := time.Since(startTime)
 	log.Printf("⏱️  Template rendering took: %v", templateTime)
@@ -104,13 +166,13 @@ func (h *CableHandler) NewCableForm(c *gin.Context) {
 	// Only allow fetch requests from modals, block direct browser access
 	acceptHeader := c.GetHeader("Accept")
 	xRequestedWith := c.GetHeader("X-Requested-With")
-	
+
 	// Block direct browser access - only allow modal/fetch requests
 	if xRequestedWith != "XMLHttpRequest" && !strings.Contains(acceptHeader, "application/json") && !strings.Contains(acceptHeader, "text/html") {
 		c.Redirect(http.StatusFound, "/cables")
 		return
 	}
-	
+
 	// If it's a direct browser request (Accept: text/html without XMLHttpRequest), redirect
 	if strings.Contains(acceptHeader, "text/html") && xRequestedWith != "XMLHttpRequest" {
 		c.Redirect(http.StatusFound, "/cables")
@@ -118,14 +180,14 @@ func (h *CableHandler) NewCableForm(c *gin.Context) {
 	}
 
 	user, _ := GetCurrentUser(c)
-	
+
 	// Get cable types and connectors for the form
 	types, err := h.cableRepo.GetAllCableTypes()
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
 		return
 	}
-	
+
 	connectors, err := h.cableRepo.GetAllCableConnectors()
 	if err != nil {
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
@@ -143,7 +205,7 @@ func (h *CableHandler) NewCableForm(c *gin.Context) {
 
 func (h *CableHandler) CreateCable(c *gin.Context) {
 	log.Printf("🔥 CREATE CABLE HANDLER CALLED")
-	
+
 	// Parse form values
 	connector1Str := c.PostForm("connector1")
 	connector2Str := c.PostForm("connector2")
@@ -151,10 +213,10 @@ func (h *CableHandler) CreateCable(c *gin.Context) {
 	lengthStr := c.PostForm("length")
 	mm2Str := c.PostForm("mm2")
 	amountStr := c.PostForm("amount")
-	
-	log.Printf("📝 Form values: connector1='%s', connector2='%s', type='%s', length='%s', mm2='%s', amount='%s'", 
+
+	log.Printf("📝 Form values: connector1='%s', connector2='%s', type='%s', length='%s', mm2='%s', amount='%s'",
 		connector1Str, connector2Str, typeStr, lengthStr, mm2Str, amountStr)
-	
+
 	// Parse required fields
 	connector1, err := strconv.Atoi(connector1Str)
 	if err != nil {
@@ -162,28 +224,28 @@ func (h *CableHandler) CreateCable(c *gin.Context) {
 		h.renderCableFormWithError(c, "Invalid connector 1 value", nil)
 		return
 	}
-	
+
 	connector2, err := strconv.Atoi(connector2Str)
 	if err != nil {
 		log.Printf("❌ Invalid connector2: %v", err)
 		h.renderCableFormWithError(c, "Invalid connector 2 value", nil)
 		return
 	}
-	
+
 	cableType, err := strconv.Atoi(typeStr)
 	if err != nil {
 		log.Printf("❌ Invalid type: %v", err)
 		h.renderCableFormWithError(c, "Invalid cable type value", nil)
 		return
 	}
-	
+
 	length, err := strconv.ParseFloat(lengthStr, 64)
 	if err != nil {
 		log.Printf("❌ Invalid length: %v", err)
 		h.renderCableFormWithError(c, "Invalid length value", nil)
 		return
 	}
-	
+
 	var mm2 *float64
 	if mm2Str != "" {
 		parsedMM2, err := strconv.ParseFloat(mm2Str, 64)
@@ -194,7 +256,7 @@ func (h *CableHandler) CreateCable(c *gin.Context) {
 		}
 		mm2 = &parsedMM2
 	}
-	
+
 	// Parse amount (default to 1 if not provided)
 	amount := 1
 	if amountStr != "" {
@@ -205,11 +267,11 @@ func (h *CableHandler) CreateCable(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Create cables based on amount
 	var createdCables []models.Cable
 	var createdIDs []int
-	
+
 	for i := 0; i < amount; i++ {
 		cable := models.Cable{
 			Connector1: connector1,
@@ -218,31 +280,31 @@ func (h *CableHandler) CreateCable(c *gin.Context) {
 			Length:     length,
 			MM2:        mm2,
 		}
-		
+
 		if err := h.cableRepo.Create(&cable); err != nil {
 			log.Printf("❌ Error creating cable %d of %d: %v", i+1, amount, err)
 			h.renderCableFormWithError(c, fmt.Sprintf("Error creating cable %d of %d: %v", i+1, amount, err), &cable)
 			return
 		}
-		
+
 		createdCables = append(createdCables, cable)
 		createdIDs = append(createdIDs, cable.CableID)
 	}
-	
+
 	log.Printf("✅ Successfully created %d cables with IDs: %v", amount, createdIDs)
 	c.Redirect(http.StatusFound, "/cables")
 }
 
 func (h *CableHandler) renderCableFormWithError(c *gin.Context, errorMsg string, cable *models.Cable) {
 	user, _ := GetCurrentUser(c)
-	
+
 	types, _ := h.cableRepo.GetAllCableTypes()
 	connectors, _ := h.cableRepo.GetAllCableConnectors()
-	
+
 	if cable == nil {
 		cable = &models.Cable{}
 	}
-	
+
 	c.HTML(http.StatusInternalServerError, "cable_form.html", gin.H{
 		"title":      "New Cable",
 		"cable":      cable,
@@ -277,7 +339,7 @@ func (h *CableHandler) GetCableAPI(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cable ID"})
 		return
 	}
-	
+
 	cable, err := h.cableRepo.GetByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cable not found"})

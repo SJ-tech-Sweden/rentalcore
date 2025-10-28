@@ -195,21 +195,21 @@ func (JobDevice) TableName() string {
 
 // JobWithDetails represents a job with aggregated information
 type JobWithDetails struct {
-	JobID          uint       `json:"jobID" gorm:"column:jobID"`
-	JobCode        string     `json:"job_code" gorm:"column:job_code"`
-	CustomerID     uint       `json:"customerID" gorm:"column:customerID"`
-	StatusID       uint       `json:"statusID" gorm:"column:statusID"`
-	JobCategoryID  *uint      `json:"jobcategoryID" gorm:"column:jobcategoryID"`
-	Description    *string    `json:"description" gorm:"column:description"`
-	StartDate      *time.Time `json:"startDate" gorm:"column:startDate"`
-	EndDate        *time.Time `json:"endDate" gorm:"column:endDate"`
-	Revenue        float64    `json:"revenue" gorm:"column:revenue"`
-	FinalRevenue   *float64   `json:"final_revenue" gorm:"column:final_revenue"`
-	CustomerName   string     `json:"customer_name" gorm:"column:customer_name"`
-	StatusName     string     `json:"status_name" gorm:"column:status_name"`
-	CategoryName   *string    `json:"category_name" gorm:"column:category_name"`
-	DeviceCount    int        `json:"device_count" gorm:"column:device_count"`
-	TotalRevenue   float64    `json:"total_revenue" gorm:"column:total_revenue"`
+	JobID         uint       `json:"jobID" gorm:"column:jobID"`
+	JobCode       string     `json:"job_code" gorm:"column:job_code"`
+	CustomerID    uint       `json:"customerID" gorm:"column:customerID"`
+	StatusID      uint       `json:"statusID" gorm:"column:statusID"`
+	JobCategoryID *uint      `json:"jobcategoryID" gorm:"column:jobcategoryID"`
+	Description   *string    `json:"description" gorm:"column:description"`
+	StartDate     *time.Time `json:"startDate" gorm:"column:startDate"`
+	EndDate       *time.Time `json:"endDate" gorm:"column:endDate"`
+	Revenue       float64    `json:"revenue" gorm:"column:revenue"`
+	FinalRevenue  *float64   `json:"final_revenue" gorm:"column:final_revenue"`
+	CustomerName  string     `json:"customer_name" gorm:"column:customer_name"`
+	StatusName    string     `json:"status_name" gorm:"column:status_name"`
+	CategoryName  *string    `json:"category_name" gorm:"column:category_name"`
+	DeviceCount   int        `json:"device_count" gorm:"column:device_count"`
+	TotalRevenue  float64    `json:"total_revenue" gorm:"column:total_revenue"`
 }
 
 // DeviceWithJobInfo represents a device with its current job assignment
@@ -279,17 +279,22 @@ func (Manufacturer) TableName() string {
 
 // FilterParams represents parameters for filtering jobs and devices
 type FilterParams struct {
-	StartDate  *time.Time `form:"start_date"`
-	EndDate    *time.Time `form:"end_date"`
-	CustomerID *uint      `form:"customer_id"`
-	StatusID   *uint      `form:"status_id"`
-	MinRevenue *float64   `form:"min_revenue"`
-	MaxRevenue *float64   `form:"max_revenue"`
-	SearchTerm string     `form:"search"`
-	Category   string     `form:"category"`
-	Available  *bool      `form:"available"`
-	Limit      int        `form:"limit"`
-	Offset     int        `form:"offset"`
+	StartDate    *time.Time `form:"start_date"`
+	EndDate      *time.Time `form:"end_date"`
+	CustomerID   *uint      `form:"customer_id"`
+	StatusID     *uint      `form:"status_id"`
+	MinRevenue   *float64   `form:"min_revenue"`
+	MaxRevenue   *float64   `form:"max_revenue"`
+	SearchTerm   string     `form:"search"`
+	Category     string     `form:"category"`
+	Available    *bool      `form:"available"`
+	Limit        int        `form:"limit"`
+	Offset       int        `form:"offset"`
+	Connector1ID *uint      `form:"connector1"`
+	Connector2ID *uint      `form:"connector2"`
+	CableTypeID  *uint      `form:"cable_type"`
+	MinLength    *float64   `form:"length_min"`
+	MaxLength    *float64   `form:"length_max"`
 	// Additional fields for optimized repository
 	Page             int    `form:"page"`
 	SortBy           string `form:"sort_by"`

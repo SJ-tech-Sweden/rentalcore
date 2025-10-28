@@ -54,22 +54,121 @@
         <!-- Search and Filters -->
         <div class="rc-card rc-mb-lg">
             <div class="rc-card-body">
-                <form method="GET" action="/cables">
+                <form method="GET" action="/cables" id="cableFilterForm">
                     <input type="hidden" name="view" value="{{.viewType}}">
                     <div class="rc-flex rc-flex-gap-sm rc-flex-wrap" style="align-items: stretch;">
                         <input type="text" class="rc-input" name="search" placeholder="Search cables..." value="{{.params.SearchTerm}}" style="max-width: 300px;">
                         <button type="submit" class="rc-btn rc-btn-primary" style="padding: 0 var(--space-md); min-width: 50px;">
                             <i class="bi bi-search"></i>
                         </button>
-                        {{if .params.SearchTerm}}
+                        {{if or .params.SearchTerm .params.Connector1ID .params.Connector2ID .params.CableTypeID .params.MinLength .params.MaxLength}}
                         <a href="/cables?view={{.viewType}}" class="rc-btn rc-btn-outline" style="padding: 0 var(--space-md); min-width: 50px;">
                             <i class="bi bi-x-lg"></i>
                         </a>
                         {{end}}
+                        <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm" id="toggleAdvancedFilters" aria-expanded="{{if or .params.Connector1ID .params.Connector2ID .params.CableTypeID .params.MinLength .params.MaxLength}}true{{else}}false{{end}}">
+                            <i class="bi bi-sliders"></i>
+                            <span class="desktop-label">Advanced Filters</span>
+                        </button>
+                    </div>
+
+                    <div id="advancedFiltersPanel" class="advanced-filter-panel" style="{{if or .params.Connector1ID .params.Connector2ID .params.CableTypeID .params.MinLength .params.MaxLength}}display: block;{{else}}display: none;{{end}}">
+                        <div class="rc-grid rc-grid-4 rc-grid-gap-md filter-grid">
+                            <div class="rc-form-group">
+                                <label class="rc-label">Cable Type</label>
+                                <select class="rc-select" name="cable_type">
+                                    <option value="">All Types</option>
+                                    {{range .cableTypes}}
+                                    <option value="{{.CableTypesID}}" {{if $.params.CableTypeID}}{{if eq (deref $.params.CableTypeID) .CableTypesID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </div>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Plug 1</label>
+                                <select class="rc-select" name="connector1">
+                                    <option value="">Any Connector</option>
+                                    {{range .connectors}}
+                                    <option value="{{.CableConnectorsID}}" {{if $.params.Connector1ID}}{{if eq (deref $.params.Connector1ID) .CableConnectorsID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </div>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Plug 2</label>
+                                <select class="rc-select" name="connector2">
+                                    <option value="">Any Connector</option>
+                                    {{range .connectors}}
+                                    <option value="{{.CableConnectorsID}}" {{if $.params.Connector2ID}}{{if eq (deref $.params.Connector2ID) .CableConnectorsID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                    {{end}}
+                                </select>
+                            </div>
+                            <div class="rc-form-group length-filter-group">
+                                <label class="rc-label">Length Range (m)</label>
+                                <div class="length-slider-container">
+                                    <input type="range" id="lengthMinRange" min="{{printf "%.2f" .lengthMin}}" max="{{printf "%.2f" .lengthMax}}" step="0.1" value="{{printf "%.2f" .selectedLengthMin}}">
+                                    <input type="range" id="lengthMaxRange" min="{{printf "%.2f" .lengthMin}}" max="{{printf "%.2f" .lengthMax}}" step="0.1" value="{{printf "%.2f" .selectedLengthMax}}">
+                                </div>
+                                <div class="rc-flex rc-flex-gap-sm rc-mt-sm">
+                                    <div class="rc-flex rc-flex-column rc-flex-gap-xs">
+                                        <span class="rc-text-xs rc-text-muted">From</span>
+                                        <input type="number" min="{{printf "%.2f" .lengthMin}}" max="{{printf "%.2f" .lengthMax}}" step="0.1" id="lengthMinInput" name="length_min" value="{{printf "%.2f" .selectedLengthMin}}" class="rc-input rc-input-sm">
+                                    </div>
+                                    <div class="rc-flex rc-flex-column rc-flex-gap-xs">
+                                        <span class="rc-text-xs rc-text-muted">To</span>
+                                        <input type="number" min="{{printf "%.2f" .lengthMin}}" max="{{printf "%.2f" .lengthMax}}" step="0.1" id="lengthMaxInput" name="length_max" value="{{printf "%.2f" .selectedLengthMax}}" class="rc-input rc-input-sm">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="advanced-actions rc-flex rc-flex-between rc-flex-wrap rc-mt-md">
+                            <div class="rc-text-xs rc-text-muted">
+                                Tip: adjust both slider handles or number inputs to refine cable lengths.
+                            </div>
+                            <div class="rc-flex rc-flex-gap-sm">
+                                <button type="submit" class="rc-btn rc-btn-primary rc-btn-sm">
+                                    <i class="bi bi-funnel"></i> Apply Filters
+                                </button>
+                                <a href="/cables?view={{.viewType}}" class="rc-btn rc-btn-outline rc-btn-sm">
+                                    <i class="bi bi-eraser"></i> Reset
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
+
+        {{if .connectors}}
+        <div class="connector-legend rc-card rc-mb-lg">
+            <div class="rc-card-header">
+                <h4 class="rc-card-title">
+                    <i class="bi bi-plug"></i> Connector Overview
+                </h4>
+                <p class="rc-text-sm rc-text-muted">Visual reference for available plug types</p>
+            </div>
+            <div class="rc-card-body">
+                <div class="connector-legend-grid">
+                    {{range .connectors}}
+                    <div class="connector-legend-item">
+                        <div class="connector-icon">
+                            <i class="bi bi-plug-fill"></i>
+                        </div>
+                        <div class="connector-meta">
+                            <span class="connector-name">{{.Name}}</span>
+                            <div class="connector-tags">
+                                {{if .Abbreviation}}
+                                <span class="rc-badge rc-badge-outline rc-badge-xs">{{.Abbreviation}}</span>
+                                {{end}}
+                                {{if .Gender}}
+                                <span class="rc-badge rc-badge-xs">{{.Gender}}</span>
+                                {{end}}
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+        </div>
+        {{end}}
 
         <!-- Cable Content -->
         <div class="rc-card">
@@ -147,11 +246,11 @@
             </a>
         </div>
         
-        <script>
-        let currentPage = {{if .pageNumber}}{{.pageNumber}}{{else}}1{{end}};
-        const totalPages = {{if .totalPages}}{{.totalPages}}{{else}}1{{end}};
-        
-        function nextPage() {
+<script>
+let currentPage = {{if .pageNumber}}{{.pageNumber}}{{else}}1{{end}};
+const totalPages = {{if .totalPages}}{{.totalPages}}{{else}}1{{end}};
+
+function nextPage() {
             if (currentPage < totalPages) {
                 currentPage++;
                 const url = new URL(window.location);
@@ -167,10 +266,10 @@
                 url.searchParams.set('page', currentPage);
                 window.location.href = url.toString();
             }
-        }
-        
-        // Update button states based on current page
-        function updateButtonStates() {
+}
+
+// Update button states based on current page
+function updateButtonStates() {
             const prevBtn = document.querySelector('a[onclick="previousPage()"]');
             const nextBtn = document.querySelector('a[onclick="nextPage()"]');
             
@@ -192,11 +291,98 @@
         }
         
         // Update page display and button states on load
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelector('.rc-flex span').textContent = 'Page ' + currentPage + ' of ' + totalPages;
-            updateButtonStates();
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('.rc-flex span').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    updateButtonStates();
+});
+
+const advancedPanel = document.getElementById('advancedFiltersPanel');
+const advancedToggle = document.getElementById('toggleAdvancedFilters');
+
+if (advancedToggle && advancedPanel) {
+    const isOpen = advancedPanel.style.display !== 'none';
+    if (isOpen) {
+        advancedToggle.classList.add('active');
+        advancedToggle.setAttribute('aria-expanded', 'true');
+    }
+
+    advancedToggle.addEventListener('click', () => {
+        const currentlyHidden = advancedPanel.style.display === 'none';
+        advancedPanel.style.display = currentlyHidden ? 'block' : 'none';
+        advancedToggle.classList.toggle('active', currentlyHidden);
+        advancedToggle.setAttribute('aria-expanded', currentlyHidden ? 'true' : 'false');
+    });
+}
+
+const minRange = document.getElementById('lengthMinRange');
+const maxRange = document.getElementById('lengthMaxRange');
+const minInput = document.getElementById('lengthMinInput');
+const maxInput = document.getElementById('lengthMaxInput');
+
+if (minRange && maxRange && minInput && maxInput) {
+    const sliderEnabled = parseFloat(maxRange.max) > parseFloat(minRange.min);
+
+    const syncInputsFromRange = () => {
+        const minValue = Math.min(parseFloat(minRange.value), parseFloat(maxRange.value));
+        const maxValue = Math.max(parseFloat(minRange.value), parseFloat(maxRange.value));
+
+        minRange.value = minValue.toFixed(2);
+        maxRange.value = maxValue.toFixed(2);
+        minInput.value = minRange.value;
+        maxInput.value = maxRange.value;
+    };
+
+    const syncRangeFromInputs = () => {
+        let minValue = parseFloat(minInput.value);
+        let maxValue = parseFloat(maxInput.value);
+
+        if (isNaN(minValue)) {
+            minValue = parseFloat(minRange.min);
+        }
+        if (isNaN(maxValue)) {
+            maxValue = parseFloat(maxRange.max);
+        }
+
+        if (minValue > maxValue) {
+            [minValue, maxValue] = [maxValue, minValue];
+        }
+
+        minValue = Math.max(minValue, parseFloat(minRange.min));
+        maxValue = Math.min(maxValue, parseFloat(maxRange.max));
+
+        minRange.value = minValue.toFixed(2);
+        maxRange.value = maxValue.toFixed(2);
+        minInput.value = minRange.value;
+        maxInput.value = maxRange.value;
+    };
+
+    if (!sliderEnabled) {
+        minRange.disabled = true;
+        maxRange.disabled = true;
+    } else {
+        minRange.addEventListener('input', () => {
+            if (parseFloat(minRange.value) > parseFloat(maxRange.value)) {
+                maxRange.value = minRange.value;
+            }
+            syncInputsFromRange();
         });
-        </script>
+
+        maxRange.addEventListener('input', () => {
+            if (parseFloat(maxRange.value) < parseFloat(minRange.value)) {
+                minRange.value = maxRange.value;
+            }
+            syncInputsFromRange();
+        });
+    }
+
+    minInput.addEventListener('change', syncRangeFromInputs);
+    maxInput.addEventListener('change', syncRangeFromInputs);
+    minInput.addEventListener('blur', syncRangeFromInputs);
+    maxInput.addEventListener('blur', syncRangeFromInputs);
+
+    syncRangeFromInputs();
+}
+</script>
     </main>
 
     <!-- Footer -->
@@ -226,6 +412,119 @@
     <script src="/static/js/rental-core-design.js"></script>
     
     <style>
+    .advanced-filter-panel {
+        margin-top: var(--space-md);
+        padding: var(--space-lg);
+        background: var(--surface-2);
+        border: 1px solid var(--surface-3);
+        border-radius: var(--radius-lg);
+    }
+
+    #toggleAdvancedFilters.active {
+        background: var(--surface-2);
+        border-color: var(--surface-3);
+    }
+
+    #toggleAdvancedFilters .desktop-label {
+        margin-left: var(--space-xs);
+    }
+
+    @media (max-width: 640px) {
+        #toggleAdvancedFilters .desktop-label {
+            display: none;
+        }
+    }
+
+    .filter-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .length-filter-group {
+        position: relative;
+    }
+
+    .length-slider-container {
+        position: relative;
+        height: 32px;
+        margin-bottom: var(--space-sm);
+    }
+
+    .length-slider-container input[type="range"] {
+        position: absolute;
+        width: 100%;
+        pointer-events: none;
+        -webkit-appearance: none;
+        background: transparent;
+    }
+
+    .length-slider-container input[type="range"]::-webkit-slider-thumb {
+        pointer-events: all;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--surface-0);
+        background: var(--accent-electric);
+        -webkit-appearance: none;
+    }
+
+    .length-slider-container input[type="range"]::-moz-range-thumb {
+        pointer-events: all;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid var(--surface-0);
+        background: var(--accent-electric);
+    }
+
+    .advanced-actions {
+        border-top: 1px solid var(--surface-3);
+        padding-top: var(--space-md);
+    }
+
+    .connector-legend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: var(--space-md);
+    }
+
+    .connector-legend-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        padding: var(--space-md);
+        border: 1px solid var(--surface-3);
+        border-radius: var(--radius-lg);
+        background: var(--surface-2);
+    }
+
+    .connector-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--surface-1);
+        color: var(--accent-electric);
+        font-size: 1.4rem;
+    }
+
+    .connector-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .connector-name {
+        font-weight: 600;
+    }
+
+    .connector-tags {
+        display: flex;
+        gap: var(--space-xs);
+        flex-wrap: wrap;
+    }
+
     .cable-connectors {
         display: flex;
         align-items: center;

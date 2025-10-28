@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"database/sql"
 	"log"
+
 	"go-barcode-webapp/internal/models"
 )
 
@@ -47,6 +49,22 @@ func (r *CableRepository) List(params *models.FilterParams) ([]models.Cable, err
 		query = query.Where("name LIKE ?", searchPattern)
 	}
 
+	if params.Connector1ID != nil {
+		query = query.Where("connector1 = ?", *params.Connector1ID)
+	}
+	if params.Connector2ID != nil {
+		query = query.Where("connector2 = ?", *params.Connector2ID)
+	}
+	if params.CableTypeID != nil {
+		query = query.Where("typ = ?", *params.CableTypeID)
+	}
+	if params.MinLength != nil {
+		query = query.Where("length >= ?", *params.MinLength)
+	}
+	if params.MaxLength != nil {
+		query = query.Where("length <= ?", *params.MaxLength)
+	}
+
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit)
 	}
@@ -63,7 +81,7 @@ func (r *CableRepository) List(params *models.FilterParams) ([]models.Cable, err
 // ListGrouped returns cables grouped by specifications with count
 func (r *CableRepository) ListGrouped(params *models.FilterParams) ([]models.CableGroup, error) {
 	var groups []models.CableGroup
-	
+
 	// Build the base query for grouping
 	query := r.db.Model(&models.Cable{}).
 		Select("typ as type, connector1, connector2, length, mm2, name, COUNT(*) as count").
@@ -97,14 +115,14 @@ func (r *CableRepository) ListGrouped(params *models.FilterParams) ([]models.Cab
 				groups[i].Connector1Info = &connector1
 			}
 		}
-		
+
 		if groups[i].Connector2 > 0 {
 			var connector2 models.CableConnector
 			if err := r.db.First(&connector2, groups[i].Connector2).Error; err == nil {
 				groups[i].Connector2Info = &connector2
 			}
 		}
-		
+
 		// Load type info
 		if groups[i].Type > 0 {
 			var cableType models.CableType
@@ -112,19 +130,19 @@ func (r *CableRepository) ListGrouped(params *models.FilterParams) ([]models.Cab
 				groups[i].TypeInfo = &cableType
 			}
 		}
-		
+
 		// Get sample cable IDs for this group
 		var cableIDs []int
 		whereClause := "typ = ? AND connector1 = ? AND connector2 = ? AND length = ? AND COALESCE(name, '') = COALESCE(?, '')"
 		args := []interface{}{groups[i].Type, groups[i].Connector1, groups[i].Connector2, groups[i].Length, groups[i].Name}
-		
+
 		if groups[i].MM2 != nil {
 			whereClause += " AND mm2 = ?"
 			args = append(args, *groups[i].MM2)
 		} else {
 			whereClause += " AND mm2 IS NULL"
 		}
-		
+
 		r.db.Model(&models.Cable{}).
 			Select("cableID").
 			Where(whereClause, args...).
@@ -139,6 +157,31 @@ func (r *CableRepository) GetTotalCount() (int, error) {
 	var count int64
 	err := r.db.Model(&models.Cable{}).Count(&count).Error
 	return int(count), err
+}
+
+// GetLengthBounds returns minimum and maximum cable lengths for slider defaults
+func (r *CableRepository) GetLengthBounds() (float64, float64, error) {
+	var result struct {
+		MinLength sql.NullFloat64
+		MaxLength sql.NullFloat64
+	}
+
+	if err := r.db.Model(&models.Cable{}).
+		Select("MIN(length) AS min_length, MAX(length) AS max_length").
+		Scan(&result).Error; err != nil {
+		return 0, 0, err
+	}
+
+	min := 0.0
+	max := 0.0
+	if result.MinLength.Valid {
+		min = result.MinLength.Float64
+	}
+	if result.MaxLength.Valid {
+		max = result.MaxLength.Float64
+	}
+
+	return min, max, nil
 }
 
 // Get all cable types for forms
