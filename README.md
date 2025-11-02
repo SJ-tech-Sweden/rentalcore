@@ -30,6 +30,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **Performance Metrics**: Utilization rates, booking statistics, revenue analysis
 
 ### 🏢 **Equipment Management**
+- **Product Catalog (WarehouseCore)**: Manage product master data exclusively in WarehouseCore (`/admin/products`); RentalCore consumes the catalog read-only for jobs, invoices, and device assignments
 - **Device Inventory**: Complete equipment tracking with categories and products
 - **Availability Tracking**: Real-time device status (available, checked out, maintenance)
 - **QR Code & Barcode Generation**: Automated code generation for device identification

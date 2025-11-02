@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -26,6 +27,50 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func buildWarehouseProductsURL(r *http.Request) string {
+	warehouseDomain := os.Getenv("WAREHOUSECORE_DOMAIN")
+
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if r.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	host := warehouseDomain
+	if host == "" {
+		rawHost := r.Host
+		hostname := rawHost
+		port := ""
+
+		if h, p, err := net.SplitHostPort(rawHost); err == nil {
+			hostname = h
+			port = p
+		}
+
+		switch {
+		case strings.HasPrefix(hostname, "rent."):
+			hostname = strings.Replace(hostname, "rent.", "warehouse.", 1)
+		case strings.HasPrefix(hostname, "rental."):
+			hostname = strings.Replace(hostname, "rental.", "warehouse.", 1)
+		case port == "8081":
+			hostname = hostname + ":8082"
+		case port != "":
+			hostname = hostname + ":8082"
+		}
+
+		host = hostname
+	}
+
+	if host == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s://%s/admin/products", scheme, host)
+}
 
 func main() {
 	// Parse command line flags
@@ -690,12 +735,20 @@ func setupRoutes(r *gin.Engine,
 			devices.GET("/available", deviceHandler.GetAvailableDevices)
 		}
 
-		// Product routes
-		products := protected.Group("/products")
-		{
-			products.GET("", productHandler.ListProductsWeb)
-			products.GET("/new", productHandler.NewProductForm)
+		redirectToWarehouseProducts := func(c *gin.Context) {
+			target := buildWarehouseProductsURL(c.Request)
+			if target == "" {
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"error":   "WarehouseCore domain not configured",
+					"message": "Set WAREHOUSECORE_DOMAIN to enable product management in WarehouseCore.",
+				})
+				return
+			}
+			c.Redirect(http.StatusFound, target)
 		}
+
+		protected.GET("/products", redirectToWarehouseProducts)
+		protected.GET("/products/new", redirectToWarehouseProducts)
 
 		// Rental Equipment routes
 		rentalEquipment := protected.Group("/rental-equipment")
@@ -1149,17 +1202,7 @@ func setupRoutes(r *gin.Engine,
 			apiProducts := api.Group("/products")
 			{
 				apiProducts.GET("", productHandler.ListProducts)
-				apiProducts.POST("", productHandler.CreateProductAPI)
 				apiProducts.GET("/:id", productHandler.GetProductAPI)
-				apiProducts.PUT("/:id", productHandler.UpdateProductAPI)
-				apiProducts.DELETE("/:id", productHandler.DeleteProductAPI)
-				apiProducts.GET("/categories", productHandler.GetCategoriesAPI)
-				apiProducts.GET("/subcategories", productHandler.GetSubcategoriesAPI)
-				apiProducts.GET("/subcategories/filter", productHandler.GetSubcategoriesByCategoryAPI)
-				apiProducts.GET("/subbiercategories", productHandler.GetSubbiercategoriesAPI)
-				apiProducts.GET("/subbiercategories/filter", productHandler.GetSubbiercategoriesBySubcategoryAPI)
-				apiProducts.GET("/brands", productHandler.GetBrandsAPI)
-				apiProducts.GET("/manufacturers", productHandler.GetManufacturersAPI)
 			}
 
 			// Cable API

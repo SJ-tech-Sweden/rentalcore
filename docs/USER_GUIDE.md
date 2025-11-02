@@ -36,13 +36,13 @@ The dashboard provides a quick overview of:
 
 #### Device Categories and Products
 - **Categories**: Organize equipment into logical groups (Audio, Lighting, etc.)
-- **Products**: Define equipment types with daily rental rates
+- **Products (WarehouseCore)**: Maintain the product catalog via WarehouseCore's admin UI (`/admin/products`). RentalCore consumes the catalog read-only for device assignment and job planning.
 - **Devices**: Individual equipment items with serial numbers and status
 
 #### Adding Equipment
 1. Navigate to "Devices" in the main menu
 2. Click "Add New Device"
-3. Select product type and enter device details:
+3. Select a product from the WarehouseCore-managed catalog and enter device details:
    - Device ID (unique identifier)
    - Serial number
    - Purchase information

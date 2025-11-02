@@ -105,10 +105,12 @@
                 <span class="rc-nav-label" data-i18n="nav.devices">Devices</span>
             </a>
 
-            <a href="/products" class="rc-nav-item {{if eq .currentPage "products"}}active{{end}}">
+            {{if .WarehouseCoreDomain}}
+            <a href="https://{{.WarehouseCoreDomain}}/admin/products" class="rc-nav-item" target="_blank" rel="noopener">
                 <i class="bi bi-box"></i>
-                <span class="rc-nav-label" data-i18n="nav.devices">Products</span>
+                <span class="rc-nav-label" data-i18n="nav.devices">Products (WH)</span>
             </a>
+            {{end}}
 
             <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}">
                 <i class="bi bi-lightning-charge"></i>

@@ -40,9 +40,14 @@
             <i class="bi bi-box-seam"></i>
             <span class="rc-nav-label">WarehouseCore</span>
         </a>
+        <a href="" id="storage-products-link" class="rc-nav-item rc-nav-crosslink" title="Open WarehouseCore Products">
+            <i class="bi bi-box"></i>
+            <span class="rc-nav-label">Products (WH)</span>
+        </a>
         <script>
         (function() {
             var link = document.getElementById('storage-nav-link');
+            var productLink = document.getElementById('storage-products-link');
             var storageDomain = '{{.WarehouseCoreDomain}}';
             var protocol = window.location.protocol;
 
@@ -66,6 +71,9 @@
             }
 
             link.href = targetUrl;
+            if (productLink) {
+                productLink.href = targetUrl + '/admin/products';
+            }
         })();
         </script>
 
@@ -92,28 +100,15 @@
             <span class="rc-nav-label">Devices</span>
         </a>
 
-        <!-- Products Dropdown -->
-        <div class="rc-nav-dropdown">
-            <button class="rc-nav-dropdown-toggle {{if or (eq .currentPage "products") (eq .currentPage "rental-equipment") (eq .currentPage "rental-analytics")}}active{{end}}" data-dropdown="products">
-                <i class="bi bi-box"></i>
-                <span class="rc-nav-label">Products</span>
-                <i class="bi bi-chevron-down rc-dropdown-icon"></i>
-            </button>
-            <div class="rc-nav-dropdown-menu" id="dropdown-products">
-                <a href="/products" class="rc-nav-dropdown-item {{if eq .currentPage "products"}}active{{end}}">
-                    <i class="bi bi-boxes"></i>
-                    <span class="rc-nav-label">Own Products</span>
-                </a>
-                <a href="/rental-equipment" class="rc-nav-dropdown-item {{if eq .currentPage "rental-equipment"}}active{{end}}">
-                    <i class="bi bi-box-seam"></i>
-                    <span class="rc-nav-label">Rental Equipment</span>
-                </a>
-                <a href="/rental-equipment/analytics" class="rc-nav-dropdown-item {{if eq .currentPage "rental-analytics"}}active{{end}}">
-                    <i class="bi bi-clipboard-data"></i>
-                    <span class="rc-nav-label">Rental Analytics</span>
-                </a>
-            </div>
-        </div>
+        <a href="/rental-equipment" class="rc-nav-item {{if eq .currentPage "rental-equipment"}}active{{end}}" title="Rental Equipment">
+            <i class="bi bi-box-seam"></i>
+            <span class="rc-nav-label">Rental Equipment</span>
+        </a>
+
+        <a href="/rental-equipment/analytics" class="rc-nav-item {{if eq .currentPage "rental-analytics"}}active{{end}}" title="Rental Analytics">
+            <i class="bi bi-clipboard-data"></i>
+            <span class="rc-nav-label">Rental Analytics</span>
+        </a>
 
         <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}" title="Cables">
             <i class="bi bi-lightning-charge"></i>

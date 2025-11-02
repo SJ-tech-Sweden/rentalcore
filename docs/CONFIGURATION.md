@@ -42,7 +42,12 @@ MAX_UPLOAD_SIZE=10485760
 ENABLE_2FA=true
 ENABLE_AUDIT_LOG=true
 ENABLE_METRICS=true
+
+# Cross Navigation
+WAREHOUSECORE_DOMAIN=warehouse.example.com
 ```
+
+`WAREHOUSECORE_DOMAIN` must point to the public WarehouseCore host (without protocol). RentalCore uses it to populate navigation links and redirect users to WarehouseCore's product administration.
 
 ### Email Configuration (Optional)
 ```bash
