@@ -81,71 +81,71 @@
             <!-- Cross-navigation to WarehouseCore -->
             <a href="http://localhost:8082" class="rc-nav-item rc-nav-crosslink" title="Switch to WarehouseCore">
                 <i class="bi bi-box-seam"></i>
-                <span class="rc-nav-label">WarehouseCore</span>
+                <span class="rc-nav-label" data-i18n="nav.warehousecore">WarehouseCore</span>
             </a>
 
             <!-- Main navigation items -->
-            <a href="/" class="rc-nav-item {{if eq .currentPage "home"}}active{{end}}" title="Dashboard">
+            <a href="/" class="rc-nav-item {{if eq .currentPage "home"}}active{{end}}">
                 <i class="bi bi-house-door"></i>
-                <span class="rc-nav-label">Dashboard</span>
+                <span class="rc-nav-label" data-i18n="nav.dashboard">Dashboard</span>
             </a>
 
-            <a href="/scan" class="rc-nav-item {{if eq .currentPage "scan"}}active{{end}}" title="Scanner">
+            <a href="/scan" class="rc-nav-item {{if eq .currentPage "scan"}}active{{end}}">
                 <i class="bi bi-upc-scan"></i>
-                <span class="rc-nav-label">Scanner</span>
+                <span class="rc-nav-label" data-i18n="nav.scan">Scanner</span>
             </a>
 
-            <a href="/jobs" class="rc-nav-item {{if eq .currentPage "jobs"}}active{{end}}" title="Jobs">
+            <a href="/jobs" class="rc-nav-item {{if eq .currentPage "jobs"}}active{{end}}">
                 <i class="bi bi-briefcase"></i>
-                <span class="rc-nav-label">Jobs</span>
+                <span class="rc-nav-label" data-i18n="nav.jobs">Jobs</span>
             </a>
 
-            <a href="/devices" class="rc-nav-item {{if eq .currentPage "devices"}}active{{end}}" title="Devices">
+            <a href="/devices" class="rc-nav-item {{if eq .currentPage "devices"}}active{{end}}">
                 <i class="bi bi-cpu"></i>
-                <span class="rc-nav-label">Devices</span>
+                <span class="rc-nav-label" data-i18n="nav.devices">Devices</span>
             </a>
 
-            <a href="/products" class="rc-nav-item {{if eq .currentPage "products"}}active{{end}}" title="Products">
+            <a href="/products" class="rc-nav-item {{if eq .currentPage "products"}}active{{end}}">
                 <i class="bi bi-box"></i>
-                <span class="rc-nav-label">Products</span>
+                <span class="rc-nav-label" data-i18n="nav.devices">Products</span>
             </a>
 
-            <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}" title="Cables">
+            <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}">
                 <i class="bi bi-lightning-charge"></i>
-                <span class="rc-nav-label">Cables</span>
+                <span class="rc-nav-label" data-i18n="nav.cables">Cables</span>
             </a>
 
-            <a href="/customers" class="rc-nav-item {{if eq .currentPage "customers"}}active{{end}}" title="Customers">
+            <a href="/customers" class="rc-nav-item {{if eq .currentPage "customers"}}active{{end}}">
                 <i class="bi bi-people"></i>
-                <span class="rc-nav-label">Customers</span>
+                <span class="rc-nav-label" data-i18n="nav.customers">Customers</span>
             </a>
 
-            <a href="/cases" class="rc-nav-item {{if eq .currentPage "cases"}}active{{end}}" title="Cases">
+            <a href="/cases" class="rc-nav-item {{if eq .currentPage "cases"}}active{{end}}">
                 <i class="bi bi-archive"></i>
-                <span class="rc-nav-label">Cases</span>
+                <span class="rc-nav-label" data-i18n="nav.cases">Cases</span>
             </a>
 
-            <a href="/invoices" class="rc-nav-item {{if eq .currentPage "invoices"}}active{{end}}" title="Invoices">
+            <a href="/invoices" class="rc-nav-item {{if eq .currentPage "invoices"}}active{{end}}">
                 <i class="bi bi-file-text"></i>
-                <span class="rc-nav-label">Invoices</span>
+                <span class="rc-nav-label" data-i18n="nav.invoices">Invoices</span>
             </a>
 
-            <a href="/analytics" class="rc-nav-item {{if eq .currentPage "analytics"}}active{{end}}" title="Analytics">
+            <a href="/analytics" class="rc-nav-item {{if eq .currentPage "analytics"}}active{{end}}">
                 <i class="bi bi-graph-up"></i>
-                <span class="rc-nav-label">Analytics</span>
+                <span class="rc-nav-label" data-i18n="nav.analytics">Analytics</span>
             </a>
 
-            <a href="/financial" class="rc-nav-item {{if eq .currentPage "financial"}}active{{end}}" title="Financial">
+            <a href="/financial" class="rc-nav-item {{if eq .currentPage "financial"}}active{{end}}">
                 <i class="bi bi-calculator"></i>
                 <span class="rc-nav-label">Financial</span>
             </a>
 
-            <a href="/workflow/packages" class="rc-nav-item {{if eq .currentPage "packages"}}active{{end}}" title="Packages">
+            <a href="/workflow/packages" class="rc-nav-item {{if eq .currentPage "packages"}}active{{end}}">
                 <i class="bi bi-box-seam"></i>
                 <span class="rc-nav-label">Packages</span>
             </a>
 
-            <a href="/rental-equipment" class="rc-nav-item {{if eq .currentPage "rental-equipment"}}active{{end}}" title="Rental Equipment">
+            <a href="/rental-equipment" class="rc-nav-item {{if eq .currentPage "rental-equipment"}}active{{end}}">
                 <i class="bi bi-box-seam"></i>
                 <span class="rc-nav-label">Rental Equip</span>
             </a>
@@ -173,30 +173,30 @@
             <div class="rc-user-menu">
                 <a href="/profile/settings" class="rc-user-menu-item" title="Profile Settings">
                     <i class="bi bi-person-gear"></i>
-                    <span class="rc-nav-label">Profile</span>
+                    <span class="rc-nav-label" data-i18n="settings.profile">Profile</span>
                 </a>
                 <a href="/settings/company" class="rc-user-menu-item" title="Company Settings">
                     <i class="bi bi-building-gear"></i>
-                    <span class="rc-nav-label">Company</span>
+                    <span class="rc-nav-label" data-i18n="settings.company">Company</span>
                 </a>
                 <a href="/users" class="rc-user-menu-item" title="Users">
                     <i class="bi bi-people-fill"></i>
-                    <span class="rc-nav-label">Users</span>
+                    <span class="rc-nav-label" data-i18n="settings.users">Users</span>
                 </a>
                 <a href="/security/roles" class="rc-user-menu-item" title="Security">
                     <i class="bi bi-shield-check"></i>
-                    <span class="rc-nav-label">Security</span>
+                    <span class="rc-nav-label" data-i18n="settings.security">Security</span>
                 </a>
             </div>
 
             <a href="/logout" class="rc-logout-btn" title="Logout">
                 <i class="bi bi-box-arrow-right"></i>
-                <span class="rc-nav-label">Logout</span>
+                <span class="rc-nav-label" data-i18n="auth.logout">Logout</span>
             </a>
             {{else}}
             <a href="/login" class="rc-login-btn" title="Login">
                 <i class="bi bi-box-arrow-in-right"></i>
-                <span class="rc-nav-label">Login</span>
+                <span class="rc-nav-label" data-i18n="auth.login">Login</span>
             </a>
             {{end}}
         </div>
@@ -217,6 +217,9 @@
 
     <!-- JavaScript -->
     <script src="/static/js/rental-core-design.js"></script>
+
+    <!-- i18n Translation System -->
+    <script src="/static/js/i18n.js"></script>
 
     <!-- Page-specific JavaScript -->
     {{block "js" .}}{{end}}
