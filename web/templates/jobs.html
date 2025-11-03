@@ -875,6 +875,16 @@
                 }
                 script.parentNode.replaceChild(newScript, script);
             });
+
+            // IMPORTANT: Manually trigger form initialization after scripts load
+            setTimeout(() => {
+                if (typeof window.initializeJobForm === 'function') {
+                    window.initializeJobForm();
+                    console.log('✅ Job form initialized in modal');
+                } else {
+                    console.error('❌ initializeJobForm function not found');
+                }
+            }, 100);
         })
         .catch(error => {
             console.error('Error loading job form:', error);

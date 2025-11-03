@@ -1137,7 +1137,8 @@
                 .replace(/'/g, '&#39;');
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        // Initialize job form - can be called manually from modal
+        function initializeJobForm() {
             if (typeof window.setupCustomerInlineCreation === 'function') {
                 window.setupCustomerInlineCreation(document);
             }
@@ -1162,7 +1163,13 @@
             initialize.finally(() => {
                 loadProductTree();
             });
-        });
+        }
+
+        // Auto-initialize on page load
+        document.addEventListener('DOMContentLoaded', initializeJobForm);
+
+        // Expose function globally for modal
+        window.initializeJobForm = initializeJobForm;
 
         const jobFormElement = document.getElementById('jobForm');
         if (jobFormElement) {
