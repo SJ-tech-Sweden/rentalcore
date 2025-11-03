@@ -22,7 +22,6 @@ import (
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/monitoring"
 	"go-barcode-webapp/internal/repository"
-	"go-barcode-webapp/internal/routes"
 	"go-barcode-webapp/internal/services"
 
 	"github.com/gin-gonic/gin"
@@ -243,8 +242,6 @@ func main() {
 	cableHandler := handlers.NewCableHandler(cableRepo)
 	infoHandler := handlers.NewInfoHandler()
 	barcodeHandler := handlers.NewBarcodeHandler(barcodeService, deviceRepo)
-	scannerHandler := handlers.NewScannerHandler(jobRepo, deviceRepo, customerRepo, caseRepo, rentalEquipmentRepo)
-	// scanBoardHandler := handlers.NewScanBoardHandler(jobRepo, deviceRepo, db)
 	authHandler := handlers.NewAuthHandler(db.DB, cfg)
 	webauthnHandler := handlers.NewWebAuthnHandler(db.DB, cfg)
 	profileHandler := handlers.NewProfileHandler(db.DB, cfg, webauthnHandler)
@@ -272,16 +269,6 @@ func main() {
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
-
-	// Initialize scan fallback handler (disabled by default)
-	scanFallbackHandler := routes.NewScanFallbackHandler()
-	// Enable server-side decode if environment variable is set
-	if os.Getenv("ENABLE_SERVER_DECODE") == "true" {
-		scanFallbackHandler.SetEnabled(true)
-		log.Printf("Server-side barcode decode enabled")
-	} else {
-		log.Printf("Server-side barcode decode disabled (set ENABLE_SERVER_DECODE=true to enable)")
-	}
 
 	// Create default invoice template if none exists
 	if err := createDefaultTemplate(templateHandler, invoiceRepo); err != nil {
@@ -553,12 +540,6 @@ func main() {
 		c.Next()
 	})
 
-	// Add global config middleware - makes config available to all templates
-	r.Use(func(c *gin.Context) {
-		c.Set("scanner_enabled", cfg.Features.ScannerEnabled)
-		c.Next()
-	})
-
 	// PWA Service Worker route
 	r.GET("/sw.js", func(c *gin.Context) {
 		c.Header("Cache-Control", "no-cache")
@@ -582,38 +563,7 @@ func main() {
 	}
 
 	// Routes
-	setupRoutes(r, cfg, jobHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, scannerHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, rbacMiddleware, complianceMiddleware)
-
-	// Setup scan fallback routes (with rate limiting) - only if scanner is enabled
-	if cfg.Features.ScannerEnabled {
-		scanFallbackGroup := r.Group("/api/scan")
-		scanFallbackGroup.Use(routes.ScanFallbackMiddleware())
-		routes.SetupScanFallbackRoutes(r, scanFallbackHandler)
-	}
-
-	// Dev demo routes for testing scanners (only in development and if scanner is enabled)
-	if os.Getenv("GIN_MODE") != "release" && cfg.Features.ScannerEnabled {
-		r.GET("/dev/scanner-demo", func(c *gin.Context) {
-			c.HTML(http.StatusOK, "professional_scanner.html", gin.H{
-				"title":   "Professional Scanner Demo",
-				"jobID":   "demo",
-				"jobName": "Demo Job",
-			})
-		})
-
-		r.GET("/scanner-demo", func(c *gin.Context) {
-			c.Redirect(http.StatusMovedPermanently, "/dev/scanner-demo")
-		})
-
-		r.GET("/dev/scanner-legacy", func(c *gin.Context) {
-			c.HTML(http.StatusOK, "scanner_demo.html", gin.H{
-				"title": "Legacy Scanner Demo",
-			})
-		})
-
-		log.Printf("Professional scanner demo available at /dev/scanner-demo")
-		log.Printf("Legacy scanner demo available at /dev/scanner-legacy")
-	}
+	setupRoutes(r, cfg, jobHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, rbacMiddleware, complianceMiddleware)
 
 	// Add dedicated error route
 	r.GET("/error", func(c *gin.Context) {
@@ -677,7 +627,6 @@ func setupRoutes(r *gin.Engine,
 	cableHandler *handlers.CableHandler,
 	infoHandler *handlers.InfoHandler,
 	barcodeHandler *handlers.BarcodeHandler,
-	scannerHandler *handlers.ScannerHandler,
 	authHandler *handlers.AuthHandler,
 	webauthnHandler *handlers.WebAuthnHandler,
 	homeHandler *handlers.HomeHandler,
@@ -760,7 +709,6 @@ func setupRoutes(r *gin.Engine,
 			jobs.GET("/:id/devices", jobHandler.GetJobDevices)
 			jobs.POST("/:id/devices", jobHandler.AssignDevice)
 			jobs.DELETE("/:id/devices/:deviceId", jobHandler.RemoveDevice)
-			jobs.POST("/:id/bulk-scan", jobHandler.BulkScanDevices)
 		}
 
 		// Device routes - redirect to WarehouseCore
@@ -857,7 +805,6 @@ func setupRoutes(r *gin.Engine,
 			cases.PUT("/:id", caseHandler.UpdateCase)
 			cases.DELETE("/:id", caseHandler.DeleteCase)
 			cases.GET("/:id/devices", caseHandler.CaseDeviceMapping)
-			cases.POST("/:id/devices", caseHandler.ScanDeviceToCase)
 			cases.DELETE("/:id/devices/:deviceId", caseHandler.RemoveDeviceFromCase)
 		}
 
@@ -866,32 +813,6 @@ func setupRoutes(r *gin.Engine,
 		{
 			barcodes.GET("/device/:serialNo/qr", barcodeHandler.GenerateDeviceQR)
 			barcodes.GET("/device/:serialNo/barcode", barcodeHandler.GenerateDeviceBarcode)
-		}
-
-		// Scanner routes - only if scanner is enabled
-		if cfg.Features.ScannerEnabled {
-			scan := protected.Group("/scan")
-			{
-				scan.GET("", scannerHandler.ScanJobSelection) // Direct /scan route
-				scan.GET("/select", scannerHandler.ScanJobSelection)
-				scan.GET("/:jobId", scannerHandler.ScanJob)
-				scan.GET("/:jobId/groups/ajax", scannerHandler.GetJobDeviceGroupsAJAX) // AJAX endpoint for device groups
-				scan.GET("/:jobId/devices/ajax", scannerHandler.GetJobDevicesAJAX)     // AJAX endpoint for lazy loading
-				scan.POST("/:jobId/assign", scannerHandler.ScanDevice)
-				scan.DELETE("/:jobId/devices/:deviceId", scannerHandler.RemoveDevice)
-			}
-
-			// Scan Board routes
-			protected.GET("/scan-board/:jobId", func(c *gin.Context) {
-				jobID := c.Param("jobId")
-				user, _ := handlers.GetCurrentUser(c)
-				c.HTML(http.StatusOK, "scan_board.html", gin.H{
-					"title":       "Scan Board",
-					"user":        user,
-					"jobID":       jobID,
-					"description": "Job " + jobID, // Will be updated by JavaScript
-				})
-			})
 		}
 
 		// Analytics routes
@@ -1122,45 +1043,6 @@ func setupRoutes(r *gin.Engine,
 			}
 		}
 
-		// Mobile scanner routes - only if scanner is enabled
-		if cfg.Features.ScannerEnabled {
-			// Mobile scanner routes - use professional scanner by default
-			protected.GET("/mobile/scanner/:jobId", func(c *gin.Context) {
-				jobID := c.Param("jobId")
-				user, _ := handlers.GetCurrentUser(c)
-				c.HTML(http.StatusOK, "professional_scanner.html", gin.H{
-					"title":   "Professional Scanner",
-					"user":    user,
-					"jobID":   jobID,
-					"jobName": "Job #" + jobID,
-				})
-			})
-
-			// Legacy scanner route for comparison
-			protected.GET("/mobile/scanner/:jobId/legacy", func(c *gin.Context) {
-				jobID := c.Param("jobId")
-				user, _ := handlers.GetCurrentUser(c)
-				c.HTML(http.StatusOK, "mobile_scanner.html", gin.H{
-					"title":   "Legacy Scanner",
-					"user":    user,
-					"jobID":   jobID,
-					"jobName": "Job #" + jobID,
-				})
-			})
-
-			// Enhanced mobile scanner route
-			protected.GET("/mobile/scanner/:jobId/enhanced", func(c *gin.Context) {
-				jobID := c.Param("jobId")
-				user, _ := handlers.GetCurrentUser(c)
-				c.HTML(http.StatusOK, "mobile_scanner_enhanced.html", gin.H{
-					"title":   "Enhanced Mobile Scanner",
-					"user":    user,
-					"jobID":   jobID,
-					"jobName": "Job #" + jobID,
-				})
-			})
-		}
-
 		// Profile Settings routes (moved to end to avoid potential conflicts)
 		profile := protected.Group("/profile")
 		{
@@ -1224,26 +1106,6 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.POST("/:id/devices/:deviceId", jobHandler.AssignDeviceAPI)
 				apiJobs.PUT("/:id/devices/:deviceId", jobHandler.UpdateDevicePriceAPI)
 				apiJobs.DELETE("/:id/devices/:deviceId", jobHandler.RemoveDeviceAPI)
-
-				// Scanner API endpoints - only if scanner is enabled
-				if cfg.Features.ScannerEnabled {
-					apiJobs.DELETE("/:id/devices/bulk-remove", scannerHandler.BulkRemoveDevices)
-					apiJobs.POST("/:id/bulk-scan", jobHandler.BulkScanDevicesAPI)
-
-					// Scanner API endpoints
-					apiJobs.POST("/:id/assign-device", scannerHandler.ScanDevice)
-					apiJobs.POST("/:id/assign-case", scannerHandler.ScanCase)
-
-					// Rental Equipment Scanner API endpoints
-					apiJobs.POST("/:id/assign-rental", scannerHandler.AddRentalToJob)
-					apiJobs.DELETE("/:id/rentals/:equipmentId", scannerHandler.RemoveRentalFromJob)
-
-					// Scan Board API endpoints
-					apiJobs.GET("/:id/scanboard", jobHandler.GetScanBoardData)
-					apiJobs.POST("/:id/scanboard/scan", jobHandler.ScanDeviceForPack)
-					apiJobs.POST("/:id/finish-pack", jobHandler.FinishPack)
-					apiJobs.PUT("/:id/devices/:deviceId/pack", jobHandler.UpdateDevicePackStatus)
-				}
 			}
 
 			// Device API
@@ -1297,7 +1159,6 @@ func setupRoutes(r *gin.Engine,
 				apiCases.PUT("/:id", caseHandler.UpdateCaseAPI)
 				apiCases.DELETE("/:id", caseHandler.DeleteCaseAPI)
 				apiCases.GET("/:id/devices", caseHandler.GetCaseDevicesAPI)
-				apiCases.POST("/:id/devices", caseHandler.ScanDeviceToCase)
 				apiCases.DELETE("/:id/devices/:deviceId", caseHandler.RemoveDeviceFromCase)
 				apiCases.GET("/devices/tree", caseHandler.GetAvailableDevicesWithCaseInfo)
 			}

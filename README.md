@@ -34,24 +34,6 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **Device Management (WarehouseCore)**: Full device CRUD operations now managed exclusively in WarehouseCore (`/admin/devices`); RentalCore provides read-only device access for job assignments, invoices, and analytics
 - **Availability Tracking**: Real-time device status integration from WarehouseCore (available, checked out, maintenance)
 - **QR Code & Barcode Generation**: Device identification codes now managed in WarehouseCore
-- **🆕 Scan-Board**: Full-screen pack workflow board displaying large barcodes for all job devices
-  - **Live Pack Status**: Real-time visual indication of packed vs pending items
-  - **Visual Progress Tracking**: Circular progress indicator with completion percentage
-  - **Large Barcode Display**: High-contrast barcodes for easy scanning from distance
-  - **Missing Items Warning**: Smart workflow prevents finishing with missing items
-  - **Auto-refresh**: Live updates every 5 seconds with manual refresh option
-  - **Dark/Light Theme**: Supports both themes with optimal contrast for scanning
-- **🆕 Go-First Barcode Scanner**: Industrial-grade WASM-powered barcode scanner
-  - **Go WebAssembly Core**: High-performance decoder compiled from Go using gozxing
-  - **Industrial Symbology Support**: CODE128, CODE39, EAN-13/8, UPC-A/E, ITF, QR codes
-  - **Native Camera Experience**: Tap-to-focus, continuous autofocus, pinch/double-tap zoom, torch control
-  - **Progressive Enhancement**: Optimal performance on modern devices with graceful fallbacks
-  - **ROI Processing**: Center-focused 1D scanning with dynamic frame downscaling
-  - **Real-time Dedupe**: LRU cache with 1-2s cooldown prevents duplicate scans
-  - **Web Worker Architecture**: WASM decoder runs in background thread for smooth UI
-  - **Server-side Fallback**: Optional Go-powered server decode for ultimate compatibility
-  - **Responsive Design**: Full-screen scanner with professional overlay and controls
-  - **Performance Optimized**: 20-30 fps processing with sub-70ms decode times
 - **Bulk Operations**: Mass device assignment and status updates
 - **Equipment Packages**: Predefined equipment bundles for common rentals
 - **Revenue Tracking**: Per-device revenue analytics and performance insights
@@ -64,7 +46,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **Job Lifecycle**: Complete job management from creation to completion
 - **Automatic Job Codes**: Consistent `JOB000123` style identifiers generated for every job
 - **Enhanced Job Modals**: Revenue and device count display with detailed overview
-- **Device Assignment**: Bulk scanning and assignment to rental jobs
+- **Device Assignment**: Manual device assignment to rental jobs
 - **Device Price Management**: Real-time price adjustment per job with API integration
 - **Categorized Device Overview**: Devices grouped by Sound, Light, Effect, Stage, Other
 - **Invoice Generation**: Professional invoice creation with customizable templates
@@ -472,14 +454,25 @@ All documentation is organized in the `docs/` folder for easy access:
 - ✅ **Action Buttons Protected**: Edit and Delete buttons still work independently
 - ✅ **Event Handling**: Actions column uses stopPropagation to prevent double-triggers
 
-### **v2.37** - Scanner Completely Disabled
-- ✅ **Scanner Fully Removed**: All scan buttons and links removed from UI
+### **v2.39** - Complete Scanner Removal
+- ✅ **Scanner Code Deleted**: Removed all scanner template files (7 files)
+- ✅ **Handler Removed**: Deleted scanner_handler.go completely
+- ✅ **WASM Directory Deleted**: Removed entire web/scanner/ directory with Go WASM implementation
+- ✅ **Routes Cleaned**: Removed all scanner routes from main.go (web, API, mobile)
+- ✅ **Navigation Updated**: Removed scanner link from navbar
+- ✅ **Config Deprecated**: Scanner config field marked deprecated, always returns false
+- ✅ **Documentation Updated**: Removed scanner architecture and feature documentation
+- ✅ **Templates Cleaned**: Updated job_detail.html to remove scanner references
+- ✅ **Complete Removal**: Scanner functionality permanently disabled and removed from codebase
+
+### **v2.37** - Scanner UI Disabled
+- ✅ **Scanner UI Removed**: All scan buttons and links removed from UI
 - ✅ **Home Page Updated**: Replaced "Start Scanning" with "Manage Jobs" button
 - ✅ **Quick Actions Cleaned**: Removed "Scan QR Code" from quick actions menu
 - ✅ **Job Detail Page**: Removed scan device buttons from job detail view
 - ✅ **Jobs Table Updated**: Device count now displayed as plain text (no scan redirect)
 - ✅ **API Endpoint Fixed**: Changed remove device endpoint from `/scan/` to `/jobs/`
-- ✅ **Routes Already Protected**: Scan routes only registered when scanner_enabled=true
+- ✅ **Routes Protected**: Scan routes only registered when scanner_enabled=true
 - ✅ **Clean UI**: No scan-related functionality visible to users
 
 ### **v2.36** - New Job Modal Device Tree Fix
@@ -1092,152 +1085,8 @@ Equipment case tracking with device capacity and availability status.
 
 Detailed view of devices within equipment cases for precise inventory control.
 
-### Job Management & Scanning
-<img src="img/job-selection-scanning.png" alt="Job Selection for Scanning" width="600">
-
+### Job Management
 Job selection interface with overview of active jobs, available devices, and assignments.
-
-<img src="img/job-scanning-interface.png" alt="Job Scanning Interface" width="600">
-
-Advanced scanning interface with barcode/QR code scanning, manual input, and device selection.
-
-<img src="img/job-overview-barcode-scanner.png" alt="Job Overview with Barcode Scanner" width="600">
-
-Complete job overview with integrated barcode scanner and quick device scanning for case assignments.
-
----
-
-## 📱 Go-First Barcode Scanner Architecture
-
-### **Core Technology Stack**
-
-#### **Go WebAssembly Decoder (`web/scanner/decoder/`)**
-```
-decoder.go      - Main WASM export functions and gozxing integration
-types.go        - Type definitions and configuration structures
-roi.go          - Region of interest processing and image manipulation
-dedupe.go       - LRU cache with time-based duplicate prevention
-```
-
-**Build Pipeline:**
-```bash
-# Development build
-cd web/scanner/wasm && ./build.sh
-
-# Production build (optimized)
-cd web/scanner/wasm && ./build.sh prod
-
-# Verify build
-make verify
-```
-
-#### **JavaScript Worker Bridge (`web/scanner/worker/`)**
-```
-decoder.worker.js    - Web Worker bootstrap for WASM loading
-decoder-manager.js   - Main thread API for worker communication
-```
-
-#### **Camera & UI Controls (`web/scanner/ui/`)**
-```
-camera.js           - getUserMedia with advanced camera controls
-capabilities.js     - Device/browser capability detection
-gestures.js         - Touch gestures (pinch zoom, tap-to-focus)
-scanner-integration.js - Integration with existing scan endpoints
-ScannerView.tsx     - React component (full scanner interface)
-scanner.css         - Professional scanner styling
-```
-
-### **Supported Barcode Formats**
-
-| **1D Barcodes** | **2D Codes** | **Status** |
-|-----------------|--------------|------------|
-| CODE_128        | QR_CODE      | ✅ Active  |
-| CODE_39         | -            | ✅ Active  |
-| EAN_13/8        | -            | ✅ Active  |
-| UPC_A/E         | -            | ✅ Active  |
-| ITF             | -            | ✅ Active  |
-
-*Note: DataMatrix and PDF417 planned for future gozxing releases*
-
-### **Performance Characteristics**
-
-| **Metric**           | **Target**    | **Typical** |
-|---------------------|---------------|-------------|
-| Decode Latency      | <100ms        | ~50-70ms    |
-| Frame Rate          | 20-30 fps     | 25 fps      |
-| WASM Load Time      | <5s           | ~2-3s       |
-| Memory Usage        | <50MB         | ~30MB       |
-| Battery Impact      | Minimal       | Optimized   |
-
-### **Browser Support Matrix**
-
-| **Browser**     | **WASM** | **Camera** | **Worker** | **Touch** | **Status** |
-|-----------------|----------|------------|------------|-----------|------------|
-| Chrome 90+      | ✅       | ✅         | ✅         | ✅        | Full       |
-| Safari 14+      | ✅       | ✅         | ✅         | ✅        | Full       |
-| Firefox 89+     | ✅       | ✅         | ✅         | ✅        | Full       |
-| Edge 90+        | ✅       | ✅         | ✅         | ✅        | Full       |
-| Chrome Android  | ✅       | ✅         | ✅         | ✅        | Full       |
-| Safari iOS      | ✅       | ✅         | ✅         | ✅        | Full       |
-
-### **Development & Testing**
-
-#### **Demo Route** (Development Only)
-```
-http://localhost:8080/dev/scanner-demo
-```
-- Live WASM decoder testing with camera feed
-- Real-time performance metrics and statistics
-- Fallback server decode testing
-- Browser capability detection results
-
-#### **Server-side Fallback** (Optional)
-```bash
-# Enable server-side decode (disabled by default)
-export ENABLE_SERVER_DECODE=true
-
-# Test fallback endpoint
-curl -X POST http://localhost:8080/api/scan/decode \
-  -H "Content-Type: application/json" \
-  -d '{"imageData": "base64...", "width": 640, "height": 480}'
-```
-
-#### **Build & Deployment**
-```bash
-# Build WASM decoder
-cd web/scanner/wasm
-./build.sh prod
-
-# Copy assets to static directory
-cp decoder.wasm ../../../web/static/scanner/wasm/
-cp wasm_exec.js ../../../web/static/scanner/wasm/
-cp ../ui/*.js ../../../web/static/scanner/ui/
-
-# Docker build includes WASM assets
-docker build -t nbt4/rentalcore:latest .
-```
-
-### **Integration with RentalCore**
-
-The Go-first scanner integrates seamlessly with existing RentalCore scan endpoints:
-
-```javascript
-// Scanner automatically calls existing endpoints
-POST /scan/{jobId}/assign          // Device assignment
-POST /scan/{jobId}/assign-case     // Case assignment
-POST /api/v1/jobs/{jobId}/assign-rental  // Rental equipment
-
-// Events emitted for UI updates
-scanner.addEventListener('deviceAssigned', (event) => {
-  // Update UI, show success feedback
-  // Integrates with existing job management
-});
-```
-
-**Progressive Enhancement Philosophy:**
-- **Path A**: Go-WASM decoder worker (optimal performance)
-- **Path B**: Browser BarcodeDetector (if faster for specific formats)
-- **Path C**: Server-side Go decode (ultimate compatibility)
 
 ---
 

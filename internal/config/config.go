@@ -109,6 +109,8 @@ type BackupConfig struct {
 }
 
 type FeaturesConfig struct {
+	// ScannerEnabled field deprecated - scanner functionality removed
+	// Kept for backwards compatibility with existing config files
 	ScannerEnabled bool `json:"scanner_enabled"`
 }
 
@@ -241,7 +243,7 @@ func getDefaultConfig() *Config {
 			Path:          "backups/",
 		},
 		Features: FeaturesConfig{
-			ScannerEnabled: true, // Enabled by default for backwards compatibility
+			ScannerEnabled: false, // Scanner functionality removed
 		},
 	}
 }
@@ -353,8 +355,9 @@ func loadFromEnvironment(config *Config) {
 		}
 	}
 
-	// Features configuration
+	// Features configuration (deprecated)
+	// Scanner functionality has been removed, but we keep the config field for backwards compatibility
 	if scannerEnabled := os.Getenv("SCANNER_ENABLED"); scannerEnabled != "" {
-		config.Features.ScannerEnabled = scannerEnabled == "true"
+		config.Features.ScannerEnabled = false // Always false, scanner removed
 	}
 }
