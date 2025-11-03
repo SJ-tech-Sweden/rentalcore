@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.46** (Latest) - Product-First Job Builder & API Hardening
+### **v2.49** (Latest) - Issue #23: Product Assignment UI Fix
+- ✅ **UI Layout Corrected**: Product availability now displays BELOW input field (not beside it)
+- ✅ **Grid Layout Fixed**: Changed from 3-column to 2-column layout for product entries
+- ✅ **Exact Requirement Match**: Layout now matches Issue #23 specification: "darunter steht die verfügbare anzahl"
+- ✅ **All Features Verified**: Product tree, quantity input, validation, and smart case allocation all working
+- ✅ **Documentation Added**: Complete resolution documentation in ISSUE_23_RESOLUTION.md
+
+### **v2.48** - Product-First Job Builder & API Hardening
 - ✅ **Unified Job Workflow**: Both create and edit forms use the new product availability tree with quantity selection and validation.
 - ✅ **Legacy Modal Removed**: Old device-tree modals, quick-add flows, and `selected_devices` payloads retired for a cleaner UI.
 - ✅ **Backend Alignment**: Job API now only accepts `selected_products` payloads; helper tests cover parsing and aggregation edge-cases.
