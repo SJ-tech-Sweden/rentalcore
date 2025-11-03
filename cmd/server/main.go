@@ -159,6 +159,50 @@ func buildWarehouseCablesURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s/admin/cables", scheme, host)
 }
 
+func buildWarehouseCasesURL(r *http.Request) string {
+	warehouseDomain := os.Getenv("WAREHOUSECORE_DOMAIN")
+
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if r.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	host := warehouseDomain
+	if host == "" {
+		rawHost := r.Host
+		hostname := rawHost
+		port := ""
+
+		if h, p, err := net.SplitHostPort(rawHost); err == nil {
+			hostname = h
+			port = p
+		}
+
+		switch {
+		case strings.HasPrefix(hostname, "rent."):
+			hostname = strings.Replace(hostname, "rent.", "warehouse.", 1)
+		case strings.HasPrefix(hostname, "rental."):
+			hostname = strings.Replace(hostname, "rental.", "warehouse.", 1)
+		case port == "8081":
+			hostname = hostname + ":8082"
+		case port != "":
+			hostname = hostname + ":8082"
+		}
+
+		host = hostname
+	}
+
+	if host == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s://%s/admin/cases", scheme, host)
+}
+
 func main() {
 	// Parse command line flags
 	configFile := flag.String("config", "config.json", "Configuration file path")
@@ -850,18 +894,29 @@ func setupRoutes(r *gin.Engine,
 			statuses.GET("", statusHandler.ListStatuses)
 		}
 
-		// Case routes
+		// Case routes - redirect to WarehouseCore
+		redirectToWarehouseCases := func(c *gin.Context) {
+			target := buildWarehouseCasesURL(c.Request)
+			if target == "" {
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"error":   "WarehouseCore domain not configured",
+					"message": "Set WAREHOUSECORE_DOMAIN to enable case management in WarehouseCore.",
+				})
+				return
+			}
+			c.Redirect(http.StatusFound, target)
+		}
+
 		cases := protected.Group("/cases")
 		{
-			cases.GET("", caseHandler.ListCases)
-			cases.GET("/new", caseHandler.NewCaseForm)
-			cases.POST("", caseHandler.CreateCase)
+			// Redirect to WarehouseCore
+			cases.GET("", redirectToWarehouseCases)
+			cases.GET("/new", redirectToWarehouseCases)
+			cases.GET("/:id/edit", redirectToWarehouseCases)
+			cases.GET("/:id/devices", redirectToWarehouseCases)
+
+			// Keep read-only endpoint for Jobs integration (if needed)
 			cases.GET("/:id", caseHandler.GetCase)
-			cases.GET("/:id/edit", caseHandler.EditCaseForm)
-			cases.PUT("/:id", caseHandler.UpdateCase)
-			cases.DELETE("/:id", caseHandler.DeleteCase)
-			cases.GET("/:id/devices", caseHandler.CaseDeviceMapping)
-			cases.DELETE("/:id/devices/:deviceId", caseHandler.RemoveDeviceFromCase)
 		}
 
 		// Barcode routes
@@ -1207,18 +1262,20 @@ func setupRoutes(r *gin.Engine,
 				apiCustomers.DELETE("/:id", customerHandler.DeleteCustomerAPI)
 			}
 
-			// Case API
-			apiCases := api.Group("/cases")
-			{
-				apiCases.GET("", caseHandler.ListCasesAPI)
-				apiCases.POST("", caseHandler.CreateCaseAPI)
-				apiCases.GET("/:id", caseHandler.GetCaseAPI)
-				apiCases.PUT("/:id", caseHandler.UpdateCaseAPI)
-				apiCases.DELETE("/:id", caseHandler.DeleteCaseAPI)
-				apiCases.GET("/:id/devices", caseHandler.GetCaseDevicesAPI)
-				apiCases.DELETE("/:id/devices/:deviceId", caseHandler.RemoveDeviceFromCase)
-				apiCases.GET("/devices/tree", caseHandler.GetAvailableDevicesWithCaseInfo)
-			}
+			// Case API - Removed: Now handled by WarehouseCore
+			// Cases are fully managed in WarehouseCore
+			// All case CRUD operations, device mapping, and queries should be directed to WarehouseCore
+			// apiCases := api.Group("/cases")
+			// {
+			// 	apiCases.GET("", caseHandler.ListCasesAPI)
+			// 	apiCases.POST("", caseHandler.CreateCaseAPI)
+			// 	apiCases.GET("/:id", caseHandler.GetCaseAPI)
+			// 	apiCases.PUT("/:id", caseHandler.UpdateCaseAPI)
+			// 	apiCases.DELETE("/:id", caseHandler.DeleteCaseAPI)
+			// 	apiCases.GET("/:id/devices", caseHandler.GetCaseDevicesAPI)
+			// 	apiCases.DELETE("/:id/devices/:deviceId", caseHandler.RemoveDeviceFromCase)
+			// 	apiCases.GET("/devices/tree", caseHandler.GetAvailableDevicesWithCaseInfo)
+			// }
 
 			// Workflow API
 			apiWorkflow := api.Group("/workflow")

@@ -121,3 +121,43 @@ func TestBuildWarehouseCablesURLWithPort(t *testing.T) {
 		t.Fatalf("expected %s, got %s", want, got)
 	}
 }
+
+func TestBuildWarehouseCasesURLWithEnv(t *testing.T) {
+	_ = os.Setenv("WAREHOUSECORE_DOMAIN", "warehouse.example.com")
+	defer func() { _ = os.Unsetenv("WAREHOUSECORE_DOMAIN") }()
+
+	req := httptest.NewRequest(http.MethodGet, "http://rent.example.com/cases", nil)
+
+	got := buildWarehouseCasesURL(req)
+	want := "http://warehouse.example.com/admin/cases"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBuildWarehouseCasesURLFallback(t *testing.T) {
+	_ = os.Unsetenv("WAREHOUSECORE_DOMAIN")
+
+	req := httptest.NewRequest(http.MethodGet, "http://rent.example.com:8081/cases", nil)
+
+	got := buildWarehouseCasesURL(req)
+	want := "http://warehouse.example.com/admin/cases"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBuildWarehouseCasesURLWithPort(t *testing.T) {
+	_ = os.Unsetenv("WAREHOUSECORE_DOMAIN")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost:8081/cases", nil)
+
+	got := buildWarehouseCasesURL(req)
+	want := "http://localhost:8082/admin/cases"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}

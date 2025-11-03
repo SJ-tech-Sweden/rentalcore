@@ -33,6 +33,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **Product Catalog (WarehouseCore)**: Manage product master data exclusively in WarehouseCore (`/admin/products`); RentalCore consumes the catalog read-only for jobs, invoices, and device assignments
 - **Device Management (WarehouseCore)**: Full device CRUD operations now managed exclusively in WarehouseCore (`/admin/devices`); RentalCore provides read-only device access for job assignments, invoices, and analytics
 - **Cable Management (WarehouseCore)**: Complete cable CRUD operations now managed exclusively in WarehouseCore (`/admin/cables`); includes cable types, connectors, and length specifications
+- **Case Management (WarehouseCore)**: Complete case CRUD operations now managed exclusively in WarehouseCore (`/admin/cases`); includes device mapping, labels, and case tracking
 - **Availability Tracking**: Real-time device status integration from WarehouseCore (available, checked out, maintenance)
 - **QR Code & Barcode Generation**: Device identification codes now managed in WarehouseCore
 - **Bulk Operations**: Mass device assignment and status updates
@@ -438,7 +439,19 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.44** (Latest) - Phase 4: Cable Management Redirect to WarehouseCore
+### **v2.45** (Latest) - Phase 5: Case Management Redirect to WarehouseCore
+- ✅ **Case CRUD Redirected**: All case management operations now redirect to WarehouseCore
+- ✅ **Web Routes Updated**: Case list, new form, edit, and device mapping routes redirect to `/admin/cases` in WarehouseCore
+- ✅ **API Routes Removed**: All case API operations (POST, PUT, DELETE) removed from RentalCore
+- ✅ **Read-Only Endpoint Preserved**: Case GET endpoint maintained for Jobs integration (if needed)
+- ✅ **Navigation Updated**: Added "Cases (WH)" indicator in navbar and base template showing redirect to WarehouseCore
+- ✅ **Templates Removed**: Deleted all 4 case template files (cases_list.html, case_form.html, case_detail.html, case_device_mapping.html)
+- ✅ **Redirect Function**: Added buildWarehouseCasesURL for automatic WarehouseCore routing
+- ✅ **Tests Added**: Comprehensive redirect tests for case URL building with env/fallback scenarios
+- ✅ **Documentation Updated**: README reflects case management now exclusively in WarehouseCore
+- ✅ **Complete Migration**: Phase 5 migration to WarehouseCore completed successfully
+
+### **v2.44** - Phase 4: Cable Management Redirect to WarehouseCore
 - ✅ **Cable CRUD Redirected**: All cable management operations now redirect to WarehouseCore
 - ✅ **Web Routes Updated**: Cable list and new form routes redirect to `/admin/cables` in WarehouseCore
 - ✅ **API Routes Removed**: All cable API write operations (POST, PUT, DELETE) removed from RentalCore
@@ -1084,18 +1097,18 @@ Product catalog management with categories, pricing, and detailed descriptions.
 
 Hierarchical device organization by categories and types for easy navigation and management.
 
-### Cable & Case Management
+### Cable & Case Management (WarehouseCore)
 <img src="img/cables-management.png" alt="Cables Management" width="600">
 
-Specialized cable management with connector types, lengths, and cross-section specifications.
+Specialized cable management with connector types, lengths, and cross-section specifications. Now managed exclusively in WarehouseCore.
 
 <img src="img/cases-management.png" alt="Cases Management" width="600">
 
-Equipment case tracking with device capacity and availability status.
+Equipment case tracking with device capacity and availability status. Now managed exclusively in WarehouseCore.
 
 <img src="img/case-devices-modal.png" alt="Case Devices Modal" width="600">
 
-Detailed view of devices within equipment cases for precise inventory control.
+Detailed view of devices within equipment cases for precise inventory control. Case management now handled in WarehouseCore.
 
 ### Job Management
 Job selection interface with overview of active jobs, available devices, and assignments.
