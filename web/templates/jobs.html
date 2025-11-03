@@ -65,9 +65,9 @@
             <!-- Actions Bar -->
             <div class="rc-flex rc-flex-between rc-mb-lg">
                 <div></div>
-                <a class="rc-btn rc-btn-primary" href="/jobs/new">
+                <button class="rc-btn rc-btn-primary" onclick="openNewJobModal()">
                     <i class="bi bi-plus-lg"></i> New Job
-                </a>
+                </button>
             </div>
 
             <!-- Jobs Table -->
@@ -254,6 +254,26 @@
                 </button>
             </div>
             <div class="rc-modal-body" id="jobEditContent">
+                <div class="rc-text-center rc-py-xl">
+                    <div class="rc-spinner"></div>
+                    <p class="rc-text-muted rc-mt-md">Loading job form...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="jobNewModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-overlay" onclick="closeNewJobModal()"></div>
+        <div class="rc-modal-content" style="max-width: 1200px; width: 95vw; max-height: 90vh; overflow-y: auto;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title">
+                    <i class="bi bi-plus-circle"></i> Create New Job
+                </h3>
+                <button class="rc-modal-close" onclick="closeNewJobModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="rc-modal-body" id="jobNewContent">
                 <div class="rc-text-center rc-py-xl">
                     <div class="rc-spinner"></div>
                     <p class="rc-text-muted rc-mt-md">Loading job form...</p>
@@ -805,6 +825,70 @@
 
     function closeEditJobModal() {
         document.getElementById('jobEditModal').style.display = 'none';
+    }
+
+    function openNewJobModal() {
+        const modal = document.getElementById('jobNewModal');
+        const content = document.getElementById('jobNewContent');
+
+        // Show modal with loading state
+        modal.style.display = 'flex';
+        content.innerHTML = `
+            <div class="rc-text-center rc-py-xl">
+                <div class="rc-spinner"></div>
+                <p class="rc-text-muted rc-mt-md">Loading job form...</p>
+            </div>
+        `;
+
+        // Load the job form via fetch
+        fetch('/jobs/new', {
+            credentials: 'include',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to load job form');
+            return response.text();
+        })
+        .then(html => {
+            // Parse HTML and extract only the <main> content
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const mainContent = doc.querySelector('main');
+
+            if (mainContent) {
+                content.innerHTML = mainContent.innerHTML;
+            } else {
+                // Fallback: use entire HTML if no <main> found
+                content.innerHTML = html;
+            }
+
+            // Re-initialize any scripts in the loaded content
+            const scripts = content.querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                if (script.src) {
+                    newScript.src = script.src;
+                } else {
+                    newScript.textContent = script.textContent;
+                }
+                script.parentNode.replaceChild(newScript, script);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading job form:', error);
+            content.innerHTML = `
+                <div class="rc-alert rc-alert-error">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Failed to load job form. Please try again or <a href="/jobs/new" class="rc-link">open in new page</a>.
+                </div>
+            `;
+        });
+    }
+
+    function closeNewJobModal() {
+        document.getElementById('jobNewModal').style.display = 'none';
     }
 
     function saveJob(jobID, formData) {
