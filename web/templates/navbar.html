@@ -40,19 +40,9 @@
             <i class="bi bi-box-seam"></i>
             <span class="rc-nav-label">WarehouseCore</span>
         </a>
-        <a href="" id="storage-products-link" class="rc-nav-item rc-nav-crosslink" title="Open WarehouseCore Products">
-            <i class="bi bi-box"></i>
-            <span class="rc-nav-label">Products (WH)</span>
-        </a>
-        <a href="" id="storage-devices-link" class="rc-nav-item rc-nav-crosslink" title="Open WarehouseCore Devices">
-            <i class="bi bi-cpu"></i>
-            <span class="rc-nav-label">Devices (WH)</span>
-        </a>
         <script>
         (function() {
             var link = document.getElementById('storage-nav-link');
-            var productLink = document.getElementById('storage-products-link');
-            var deviceLink = document.getElementById('storage-devices-link');
             var storageDomain = '{{.WarehouseCoreDomain}}';
             var protocol = window.location.protocol;
 
@@ -76,12 +66,6 @@
             }
 
             link.href = targetUrl;
-            if (productLink) {
-                productLink.href = targetUrl + '/admin/products';
-            }
-            if (deviceLink) {
-                deviceLink.href = targetUrl + '/admin/devices';
-            }
         })();
         </script>
 
@@ -106,10 +90,6 @@
             <span class="rc-nav-label">Rental Analytics</span>
         </a>
 
-        <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}" title="Cables (redirects to WarehouseCore)">
-            <i class="bi bi-lightning-charge"></i>
-            <span class="rc-nav-label">Cables (WH)</span>
-        </a>
 
         <a href="/customers" class="rc-nav-item {{if eq .currentPage "customers"}}active{{end}}" title="Customers">
             <i class="bi bi-people"></i>

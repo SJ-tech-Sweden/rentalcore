@@ -105,18 +105,6 @@
                 <span class="rc-nav-label" data-i18n="nav.devices">Devices</span>
             </a>
 
-            {{if .WarehouseCoreDomain}}
-            <a href="https://{{.WarehouseCoreDomain}}/admin/products" class="rc-nav-item" target="_blank" rel="noopener">
-                <i class="bi bi-box"></i>
-                <span class="rc-nav-label" data-i18n="nav.devices">Products (WH)</span>
-            </a>
-            {{end}}
-
-            <a href="/cables" class="rc-nav-item {{if eq .currentPage "cables"}}active{{end}}" title="Cables (redirects to WarehouseCore)">
-                <i class="bi bi-lightning-charge"></i>
-                <span class="rc-nav-label" data-i18n="nav.cables">Cables (WH)</span>
-            </a>
-
             <a href="/customers" class="rc-nav-item {{if eq .currentPage "customers"}}active{{end}}">
                 <i class="bi bi-people"></i>
                 <span class="rc-nav-label" data-i18n="nav.customers">Customers</span>
