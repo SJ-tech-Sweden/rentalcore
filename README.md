@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.57** (Latest) - Debug Logging for Product Tree
+### **v2.58** (Latest) - CSS Extraction Fix for Modal
+- ✅ **Critical Fix**: Extract and inject `<style>` tags from fetched HTML
+- ✅ **Root Cause**: CSS was in `<head>`, not included when extracting `<main>` content
+- ✅ **Solution**: Append all style tags to document.head for modal context
+- ✅ **Complete Solution**: Both scripts AND styles now properly injected
+- ✅ **Product Tree Display**: Now fully styled and visible in modal
+
+### **v2.57** - Debug Logging for Product Tree
 - ✅ **Debug Enhancement**: Added comprehensive logging for product tree rendering
 - ✅ **API Response Logging**: Shows API response data and parsed tree structure
 - ✅ **Element Detection**: Logs productTreeRoot element availability
