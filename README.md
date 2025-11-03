@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.49** (Latest) - Issue #23: Product Assignment UI Fix
+### **v2.50** (Latest) - Product Tree Always Visible
+- ✅ **Immediate Loading**: Product tree loads immediately on page open (no date requirement)
+- ✅ **Always Visible**: All products and categories shown by default with total device counts
+- ✅ **Dynamic Availability**: Availability counts update in real-time when dates are selected
+- ✅ **Improved UX**: Users can browse products before selecting dates
+- ✅ **API Enhancement**: Backend supports requests with or without date parameters
+
+### **v2.49** - Issue #23: Product Assignment UI Fix
 - ✅ **UI Layout Corrected**: Product availability now displays BELOW input field (not beside it)
 - ✅ **Grid Layout Fixed**: Changed from 3-column to 2-column layout for product entries
 - ✅ **Exact Requirement Match**: Layout now matches Issue #23 specification: "darunter steht die verfügbare anzahl"
