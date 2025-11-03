@@ -74,3 +74,50 @@ func TestBuildWarehouseDevicesURLFallback(t *testing.T) {
 		t.Fatalf("expected %s, got %s", want, got)
 	}
 }
+
+func TestBuildWarehouseCablesURLWithEnv(t *testing.T) {
+	const domain = "warehouse.example.com"
+	if err := os.Setenv("WAREHOUSECORE_DOMAIN", domain); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Unsetenv("WAREHOUSECORE_DOMAIN")
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "https://rental.example.com/cables", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+
+	got := buildWarehouseCablesURL(req)
+	want := "https://" + domain + "/admin/cables"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBuildWarehouseCablesURLFallback(t *testing.T) {
+	_ = os.Unsetenv("WAREHOUSECORE_DOMAIN")
+
+	req := httptest.NewRequest(http.MethodGet, "https://rent.example.com/cables", nil)
+	req.Header.Set("X-Forwarded-Proto", "https")
+
+	got := buildWarehouseCablesURL(req)
+	want := "https://warehouse.example.com/admin/cables"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBuildWarehouseCablesURLWithPort(t *testing.T) {
+	_ = os.Unsetenv("WAREHOUSECORE_DOMAIN")
+
+	req := httptest.NewRequest(http.MethodGet, "http://localhost:8081/cables", nil)
+
+	got := buildWarehouseCablesURL(req)
+	want := "http://localhost:8082/admin/cables"
+
+	if got != want {
+		t.Fatalf("expected %s, got %s", want, got)
+	}
+}

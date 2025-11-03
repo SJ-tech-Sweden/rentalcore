@@ -115,6 +115,50 @@ func buildWarehouseDevicesURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s/admin/devices", scheme, host)
 }
 
+func buildWarehouseCablesURL(r *http.Request) string {
+	warehouseDomain := os.Getenv("WAREHOUSECORE_DOMAIN")
+
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if r.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	host := warehouseDomain
+	if host == "" {
+		rawHost := r.Host
+		hostname := rawHost
+		port := ""
+
+		if h, p, err := net.SplitHostPort(rawHost); err == nil {
+			hostname = h
+			port = p
+		}
+
+		switch {
+		case strings.HasPrefix(hostname, "rent."):
+			hostname = strings.Replace(hostname, "rent.", "warehouse.", 1)
+		case strings.HasPrefix(hostname, "rental."):
+			hostname = strings.Replace(hostname, "rental.", "warehouse.", 1)
+		case port == "8081":
+			hostname = hostname + ":8082"
+		case port != "":
+			hostname = hostname + ":8082"
+		}
+
+		host = hostname
+	}
+
+	if host == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s://%s/admin/cables", scheme, host)
+}
+
 func main() {
 	// Parse command line flags
 	configFile := flag.String("config", "config.json", "Configuration file path")
@@ -768,12 +812,24 @@ func setupRoutes(r *gin.Engine,
 			rentalEquipment.GET("/analytics", rentalEquipmentHandler.ShowRentalAnalytics)
 		}
 
-		// Cable routes
+		// Cable routes - redirect to WarehouseCore
+		redirectToWarehouseCables := func(c *gin.Context) {
+			target := buildWarehouseCablesURL(c.Request)
+			if target == "" {
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"error":   "WarehouseCore domain not configured",
+					"message": "Set WAREHOUSECORE_DOMAIN to enable cable management in WarehouseCore.",
+				})
+				return
+			}
+			c.Redirect(http.StatusFound, target)
+		}
+
 		cables := protected.Group("/cables")
 		{
-			cables.GET("", cableHandler.ListCablesWeb)
-			cables.GET("/new", cableHandler.NewCableForm)
-			cables.POST("", cableHandler.CreateCable)
+			// Redirect to WarehouseCore
+			cables.GET("", redirectToWarehouseCables)
+			cables.GET("/new", redirectToWarehouseCables)
 		}
 
 		// Customer routes
@@ -1128,17 +1184,18 @@ func setupRoutes(r *gin.Engine,
 				apiProducts.GET("/:id", productHandler.GetProductAPI)
 			}
 
-			// Cable API
-			apiCables := api.Group("/cables")
-			{
-				apiCables.GET("", cableHandler.ListCablesAPI)
-				apiCables.POST("", cableHandler.CreateCableAPI)
-				apiCables.GET("/:id", cableHandler.GetCableAPI)
-				apiCables.PUT("/:id", cableHandler.UpdateCableAPI)
-				apiCables.DELETE("/:id", cableHandler.DeleteCableAPI)
-				apiCables.GET("/types", cableHandler.GetCableTypesAPI)
-				apiCables.GET("/connectors", cableHandler.GetCableConnectorsAPI)
-			}
+			// Cable API - removed, now handled by WarehouseCore
+			// Only keeping read-only endpoints if needed by jobs/invoices
+			// apiCables := api.Group("/cables")
+			// {
+			// 	apiCables.GET("", cableHandler.ListCablesAPI)
+			// 	apiCables.POST("", cableHandler.CreateCableAPI)
+			// 	apiCables.GET("/:id", cableHandler.GetCableAPI)
+			// 	apiCables.PUT("/:id", cableHandler.UpdateCableAPI)
+			// 	apiCables.DELETE("/:id", cableHandler.DeleteCableAPI)
+			// 	apiCables.GET("/types", cableHandler.GetCableTypesAPI)
+			// 	apiCables.GET("/connectors", cableHandler.GetCableConnectorsAPI)
+			// }
 
 			// Customer API
 			apiCustomers := api.Group("/customers")

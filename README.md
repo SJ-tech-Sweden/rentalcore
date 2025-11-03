@@ -32,6 +32,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 ### 🏢 **Equipment Management**
 - **Product Catalog (WarehouseCore)**: Manage product master data exclusively in WarehouseCore (`/admin/products`); RentalCore consumes the catalog read-only for jobs, invoices, and device assignments
 - **Device Management (WarehouseCore)**: Full device CRUD operations now managed exclusively in WarehouseCore (`/admin/devices`); RentalCore provides read-only device access for job assignments, invoices, and analytics
+- **Cable Management (WarehouseCore)**: Complete cable CRUD operations now managed exclusively in WarehouseCore (`/admin/cables`); includes cable types, connectors, and length specifications
 - **Availability Tracking**: Real-time device status integration from WarehouseCore (available, checked out, maintenance)
 - **QR Code & Barcode Generation**: Device identification codes now managed in WarehouseCore
 - **Bulk Operations**: Mass device assignment and status updates
@@ -437,7 +438,18 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.39** (Latest) - Phase 2: Device Management Redirect to WarehouseCore
+### **v2.44** (Latest) - Phase 4: Cable Management Redirect to WarehouseCore
+- ✅ **Cable CRUD Redirected**: All cable management operations now redirect to WarehouseCore
+- ✅ **Web Routes Updated**: Cable list and new form routes redirect to `/admin/cables` in WarehouseCore
+- ✅ **API Routes Removed**: All cable API write operations (POST, PUT, DELETE) removed from RentalCore
+- ✅ **Navigation Updated**: Added "Cables (WH)" indicator in navbar showing redirect to WarehouseCore
+- ✅ **Templates Removed**: Deleted cables_standalone.html and cable_form.html
+- ✅ **Redirect Function**: Added buildWarehouseCablesURL for automatic WarehouseCore routing
+- ✅ **Tests Added**: Comprehensive redirect tests for cable URL building with env/fallback scenarios
+- ✅ **Documentation Updated**: README reflects cable management now exclusively in WarehouseCore
+- ✅ **Read-Only APIs Removed**: Cable APIs removed as they are not required by Jobs/Invoices
+
+### **v2.39** - Phase 2: Device Management Redirect to WarehouseCore
 - ✅ **Device CRUD Redirected**: All device management operations now redirect to WarehouseCore
 - ✅ **Read-Only APIs Preserved**: Device GET endpoints remain for Jobs/Invoices integration
 - ✅ **Navigation Updated**: Added "Devices (WH)" cross-link to WarehouseCore in sidebar
