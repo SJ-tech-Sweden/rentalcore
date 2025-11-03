@@ -442,7 +442,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.59** (Latest) - Property Name Case Fix
+### **v2.60** (Latest) - Enhanced Product Tree Styling
+- ✅ **Collapsed by Default**: All categories/subcategories start collapsed for cleaner view
+- ✅ **Animated Icons**: Arrow icons (▶) rotate smoothly when expanding/collapsing
+- ✅ **Modern Design**: Gradient backgrounds, smooth transitions, hover effects
+- ✅ **Slide-Down Animation**: Content smoothly animates when expanding
+- ✅ **Product Icons**: Each product entry has emoji icon (📦) for visual clarity
+- ✅ **Enhanced Inputs**: Better styled input fields with focus states and hover effects
+- ✅ **Visual Hierarchy**: Clear indentation and sizing for category levels
+- ✅ **Professional UX**: Polished, modern appearance with attention to detail
+
+### **v2.59** - Property Name Case Fix
 - ✅ **Critical Fix**: Changed JavaScript property access from PascalCase to snake_case
 - ✅ **Root Cause**: Backend JSON uses snake_case (id, name, available_count) but JS used PascalCase (ID, Name, AvailableCount)
 - ✅ **Fixed Properties**: All category, subcategory, and product property references
