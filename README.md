@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.51** (Latest) - Modal-Based Job Creation
+### **v2.52** (Latest) - Critical Product Tree Fix
+- ✅ **Bug Fix**: Product tree now loads correctly in modal
+- ✅ **Initialization**: Manual form initialization after AJAX content load
+- ✅ **DOMContentLoaded**: Fixed event not firing for dynamically loaded content
+- ✅ **Console Logging**: Added debug logs for initialization tracking
+- ✅ **Both Contexts**: Works in both standalone page and modal popup
+
+### **v2.51** - Modal-Based Job Creation
 - ✅ **Popup Interface**: "New Job" button opens modal popup instead of navigating to new page
 - ✅ **Streamlined UX**: Create jobs without leaving the jobs overview page
 - ✅ **Dynamic Loading**: Modal fetches and displays job form via AJAX
