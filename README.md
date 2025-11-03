@@ -442,7 +442,27 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.53** (Latest) - Dual Init Mechanism
+### **v2.56** (Latest) - Script Extraction Fix
+- ✅ **Critical Bug Fix**: Fixed script extraction from fetched HTML in modal
+- ✅ **Root Cause**: Scripts were in `<head>` and end of `<body>`, not inside `<main>`
+- ✅ **Solution**: Changed `content.querySelectorAll('script')` to `doc.querySelectorAll('script')`
+- ✅ **Complete Fix**: All scripts from fetched page now properly execute in modal
+- ✅ **Debug Logging**: Added script count logging for troubleshooting
+- ✅ **Issue #23 Resolved**: Product tree now loads correctly in modal job creation
+
+### **v2.55** - Window Exposure Timing Fix
+- ✅ **Function Exposure**: Moved `window.initializeJobForm` exposure to immediately after function definition
+- ✅ **Auto-Init Removed**: Removed problematic auto-init script that ran too early
+- ✅ **Debug Enhancement**: Added console logs to track function availability
+- ✅ **Execution Order**: Fixed timing issue where function wasn't available when modal called it
+
+### **v2.54** - Script Execution Enhancement
+- ✅ **Script Injection**: Scripts now appended to `document.body` for guaranteed execution
+- ✅ **Promise Handling**: Added Promise.all for external script loading
+- ✅ **Retry Mechanism**: Added interval checking for function availability (5 second timeout)
+- ✅ **Error Reporting**: Enhanced error messages showing available window functions
+
+### **v2.53** - Dual Init Mechanism
 - ✅ **Auto-Init Script**: Added self-initializing script at end of job_form.html
 - ✅ **Modal Detection**: Automatically detects modal context (no navbar)
 - ✅ **Retry Logic**: Two retry mechanisms (auto-init + modal interval check)

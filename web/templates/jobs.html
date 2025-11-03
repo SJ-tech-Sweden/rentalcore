@@ -864,9 +864,12 @@
                 content.innerHTML = html;
             }
 
-            // Execute scripts by appending to document body (innerHTML doesn't execute them)
-            const scripts = content.querySelectorAll('script');
+            // Execute scripts from the ORIGINAL document (not just main content)
+            // Scripts are typically in <head> or at end of <body>, outside <main>
+            const scripts = doc.querySelectorAll('script');
             const scriptPromises = [];
+
+            console.log(`📜 Found ${scripts.length} script(s) in fetched HTML`);
 
             scripts.forEach(oldScript => {
                 const newScript = document.createElement('script');
