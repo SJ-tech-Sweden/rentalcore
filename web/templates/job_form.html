@@ -272,13 +272,29 @@
                         </div>
                         <div class="rc-card-body">
                             <div id="productSelectionContainer">
-                                <div class="rc-flex rc-flex-center rc-py-xl" id="productTreeLoading">
-                                    <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
-                                    Loading products...
-                                </div>
-                                <div id="productTreeRoot" class="rc-product-tree" style="display: none;"></div>
-                                <div id="productTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> No products found.
+                                <div class="rc-product-tree-frame">
+                                    <div class="rc-product-tree-toolbar" id="productTreeActions" style="display: none;">
+                                        <div class="rc-product-tree-status">
+                                            <i class="bi bi-stars"></i>
+                                            <span id="productTreeSummary">Build the perfect kit by browsing categories or searching below.</span>
+                                        </div>
+                                        <div class="rc-product-tree-controls">
+                                            <button type="button" class="rc-btn rc-btn-ghost rc-btn-xs" data-action="collapse-product-tree">
+                                                <i class="bi bi-chevron-up"></i> Collapse All
+                                            </button>
+                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" data-action="expand-product-tree">
+                                                <i class="bi bi-arrows-expand"></i> Expand All
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="rc-flex rc-flex-center rc-py-xl" id="productTreeLoading">
+                                        <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                        Loading products...
+                                    </div>
+                                    <div id="productTreeRoot" class="rc-product-tree" style="display: none;"></div>
+                                    <div id="productTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
+                                        <i class="bi bi-info-circle"></i> No products found.
+                                    </div>
                                 </div>
                             </div>
                             <div id="productSelectionErrors" class="rc-alert rc-alert-error rc-mt-lg" style="display: none;"></div>
@@ -444,75 +460,204 @@
 
     <!-- Product Tree Styles -->
     <style>
-        .rc-product-tree details {
-            margin-bottom: var(--space-sm);
-            border: 1px solid var(--surface-3);
+        .rc-product-tree-frame {
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, rgba(14, 116, 144, 0.05) 100%);
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            padding: var(--space-lg);
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+        }
+
+        .rc-product-tree-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-md);
+            padding: var(--space-md);
             border-radius: var(--radius-md);
-            background: var(--surface-1);
-            transition: all 0.2s ease;
+            background: rgba(15, 23, 42, 0.04);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            margin-bottom: var(--space-md);
+        }
+
+        .rc-product-tree-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .rc-product-tree-status i {
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .rc-product-tree-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+
+        .rc-btn.rc-btn-ghost {
+            background: transparent;
+            border: 1px solid transparent;
+            color: rgba(71, 85, 105, 0.9);
+        }
+
+        .rc-btn.rc-btn-ghost:hover {
+            background: rgba(148, 163, 184, 0.12);
+            color: var(--primary);
+        }
+
+        .rc-product-tree {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+
+        .rc-product-tree details {
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: var(--radius-md);
+            background: rgba(236, 244, 255, 0.4);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            overflow: hidden;
         }
 
         .rc-product-tree details[open] {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: rgba(59, 130, 246, 0.45);
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+            transform: translateY(-2px);
         }
 
         .rc-product-tree summary {
             cursor: pointer;
-            padding: var(--space-md) var(--space-md);
+            padding: var(--space-md) var(--space-lg);
             font-weight: 600;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: var(--space-md);
             user-select: none;
-            transition: background-color 0.2s ease;
-            border-radius: var(--radius-md);
+            transition: background 0.2s ease;
+            list-style: none;
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.02) 0%, rgba(59, 130, 246, 0.12) 100%);
         }
 
-        .rc-product-tree summary:hover {
-            background: var(--surface-2);
+        .rc-product-tree summary::marker {
+            display: none;
         }
 
         .rc-product-tree summary::before {
-            content: '▶';
-            display: inline-block;
-            margin-right: var(--space-sm);
-            transition: transform 0.2s ease;
-            color: var(--primary);
+            content: '▸';
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.18);
+            color: rgba(29, 78, 216, 0.9);
             font-size: 0.75rem;
+            transition: transform 0.2s ease;
         }
 
         .rc-product-tree details[open] > summary::before {
             transform: rotate(90deg);
         }
 
-        .rc-product-node-category > summary {
-            background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%);
-            font-size: 1.05rem;
-            border-bottom: 2px solid var(--surface-3);
+        .rc-product-tree summary:hover {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.15) 0%, rgba(14, 165, 233, 0.22) 100%);
         }
 
-        .rc-product-node-subcategory > summary {
-            font-size: 0.95rem;
-            padding-left: var(--space-lg);
+        .rc-node-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-md);
+            width: 100%;
         }
 
-        .rc-product-node-subbiercategory > summary {
-            font-size: 0.9rem;
-            padding-left: calc(var(--space-lg) + var(--space-md));
+        .rc-node-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            color: rgba(15, 23, 42, 0.92);
+        }
+
+        .rc-node-title i {
+            padding: 0.35rem;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(14, 165, 233, 0.15));
+            color: var(--primary);
+        }
+
+        .rc-node-metrics {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: var(--space-xs);
+        }
+
+        .rc-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+
+        .rc-chip i {
+            font-size: 0.8rem;
+        }
+
+        .rc-chip-pill {
+            border-radius: 999px;
+        }
+
+        .rc-chip-neutral {
+            background: rgba(148, 163, 184, 0.18);
+            color: rgba(30, 41, 59, 0.8);
+        }
+
+        .rc-chip-success {
+            background: rgba(34, 197, 94, 0.18);
+            color: rgba(5, 122, 85, 0.9);
+        }
+
+        .rc-chip-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: rgba(185, 28, 28, 0.9);
+        }
+
+        .rc-chip-muted {
+            background: rgba(148, 163, 184, 0.12);
+            color: rgba(71, 85, 105, 0.85);
+        }
+
+        .rc-chip-accent {
+            background: rgba(59, 130, 246, 0.18);
+            color: rgba(29, 78, 216, 0.92);
         }
 
         .rc-product-node-body {
-            padding: var(--space-md);
+            padding: var(--space-lg);
             display: flex;
             flex-direction: column;
-            gap: var(--space-sm);
+            gap: var(--space-md);
+            background: rgba(255, 255, 255, 0.75);
             animation: slideDown 0.2s ease;
         }
 
         @keyframes slideDown {
             from {
                 opacity: 0;
-                transform: translateY(-10px);
+                transform: translateY(-8px);
             }
             to {
                 opacity: 1;
@@ -520,19 +665,16 @@
             }
         }
 
-        .rc-product-node-subcategory {
-            margin-top: var(--space-xs);
-            border: 1px solid var(--surface-3);
-            border-radius: var(--radius-sm);
-            background: var(--surface-0);
+        .rc-product-node-subcategory,
+        .rc-product-node-subbiercategory {
+            border: 1px dashed rgba(148, 163, 184, 0.4);
+            border-radius: var(--radius-md);
+            background: rgba(241, 245, 249, 0.4);
+            padding: var(--space-sm);
         }
 
         .rc-product-node-subbiercategory {
             margin-left: var(--space-md);
-            margin-top: var(--space-xs);
-            border: 1px solid var(--surface-3);
-            border-radius: var(--radius-sm);
-            background: var(--surface-0);
         }
 
         .rc-product-list {
@@ -544,69 +686,147 @@
 
         .rc-product-entry {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: minmax(0, 1fr) 220px;
             align-items: center;
-            gap: var(--space-md);
-            padding: var(--space-md);
-            border: 1px solid var(--surface-3);
-            border-radius: var(--radius-sm);
-            background: var(--surface-0);
-            transition: all 0.2s ease;
+            gap: var(--space-lg);
+            padding: var(--space-md) var(--space-lg);
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(229, 246, 255, 0.92) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
 
         .rc-product-entry:hover {
-            background: var(--surface-1);
-            border-color: var(--primary);
-            transform: translateX(4px);
+            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 18px 36px rgba(59, 130, 246, 0.18);
+        }
+
+        .rc-product-entry-selected {
+            border-color: rgba(59, 130, 246, 0.75);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.22);
+        }
+
+        .rc-product-entry-overbooked {
+            border-color: rgba(239, 68, 68, 0.65);
+            box-shadow: 0 20px 40px rgba(239, 68, 68, 0.22);
+        }
+
+        .rc-product-entry-unavailable {
+            opacity: 0.85;
         }
 
         .rc-product-entry-name {
-            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+
+        .rc-product-entry-title {
             display: flex;
             align-items: center;
             gap: var(--space-sm);
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: rgba(15, 23, 42, 0.92);
         }
 
-        .rc-product-entry-name::before {
-            content: '📦';
-            font-size: 1.1rem;
+        .rc-product-entry-title i {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(14, 165, 233, 0.2));
+            color: var(--primary);
+            border-radius: 12px;
+            padding: 0.4rem;
+            font-size: 1rem;
+        }
+
+        .rc-product-entry-subtitle {
+            font-size: 0.85rem;
+            color: rgba(71, 85, 105, 0.9);
+            font-weight: 500;
         }
 
         .rc-product-entry-input {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: var(--space-xs);
+            gap: var(--space-sm);
+        }
+
+        .rc-product-entry-quantity-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(71, 85, 105, 0.85);
         }
 
         .rc-product-entry-input input {
-            width: 100px;
-            padding: var(--space-xs) var(--space-sm);
-            border: 2px solid var(--surface-3);
-            border-radius: var(--radius-sm);
-            background: var(--surface-1);
-            font-size: 1rem;
-            font-weight: 600;
+            width: 100%;
+            max-width: 140px;
+            padding: var(--space-sm) var(--space-md);
+            border: 2px solid rgba(148, 163, 184, 0.45);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.95);
+            font-size: 1.05rem;
+            font-weight: 700;
             text-align: center;
-            transition: all 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .rc-product-entry-input input:focus {
             outline: none;
-            border-color: var(--primary);
-            background: var(--surface-0);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.85);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+            background: rgba(255, 255, 255, 1);
         }
 
         .rc-product-entry-input input:hover {
-            border-color: var(--primary);
+            border-color: rgba(59, 130, 246, 0.7);
         }
 
         .rc-product-entry-meta {
             display: flex;
             align-items: center;
-            gap: var(--space-sm);
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: var(--space-xs);
             font-size: 0.85rem;
+        }
+
+        .rc-product-entry-progress {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: var(--space-xs);
+        }
+
+        .rc-product-entry-progress-track {
+            width: 160px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.25);
+            overflow: hidden;
+        }
+
+        .rc-product-entry-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(34, 197, 94, 0.95) 0%, rgba(59, 130, 246, 0.95) 100%);
+            transition: width 0.25s ease;
+        }
+
+        .rc-product-entry-progress-bar.is-warning {
+            background: linear-gradient(90deg, rgba(249, 115, 22, 0.95) 0%, rgba(239, 68, 68, 0.95) 100%);
+        }
+
+        .rc-product-entry-progress-bar.is-empty {
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.9) 0%, rgba(190, 24, 93, 0.9) 100%);
+        }
+
+        .rc-product-entry-progress-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: rgba(71, 85, 105, 0.85);
         }
 
         .rc-table-row-warning {
@@ -799,6 +1019,7 @@
         const initialProductSelections = new Map();
         let productTreeData = [];
         let productValidationErrors = [];
+        let productTreeControlsBound = false;
 
         function getJobIdFromUrl() {
             const path = window.location.pathname;
@@ -853,6 +1074,8 @@
             const loading = document.getElementById('productTreeLoading');
             const root = document.getElementById('productTreeRoot');
             const empty = document.getElementById('productTreeEmpty');
+            const actions = document.getElementById('productTreeActions');
+            const summary = document.getElementById('productTreeSummary');
 
             const jobId = getJobIdFromUrl();
             let url = `/api/v1/devices/tree/availability`;
@@ -873,6 +1096,8 @@
             }
             if (root) root.style.display = 'none';
             if (empty) empty.style.display = 'none';
+            if (actions) actions.style.display = 'none';
+            if (summary) summary.textContent = 'Loading the latest availability…';
 
             fetch(url, { credentials: 'include' })
                 .then(response => {
@@ -895,6 +1120,9 @@
                         loading.style.display = 'flex';
                         loading.innerHTML = `<div style="color: var(--error);"><i class="bi bi-exclamation-triangle"></i> Error loading products: ${error.message}</div>`;
                     }
+                    if (summary) {
+                        summary.textContent = 'Could not load products right now. Try again in a moment.';
+                    }
                 });
         }
 
@@ -904,9 +1132,10 @@
             function visitCategory(category) {
                 if (Array.isArray(category.products)) {
                     category.products.forEach(product => {
+                        const stats = extractProductStats(product);
                         availabilityMap.set(String(product.id), {
-                            available: product.available_count || 0,
-                            total: product.device_count || 0
+                            available: stats.available,
+                            total: stats.total
                         });
                     });
                 }
@@ -918,9 +1147,10 @@
             function visitSubcategory(subcategory) {
                 if (Array.isArray(subcategory.products)) {
                     subcategory.products.forEach(product => {
+                        const stats = extractProductStats(product);
                         availabilityMap.set(String(product.id), {
-                            available: product.available_count || 0,
-                            total: product.device_count || 0
+                            available: stats.available,
+                            total: stats.total
                         });
                     });
                 }
@@ -932,9 +1162,10 @@
             function visitSubbiercategory(subbiercategory) {
                 if (Array.isArray(subbiercategory.products)) {
                     subbiercategory.products.forEach(product => {
+                        const stats = extractProductStats(product);
                         availabilityMap.set(String(product.id), {
-                            available: product.available_count || 0,
-                            total: product.device_count || 0
+                            available: stats.available,
+                            total: stats.total
                         });
                     });
                 }
@@ -960,10 +1191,155 @@
             idsToRemove.forEach(id => productSelections.delete(id));
         }
 
+        function toggleProductTreeNodes(open) {
+            const root = document.getElementById('productTreeRoot');
+            if (!root) {
+                return;
+            }
+            const nodes = root.querySelectorAll('details');
+            nodes.forEach(detail => {
+                detail.open = open;
+            });
+        }
+
+        function toNumber(value, fallback = 0) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+
+        function extractProductStats(product) {
+            if (!product || typeof product !== 'object') {
+                return { available: 0, total: 0 };
+            }
+            let availableSource = 0;
+            if (product.available_count !== undefined) {
+                availableSource = product.available_count;
+            } else if (product.availableCount !== undefined) {
+                availableSource = product.availableCount;
+            } else if (product.AvailableCount !== undefined) {
+                availableSource = product.AvailableCount;
+            }
+
+            let totalSource = 0;
+            if (product.device_count !== undefined) {
+                totalSource = product.device_count;
+            } else if (product.deviceCount !== undefined) {
+                totalSource = product.deviceCount;
+            } else if (product.DeviceCount !== undefined) {
+                totalSource = product.DeviceCount;
+            }
+
+            return {
+                available: toNumber(availableSource),
+                total: toNumber(totalSource)
+            };
+        }
+
+        function mergeStats(target, addition) {
+            return {
+                products: (target.products || 0) + (addition.products || 0),
+                available: (target.available || 0) + (addition.available || 0),
+                total: (target.total || 0) + (addition.total || 0)
+            };
+        }
+
+        function collectNodeStats(node) {
+            if (!node || typeof node !== 'object') {
+                return { products: 0, available: 0, total: 0 };
+            }
+
+            let stats = { products: 0, available: 0, total: 0 };
+
+            if (Array.isArray(node.products)) {
+                node.products.forEach(product => {
+                    const productStats = extractProductStats(product);
+                    stats.products += 1;
+                    stats.available += productStats.available;
+                    stats.total += productStats.total;
+                });
+            }
+
+            if (Array.isArray(node.subcategories)) {
+                node.subcategories.forEach(sub => {
+                    stats = mergeStats(stats, collectNodeStats(sub));
+                });
+            }
+
+            if (Array.isArray(node.subbiercategories)) {
+                node.subbiercategories.forEach(sub => {
+                    stats = mergeStats(stats, collectNodeStats(sub));
+                });
+            }
+
+            return stats;
+        }
+
+        function collectTreeStats(tree) {
+            if (!Array.isArray(tree)) {
+                return { products: 0, available: 0, total: 0 };
+            }
+            return tree.reduce((acc, node) => mergeStats(acc, collectNodeStats(node)), { products: 0, available: 0, total: 0 });
+        }
+
+        function buildNodeHeader(level, name, stats) {
+            const icons = {
+                category: 'bi-diagram-3',
+                subcategory: 'bi-diagram-2',
+                subbiercategory: 'bi-layers'
+            };
+            const availabilityClass = stats.total === 0
+                ? 'rc-chip-muted'
+                : stats.available > 0
+                    ? 'rc-chip-success'
+                    : 'rc-chip-danger';
+            const availabilityText = stats.total === 0
+                ? 'No devices yet'
+                : `${stats.available}/${stats.total} ready`;
+            const productLabel = `${stats.products} ${stats.products === 1 ? 'Product' : 'Products'}`;
+
+            return `
+                <div class="rc-node-header">
+                    <div class="rc-node-title">
+                        <i class="bi ${icons[level] || icons.category}"></i>
+                        <span>${escapeHtml(name || 'Untitled')}</span>
+                    </div>
+                    <div class="rc-node-metrics">
+                        <span class="rc-chip rc-chip-neutral">${productLabel}</span>
+                        <span class="rc-chip ${availabilityClass}">${availabilityText}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateProductTreeSummary(stats, categoryCount) {
+            const summary = document.getElementById('productTreeSummary');
+            if (!summary) {
+                return;
+            }
+
+            if (!categoryCount) {
+                summary.textContent = 'No products available for this timeframe.';
+                return;
+            }
+
+            const parts = [
+                `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}`,
+                `${stats.products} ${stats.products === 1 ? 'product' : 'products'}`
+            ];
+
+            if (stats.total > 0) {
+                const percent = Math.round((stats.available / Math.max(stats.total, 1)) * 100);
+                parts.push(`${stats.available}/${stats.total} devices free (${percent}% open)`);
+            }
+
+            summary.textContent = parts.join(' • ');
+        }
+
         function renderProductTree(treeData) {
             const loading = document.getElementById('productTreeLoading');
             const root = document.getElementById('productTreeRoot');
             const empty = document.getElementById('productTreeEmpty');
+            const actions = document.getElementById('productTreeActions');
 
             console.log('🎨 renderProductTree called with:', treeData);
             console.log('🎨 productTreeRoot element:', root);
@@ -974,6 +1350,9 @@
             }
 
             root.innerHTML = '';
+            if (actions) {
+                actions.style.display = 'none';
+            }
 
             if (loading) loading.style.display = 'none';
 
@@ -981,6 +1360,7 @@
                 console.log('⚠️ No tree data to render');
                 if (empty) empty.style.display = 'block';
                 root.style.display = 'none';
+                updateProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
                 updateSelectedProductsSummary();
                 updateHiddenProductInput();
                 validateProductSelections();
@@ -990,6 +1370,11 @@
             console.log('✅ Rendering', treeData.length, 'categories');
             if (empty) empty.style.display = 'none';
             root.style.display = 'block';
+            const totals = collectTreeStats(treeData);
+            updateProductTreeSummary(totals, treeData.length);
+            if (actions) {
+                actions.style.display = 'flex';
+            }
 
             const renderedProducts = new Set();
 
@@ -999,7 +1384,8 @@
                 categoryDetails.className = 'rc-product-node rc-product-node-category';
 
                 const summary = document.createElement('summary');
-                summary.innerHTML = `<strong>${escapeHtml(category.name)}</strong>`;
+                const categoryStats = collectNodeStats(category);
+                summary.innerHTML = buildNodeHeader('category', category.name, categoryStats);
                 categoryDetails.appendChild(summary);
 
                 const body = document.createElement('div');
@@ -1028,6 +1414,7 @@
                 root.appendChild(categoryDetails);
             });
 
+            toggleProductTreeNodes(false);
             updateSelectedProductsSummary();
             updateHiddenProductInput();
             validateProductSelections();
@@ -1039,7 +1426,8 @@
             subDetails.className = 'rc-product-node rc-product-node-subcategory';
 
             const summary = document.createElement('summary');
-            summary.innerHTML = `<span>${escapeHtml(subcategory.name || 'Subcategory')}</span>`;
+            const subStats = collectNodeStats(subcategory);
+            summary.innerHTML = buildNodeHeader('subcategory', subcategory.name || 'Subcategory', subStats);
             subDetails.appendChild(summary);
 
             const body = document.createElement('div');
@@ -1051,7 +1439,8 @@
                     detail.open = false; // Collapsed by default
                     detail.className = 'rc-product-node rc-product-node-subbiercategory';
                     const summary = document.createElement('summary');
-                    summary.innerHTML = `<span>${escapeHtml(subbiercategory.name || 'Group')}</span>`;
+                    const subbierStats = collectNodeStats(subbiercategory);
+                    summary.innerHTML = buildNodeHeader('subbiercategory', subbiercategory.name || 'Group', subbierStats);
                     detail.appendChild(summary);
                     const list = document.createElement('div');
                     list.className = 'rc-product-list';
@@ -1086,35 +1475,134 @@
         function renderProductEntry(product) {
             const wrapper = document.createElement('div');
             wrapper.className = 'rc-product-entry';
+            wrapper.dataset.productId = String(product.id);
+
+            const productStats = extractProductStats(product);
+            const available = productStats.available;
+            const total = productStats.total;
+            const percentAvailable = total > 0 ? Math.round((available / total) * 100) : 0;
 
             const name = document.createElement('div');
             name.className = 'rc-product-entry-name';
-            name.innerHTML = `<span>${escapeHtml(product.name)}</span>`;
+
+            const title = document.createElement('div');
+            title.className = 'rc-product-entry-title';
+            title.innerHTML = `<i class="bi bi-box-seam"></i><span>${escapeHtml(product.name)}</span>`;
+            name.appendChild(title);
+
+            const subtitleBits = [];
+            const brand = product.brand_name || product.brandName || product.BrandName;
+            if (brand) {
+                subtitleBits.push(escapeHtml(brand));
+            }
+            const manufacturer = product.manufacturer_name || product.manufacturerName || product.ManufacturerName;
+            if (manufacturer) {
+                subtitleBits.push(escapeHtml(manufacturer));
+            }
+            const model = product.model_number || product.modelNumber || product.ModelNumber || product.product_code || product.ProductCode;
+            if (model) {
+                subtitleBits.push(`#${escapeHtml(model)}`);
+            }
+            if (subtitleBits.length > 0) {
+                const subtitle = document.createElement('div');
+                subtitle.className = 'rc-product-entry-subtitle';
+                subtitle.innerHTML = subtitleBits.join(' • ');
+                name.appendChild(subtitle);
+            }
 
             const inputGroup = document.createElement('div');
             inputGroup.className = 'rc-product-entry-input';
+
+            const quantityLabel = document.createElement('span');
+            quantityLabel.className = 'rc-product-entry-quantity-label';
+            quantityLabel.textContent = 'Quantity';
+            inputGroup.appendChild(quantityLabel);
 
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
             input.step = '1';
             input.value = getCurrentQuantity(product.id);
-            input.addEventListener('input', () => {
-                const value = Math.max(0, parseInt(input.value || '0', 10));
-                setProductSelection(product, value);
-            });
+            input.setAttribute('aria-label', `Select quantity for ${product.name}`);
+            input.title = `Enter quantity for ${product.name}`;
 
             const meta = document.createElement('div');
             meta.className = 'rc-product-entry-meta';
-            const available = product.available_count || 0;
-            const total = product.device_count || 0;
-            meta.innerHTML = `<span class="rc-badge ${available > 0 ? 'rc-badge-success' : 'rc-badge-warning'}">${available} / ${total}</span>`;
+
+            const availabilityClass = total === 0 ? 'rc-chip-muted' : available > 0 ? 'rc-chip-success' : 'rc-chip-danger';
+            const availabilityIcon = total === 0 ? 'bi-slash-circle' : available > 0 ? 'bi-lightning-charge' : 'bi-exclamation-octagon';
+            const availabilityBadge = document.createElement('span');
+            availabilityBadge.className = `rc-chip ${availabilityClass} rc-chip-pill`;
+            availabilityBadge.innerHTML = `<i class="bi ${availabilityIcon}"></i> ${available} / ${total || 0} ready`;
+            meta.appendChild(availabilityBadge);
+
+            const selectedBadge = document.createElement('span');
+            selectedBadge.className = 'rc-chip rc-chip-accent rc-chip-pill';
+            selectedBadge.style.display = 'none';
+            meta.appendChild(selectedBadge);
+
+            const progress = document.createElement('div');
+            progress.className = 'rc-product-entry-progress';
+            const progressTrack = document.createElement('div');
+            progressTrack.className = 'rc-product-entry-progress-track';
+            const progressBar = document.createElement('div');
+            progressBar.className = 'rc-product-entry-progress-bar';
+            if (available === 0) {
+                progressBar.classList.add('is-empty');
+            }
+            progressBar.style.width = `${Math.max(0, Math.min(100, percentAvailable))}%`;
+            progressTrack.appendChild(progressBar);
+            const progressLabel = document.createElement('span');
+            progressLabel.className = 'rc-product-entry-progress-text';
+            progressLabel.textContent = total > 0 ? `${percentAvailable}% available` : 'No devices yet';
+            progress.appendChild(progressTrack);
+            progress.appendChild(progressLabel);
 
             inputGroup.appendChild(input);
             inputGroup.appendChild(meta);
+            inputGroup.appendChild(progress);
 
             wrapper.appendChild(name);
             wrapper.appendChild(inputGroup);
+
+            function updateProductEntryState(quantityValue) {
+                const value = quantityValue !== undefined ? quantityValue : Math.max(0, parseInt(input.value || '0', 10));
+                const overbooked = total > 0 && value > available;
+                const hasSelection = value > 0;
+                const unavailable = total === 0 || available === 0;
+
+                wrapper.classList.toggle('rc-product-entry-selected', hasSelection);
+                wrapper.classList.toggle('rc-product-entry-overbooked', overbooked);
+                wrapper.classList.toggle('rc-product-entry-unavailable', unavailable);
+
+                selectedBadge.textContent = `Selected: ${value}`;
+                selectedBadge.style.display = hasSelection ? 'inline-flex' : 'none';
+
+                if (overbooked) {
+                    progressLabel.textContent = `Need ${value - available} more`;
+                    progressBar.classList.add('is-warning');
+                } else {
+                    progressLabel.textContent = total > 0 ? `${percentAvailable}% available` : 'No devices yet';
+                    progressBar.classList.remove('is-warning');
+                }
+            }
+
+            input.addEventListener('input', () => {
+                const value = Math.max(0, parseInt(input.value || '0', 10));
+                input.value = value;
+                setProductSelection(product, value);
+                updateProductEntryState(value);
+            });
+
+            wrapper.addEventListener('click', () => {
+                input.focus();
+            });
+
+            input.addEventListener('click', event => {
+                event.stopPropagation();
+            });
+
+            updateProductEntryState(parseInt(input.value || '0', 10));
 
             return wrapper;
         }
@@ -1132,16 +1620,17 @@
 
         function setProductSelection(product, quantity) {
             const key = String(product.id);
+            const stats = extractProductStats(product);
             const entry = productSelections.get(key) || {
                 id: product.id,
                 name: product.name,
-                available: product.available_count || 0,
-                total: product.device_count || 0,
+                available: stats.available,
+                total: stats.total,
                 quantity: 0
             };
 
-            entry.available = product.available_count || 0;
-            entry.total = product.device_count || 0;
+            entry.available = stats.available;
+            entry.total = stats.total;
             entry.quantity = quantity;
 
             if (entry.quantity <= 0) {
@@ -1261,6 +1750,18 @@
             }
             if (endDateInput) {
                 endDateInput.addEventListener('change', triggerReload);
+            }
+
+            if (!productTreeControlsBound) {
+                const expandButton = document.querySelector('[data-action="expand-product-tree"]');
+                const collapseButton = document.querySelector('[data-action="collapse-product-tree"]');
+                if (expandButton) {
+                    expandButton.addEventListener('click', () => toggleProductTreeNodes(true));
+                }
+                if (collapseButton) {
+                    collapseButton.addEventListener('click', () => toggleProductTreeNodes(false));
+                }
+                productTreeControlsBound = true;
             }
 
             const jobID = getJobIdFromUrl();

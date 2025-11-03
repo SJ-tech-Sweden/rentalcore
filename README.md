@@ -442,7 +442,15 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.60** (Latest) - Enhanced Product Tree Styling
+### **v2.61** (Latest) - Luxe Product Tree Experience
+- ✅ **Glassmorphism Layout**: New frame, gradients, and ambient shadows wrap the entire product tree for a premium modal look
+- ✅ **Live Availability Summary**: Category toolbar now aggregates totals (categories, products, free devices, utilization %) at a glance
+- ✅ **One-Click Tree Controls**: Added “Expand All” / “Collapse All” actions that toggle every node instantly
+- ✅ **Hero Product Cards**: Each product renders as a rich card with brand/manufacturer subtitles, selection badges, and hover elevation
+- ✅ **Availability Thermometer**: Gradient progress bar plus status chips that switch to warning mode for overbooked requests
+- ✅ **Accessibility Tweaks**: Inputs get descriptive aria labels and focus states for keyboard workflows
+
+### **v2.60** - Enhanced Product Tree Styling
 - ✅ **Collapsed by Default**: All categories/subcategories start collapsed for cleaner view
 - ✅ **Animated Icons**: Arrow icons (▶) rotate smoothly when expanding/collapsing
 - ✅ **Modern Design**: Gradient backgrounds, smooth transitions, hover effects

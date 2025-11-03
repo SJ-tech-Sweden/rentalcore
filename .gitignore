@@ -61,6 +61,7 @@ log/
 temp/
 tmp/
 cache/
+!internal/cache/
 
 # Backup files
 *.backup
