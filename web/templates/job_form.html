@@ -1139,6 +1139,8 @@
 
         // Initialize job form - can be called manually from modal
         function initializeJobForm() {
+            console.log('🚀 initializeJobForm called');
+
             if (typeof window.setupCustomerInlineCreation === 'function') {
                 window.setupCustomerInlineCreation(document);
             }
@@ -1165,11 +1167,12 @@
             });
         }
 
+        // IMMEDIATELY expose function globally for modal (BEFORE DOMContentLoaded)
+        window.initializeJobForm = initializeJobForm;
+        console.log('✅ window.initializeJobForm exposed');
+
         // Auto-initialize on page load
         document.addEventListener('DOMContentLoaded', initializeJobForm);
-
-        // Expose function globally for modal
-        window.initializeJobForm = initializeJobForm;
 
         const jobFormElement = document.getElementById('jobForm');
         if (jobFormElement) {
@@ -1383,30 +1386,5 @@
             <script src="{{.}}"></script>
         {{end}}
     {{end}}
-
-    <!-- Auto-initialize when loaded in modal context -->
-    <script>
-        // This runs after all other scripts
-        (function() {
-            // Check if we're in a modal (no navbar present)
-            const isInModal = !document.querySelector('nav') || document.getElementById('jobNewContent');
-
-            if (isInModal && typeof window.initializeJobForm === 'function') {
-                console.log('🔄 Auto-initializing job form in modal context');
-                window.initializeJobForm();
-            } else if (isInModal) {
-                console.warn('⚠️ In modal but initializeJobForm not available yet, will retry...');
-                // Retry after a short delay
-                setTimeout(function() {
-                    if (typeof window.initializeJobForm === 'function') {
-                        console.log('🔄 Delayed initialization successful');
-                        window.initializeJobForm();
-                    } else {
-                        console.error('❌ initializeJobForm still not available');
-                    }
-                }, 500);
-            }
-        })();
-    </script>
 </body>
 </html>
