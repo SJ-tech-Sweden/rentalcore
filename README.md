@@ -442,8 +442,15 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.63** (Latest) - Theme-Aligned Product Tree
-- ✅ **Unified Look & Feel**: Reworked product tree containers, chips, and cards to reuse RentalCore’s surface palette and spacing scale
+### **v2.65** (Latest) - Modal Centering Fix
+- ✅ **Improved Modal Centering**: Removed explicit width values that interfered with CSS grid centering
+- ✅ **Jobs Modal**: Fixed Job Details, New Job, and File Preview modals to center properly
+- ✅ **Equipment Packages**: Fixed Package Detail and Edit Package modals centering
+- ✅ **Responsive Design**: All modals now use only max-width for better responsiveness
+- ✅ **Consistent Behavior**: Grid-based centering now works correctly across all modal types
+
+### **v2.63** - Theme-Aligned Product Tree
+- ✅ **Unified Look & Feel**: Reworked product tree containers, chips, and cards to reuse RentalCore's surface palette and spacing scale
 - ✅ **Balanced Shadows**: Softened elevation and hover states so the modal matches other RC cards and tables
 - ✅ **Readable Summaries**: Updated category headers and status chips for better contrast on light/dark modes
 - ✅ **Consistent Controls**: Toolbar actions, progress indicators, and quantity inputs now inherit system focus/hover treatments

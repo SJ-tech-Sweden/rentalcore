@@ -209,7 +209,7 @@
     <!-- Job Details Modal -->
     <div id="jobDetailsModal" class="rc-modal" style="display: none;">
         <div class="rc-modal-overlay" onclick="closeJobModal()"></div>
-        <div class="rc-modal-content" id="jobDetailsModalContent" style="max-width: 900px !important; width: 90vw !important;">
+        <div class="rc-modal-content" id="jobDetailsModalContent" style="max-width: 900px;">
             <div class="rc-modal-header">
                 <h3 class="rc-modal-title" id="jobDetailsModalTitle">
                     <i class="bi bi-briefcase"></i> Job Details
@@ -264,7 +264,7 @@
 
     <div id="jobNewModal" class="rc-modal" style="display: none;">
         <div class="rc-modal-overlay" onclick="closeNewJobModal()"></div>
-        <div class="rc-modal-content" style="max-width: 1200px; width: 95vw; max-height: 90vh; overflow-y: auto;">
+        <div class="rc-modal-content" style="max-width: 1200px; max-height: 90vh; overflow-y: auto;">
             <div class="rc-modal-header">
                 <h3 class="rc-modal-title">
                     <i class="bi bi-plus-circle"></i> Create New Job
@@ -2503,7 +2503,7 @@ function showToast(message, type) {
         modal.style.display = 'none';
         modal.innerHTML = `
             <div class="rc-modal-overlay" onclick="hideFilePreviewModal()"></div>
-            <div class="rc-modal-content" id="filePreviewModalContent" style="max-width: 95vw !important; max-height: 98vh !important; width: 1400px !important; height: 90vh !important; margin: 1vh auto !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; border-radius: 12px !important; overflow: hidden !important; display: flex !important; flex-direction: column !important;">
+            <div class="rc-modal-content" id="filePreviewModalContent" style="max-width: 1400px; max-height: 98vh; height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
                 <div class="rc-modal-header" style="padding: 20px 24px; border-bottom: 1px solid var(--surface-3); background: var(--surface-1); flex-shrink: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="flex: 1;">
