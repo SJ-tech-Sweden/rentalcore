@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.65** (Latest) - Modal Centering Fix
+### **v2.66** (Latest) - Modal Centering Root Fix
+- ✅ **Root Cause Fix**: Removed explicit `width` property from `.rc-modal-content` class that prevented proper CSS grid centering
+- ✅ **All Modals**: Fixed centering issue across all modal types (Job Details, New Job, Equipment Packages, File Preview, etc.)
+- ✅ **Flexible Sizing**: Modals now use only `max-width` for responsive sizing while maintaining proper centering
+- ✅ **Clean CSS**: Simplified modal styling by removing conflicting width constraints
+- ✅ **Grid Compatibility**: `place-items: center` now works correctly without width interference
+
+### **v2.65** - Modal Centering Fix
 - ✅ **Improved Modal Centering**: Removed explicit width values that interfered with CSS grid centering
 - ✅ **Jobs Modal**: Fixed Job Details, New Job, and File Preview modals to center properly
 - ✅ **Equipment Packages**: Fixed Package Detail and Edit Package modals centering
