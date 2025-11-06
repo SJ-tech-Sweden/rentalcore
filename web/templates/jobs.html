@@ -3779,16 +3779,16 @@ function showToast(message, type) {
         /* Summary - Improved Touch Target & Style */
         .rc-product-tree summary {
             cursor: pointer;
-            padding: var(--space-lg) var(--space-xl);
+            padding: var(--space-md) var(--space-lg);
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: var(--space-lg);
+            gap: var(--space-md);
             user-select: none;
             transition: all var(--transition-fast);
             list-style: none;
             background: transparent;
-            min-height: 60px;
+            min-height: 48px;
         }
 
         .rc-product-tree summary::marker,
@@ -3921,10 +3921,10 @@ function showToast(message, type) {
 
         /* Node Body - Smooth Animation */
         .rc-product-node-body {
-            padding: var(--space-xl);
+            padding: var(--space-md);
             display: flex;
             flex-direction: column;
-            gap: var(--space-lg);
+            gap: var(--space-sm);
             background: var(--surface-0);
             animation: slideDownProduct var(--transition-normal);
             border-top: 1px solid var(--surface-3);
@@ -3959,22 +3959,22 @@ function showToast(message, type) {
             margin-left: var(--space-2xl);
         }
 
-        /* Product List - Spacious Layout */
+        /* Product List - Compact Layout */
         .rc-product-list {
             display: flex;
             flex-direction: column;
-            gap: var(--space-md);
-            padding: var(--space-md) 0;
+            gap: var(--space-xs);
+            padding: var(--space-sm) 0;
         }
 
         /* Product Entry - Premium Card Design */
         .rc-product-entry {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 220px;
+            grid-template-columns: minmax(0, 1fr) 200px;
             align-items: center;
-            gap: var(--space-lg);
-            padding: var(--space-lg) var(--space-xl);
-            border-radius: var(--radius-md);
+            gap: var(--space-md);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
             background: linear-gradient(135deg, var(--surface-1), var(--surface-0));
             border: 1px solid var(--surface-4);
             box-shadow: var(--shadow-md);
@@ -4034,15 +4034,15 @@ function showToast(message, type) {
         .rc-product-entry-name {
             display: flex;
             flex-direction: column;
-            gap: var(--space-sm);
+            gap: var(--space-xs);
         }
 
         .rc-product-entry-title {
             display: flex;
             align-items: center;
-            gap: var(--space-md);
-            font-weight: 700;
-            font-size: 1.1rem;
+            gap: var(--space-sm);
+            font-weight: 600;
+            font-size: 0.95rem;
             color: var(--text-primary);
         }
 
@@ -4050,13 +4050,13 @@ function showToast(message, type) {
             background: linear-gradient(135deg, var(--surface-4), var(--surface-3));
             color: var(--text-primary);
             border-radius: var(--radius-sm);
-            padding: var(--space-sm);
-            font-size: 1.1rem;
+            padding: var(--space-xs);
+            font-size: 0.9rem;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
         }
 
         .rc-product-entry-subtitle {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             font-weight: 500;
             opacity: 0.9;
@@ -4080,13 +4080,13 @@ function showToast(message, type) {
 
         .rc-product-entry-input input {
             width: 100%;
-            max-width: 150px;
-            padding: var(--space-md) var(--space-lg);
+            max-width: 120px;
+            padding: var(--space-sm) var(--space-md);
             border: 2px solid var(--surface-4);
-            border-radius: var(--radius-lg);
+            border-radius: var(--radius-md);
             background: var(--surface-2);
             color: var(--text-primary);
-            font-size: 1.15rem;
+            font-size: 1rem;
             font-weight: 700;
             text-align: center;
             transition: all var(--transition-fast);
@@ -4125,8 +4125,8 @@ function showToast(message, type) {
         }
 
         .rc-product-entry-progress-track {
-            width: 170px;
-            height: 10px;
+            width: 140px;
+            height: 6px;
             border-radius: 999px;
             background: var(--surface-3);
             overflow: hidden;
