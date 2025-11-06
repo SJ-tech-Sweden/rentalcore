@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -823,15 +824,26 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 			return nil, err
 		}
 
+		// DEBUG: Log availability details
+		log.Printf("[DEBUG] Product %d: fetched %d devices from availability query", productID, len(availability))
+
 		caseGroups := make(map[uint][]repository.ProductDeviceAvailability)
 		caseOrder := make([]uint, 0)
 		loose := make([]repository.ProductDeviceAvailability, 0)
 
+		skippedUsed := 0
+		skippedNotAvailable := 0
+		addedToCase := 0
+		addedToLoose := 0
+
 		for _, device := range availability {
 			if usedDevices[device.DeviceID] {
+				skippedUsed++
 				continue
 			}
 			if !device.Available {
+				skippedNotAvailable++
+				log.Printf("[DEBUG]   Device %d marked as NOT available (Available=%v), skipping", device.DeviceID, device.Available)
 				continue
 			}
 			if device.CaseID != nil {
@@ -841,51 +853,82 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 					caseOrder = append(caseOrder, caseID)
 				}
 				caseGroups[caseID] = append(caseGroups[caseID], device)
+				addedToCase++
+				log.Printf("[DEBUG]   Device %d added to case %d", device.DeviceID, caseID)
 			} else {
 				loose = append(loose, device)
+				addedToLoose++
+				log.Printf("[DEBUG]   Device %d added to loose pool", device.DeviceID)
 			}
 		}
+
+		log.Printf("[DEBUG] Product %d filtering results: total=%d, skippedUsed=%d, skippedNotAvailable=%d, addedToCase=%d, addedToLoose=%d",
+			productID, len(availability), skippedUsed, skippedNotAvailable, addedToCase, addedToLoose)
 
 		sort.Slice(caseOrder, func(i, j int) bool {
 			return len(caseGroups[caseOrder[i]]) > len(caseGroups[caseOrder[j]])
 		})
 
-		for _, caseID := range caseOrder {
+		// DEBUG: Log case assignment details
+		log.Printf("[DEBUG] Starting case assignment for product %d: need=%d remaining=%d, numCases=%d", productID, needed, remaining, len(caseOrder))
+
+		assignedFromCases := 0
+		for caseIdx, caseID := range caseOrder {
 			if remaining == 0 {
 				break
 			}
 			devices := caseGroups[caseID]
+			log.Printf("[DEBUG] Case %d (ID=%d): has %d devices, remaining needed=%d", caseIdx, caseID, len(devices), remaining)
+
 			sort.Slice(devices, func(i, j int) bool {
 				return devices[i].DeviceID < devices[j].DeviceID
 			})
+
+			caseAssigned := 0
 			for _, device := range devices {
 				if remaining == 0 {
 					break
 				}
 				if usedDevices[device.DeviceID] {
+					log.Printf("[DEBUG]   Device %d already used, skipping", device.DeviceID)
 					continue
 				}
 				target[productID] = append(target[productID], device.DeviceID)
 				usedDevices[device.DeviceID] = true
 				remaining--
+				caseAssigned++
+				assignedFromCases++
+				log.Printf("[DEBUG]   Assigned device %d from case, remaining=%d", device.DeviceID, remaining)
 			}
+			log.Printf("[DEBUG] Case %d assigned %d devices total", caseID, caseAssigned)
 		}
 
+		log.Printf("[DEBUG] After case assignment: assigned=%d from cases, remaining=%d", assignedFromCases, remaining)
+
 		if remaining > 0 {
+			log.Printf("[DEBUG] Starting loose device assignment: %d loose devices available, remaining needed=%d", len(loose), remaining)
+
 			sort.Slice(loose, func(i, j int) bool {
 				return loose[i].DeviceID < loose[j].DeviceID
 			})
+
+			assignedFromLoose := 0
 			for _, device := range loose {
 				if remaining == 0 {
 					break
 				}
 				if usedDevices[device.DeviceID] {
+					log.Printf("[DEBUG]   Loose device %d already used, skipping", device.DeviceID)
 					continue
 				}
 				target[productID] = append(target[productID], device.DeviceID)
 				usedDevices[device.DeviceID] = true
 				remaining--
+				assignedFromLoose++
+				log.Printf("[DEBUG]   Assigned loose device %d, remaining=%d", device.DeviceID, remaining)
 			}
+
+			log.Printf("[DEBUG] After loose assignment: assigned=%d from loose, remaining=%d", assignedFromLoose, remaining)
 		}
 
 		if remaining > 0 {
