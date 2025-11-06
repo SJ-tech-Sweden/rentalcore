@@ -802,15 +802,19 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 			continue
 		}
 
+		log.Printf("[DEBUG] Processing product %d: need %d devices", productID, needed)
+
 		currentList := currentByProduct[productID]
 		toKeep := needed
 		if len(currentList) < toKeep {
 			toKeep = len(currentList)
 		}
 		if toKeep > 0 {
+			log.Printf("[DEBUG] Keeping %d devices already assigned to job: %v", toKeep, currentList[:toKeep])
 			target[productID] = append(target[productID], currentList[:toKeep]...)
 			for _, deviceID := range currentList[:toKeep] {
 				usedDevices[deviceID] = true
+				log.Printf("[DEBUG]   Marking device '%s' as used (already on job)", deviceID)
 			}
 		}
 
@@ -839,11 +843,12 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 		for _, device := range availability {
 			if usedDevices[device.DeviceID] {
 				skippedUsed++
+				log.Printf("[DEBUG]   Device '%s' already in usedDevices map, skipping", device.DeviceID)
 				continue
 			}
 			if !device.Available {
 				skippedNotAvailable++
-				log.Printf("[DEBUG]   Device %d marked as NOT available (Available=%v), skipping", device.DeviceID, device.Available)
+				log.Printf("[DEBUG]   Device '%s' marked as NOT available (Available=%v), skipping", device.DeviceID, device.Available)
 				continue
 			}
 			if device.CaseID != nil {
@@ -854,11 +859,11 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 				}
 				caseGroups[caseID] = append(caseGroups[caseID], device)
 				addedToCase++
-				log.Printf("[DEBUG]   Device %d added to case %d", device.DeviceID, caseID)
+				log.Printf("[DEBUG]   Device '%s' added to case %d", device.DeviceID, caseID)
 			} else {
 				loose = append(loose, device)
 				addedToLoose++
-				log.Printf("[DEBUG]   Device %d added to loose pool", device.DeviceID)
+				log.Printf("[DEBUG]   Device '%s' added to loose pool", device.DeviceID)
 			}
 		}
 
@@ -890,7 +895,7 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 					break
 				}
 				if usedDevices[device.DeviceID] {
-					log.Printf("[DEBUG]   Device %d already used, skipping", device.DeviceID)
+					log.Printf("[DEBUG]   Device '%s' already used, skipping", device.DeviceID)
 					continue
 				}
 				target[productID] = append(target[productID], device.DeviceID)
@@ -898,7 +903,7 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 				remaining--
 				caseAssigned++
 				assignedFromCases++
-				log.Printf("[DEBUG]   Assigned device %d from case, remaining=%d", device.DeviceID, remaining)
+				log.Printf("[DEBUG]   Assigned device '%s' from case, remaining=%d", device.DeviceID, remaining)
 			}
 			log.Printf("[DEBUG] Case %d assigned %d devices total", caseID, caseAssigned)
 		}
@@ -918,14 +923,14 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 					break
 				}
 				if usedDevices[device.DeviceID] {
-					log.Printf("[DEBUG]   Loose device %d already used, skipping", device.DeviceID)
+					log.Printf("[DEBUG]   Loose device '%s' already used, skipping", device.DeviceID)
 					continue
 				}
 				target[productID] = append(target[productID], device.DeviceID)
 				usedDevices[device.DeviceID] = true
 				remaining--
 				assignedFromLoose++
-				log.Printf("[DEBUG]   Assigned loose device %d, remaining=%d", device.DeviceID, remaining)
+				log.Printf("[DEBUG]   Assigned loose device '%s', remaining=%d", device.DeviceID, remaining)
 			}
 
 			log.Printf("[DEBUG] After loose assignment: assigned=%d from loose, remaining=%d", assignedFromLoose, remaining)
