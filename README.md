@@ -442,7 +442,16 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.76** (Latest) - Slim & Compact Product Tree Design
+### **v2.77** (Latest) - Single-Line Horizontal Product Layout
+- ✅ **One-Line Design**: Product name, quantity input, and availability all on one horizontal line
+- ✅ **Cleaner Interface**: Removed progress bars and quantity labels for minimalist look
+- ✅ **Compact Input**: Reduced input field to 80px width
+- ✅ **Smart Truncation**: Long product names truncate with ellipsis (...)
+- ✅ **Better Scanning**: More items visible at once with horizontal layout
+- ✅ **Responsive Mobile**: Wraps to multi-line on small screens
+- ✅ **Consistent Styling**: Same layout in both modal and standalone page
+
+### **v2.76** - Slim & Compact Product Tree Design
 - ✅ **Reduced Entry Height**: Slimmer product entries with compact padding (40% less vertical space)
 - ✅ **Tighter Spacing**: Minimal gaps between items for denser layout
 - ✅ **Smaller Typography**: Optimized font sizes for better information density
