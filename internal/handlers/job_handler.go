@@ -889,7 +889,16 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 		}
 
 		if remaining > 0 {
-			return nil, fmt.Errorf("not enough available devices for product %d", productID)
+			// Detailed error message for debugging
+			totalAvailable := len(availability)
+			totalInCases := 0
+			for _, devices := range caseGroups {
+				totalInCases += len(devices)
+			}
+			totalLoose := len(loose)
+
+			return nil, fmt.Errorf("not enough available devices for product %d: needed=%d, available=%d (cases=%d, loose=%d), already_kept=%d, remaining=%d",
+				productID, needed, totalAvailable, totalInCases, totalLoose, toKeep, remaining)
 		}
 	}
 
