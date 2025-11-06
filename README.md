@@ -442,7 +442,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.78** (Latest) - Consistent Modal Widths
+### **v2.79** (Latest) - Right-Aligned Input Controls
+- ✅ **Improved Layout**: Input and availability now right-aligned next to product name
+- ✅ **Better Visual Flow**: Product name on left, controls grouped on right
+- ✅ **Cleaner Spacing**: Natural gap between product name and input controls
+- ✅ **Consistent Alignment**: Same layout across modal and standalone page
+- ✅ **Layout**: `[Icon] Product Name          [Input] Available: X/Y`
+
+### **v2.78** - Consistent Modal Widths
 - ✅ **Unified Modal Size**: Edit Job modal now matches New Job modal width (1200px)
 - ✅ **Better Product Tree View**: Wider modal provides more space for horizontal product layout
 - ✅ **Consistent UX**: Same visual experience across create and edit workflows
