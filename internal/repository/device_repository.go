@@ -676,11 +676,11 @@ func (r *DeviceRepository) GetProductAvailabilityForJob(productID uint, jobID *u
 		start := *startDate
 		end := *endDate
 		conflictRows := []struct {
-			DeviceID string
+			DeviceID string `gorm:"column:device_id"`
 		}{}
 
 		conflictQuery := r.db.Table("jobdevices jd").
-			Select("jd.deviceID").
+			Select("CAST(jd.deviceID AS CHAR) AS device_id").
 			Joins("JOIN jobs j ON jd.jobID = j.jobID").
 			Where("NOT (COALESCE(j.endDate, j.startDate) < ? OR j.startDate > ?)", end, start)
 

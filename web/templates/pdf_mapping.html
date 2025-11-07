@@ -170,8 +170,8 @@ async function selectMapping(eventOrElement, fallbackItemId, fallbackProductId) 
     if (!Number.isFinite(resolvedItemId) || resolvedItemId <= 0 ||
         !Number.isFinite(resolvedProductId) || resolvedProductId <= 0) {
         console.error('Mapping missing identifiers', {
-            itemId,
-            productId,
+            fallbackItemId,
+            fallbackProductId,
             resolvedItemId,
             resolvedProductId,
             element,
