@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -23,12 +24,20 @@ import (
 // PDFExtractor handles PDF text extraction and data parsing
 type PDFExtractor struct {
 	UploadDir string
+	OCREngine *OCREngine
+	Parser    *IntelligentParser
 }
 
 // NewPDFExtractor creates a new PDF extractor instance
 func NewPDFExtractor(uploadDir string) *PDFExtractor {
+	// Create temp directory for OCR processing
+	tempDir := filepath.Join(uploadDir, "temp_ocr")
+	os.MkdirAll(tempDir, 0755)
+
 	return &PDFExtractor{
 		UploadDir: uploadDir,
+		OCREngine: NewOCREngine(tempDir),
+		Parser:    NewIntelligentParser(),
 	}
 }
 
@@ -120,6 +129,49 @@ func (e *PDFExtractor) ExtractText(filePath string) (string, error) {
 	}
 
 	return extractedText, nil
+}
+
+// ExtractWithOCR extracts text from PDF using OCR when needed
+func (e *PDFExtractor) ExtractWithOCR(filePath string) (*OCRResult, error) {
+	log.Printf("Starting OCR extraction for: %s", filePath)
+
+	// Use OCR engine to extract text
+	ocrResult, err := e.OCREngine.ExtractTextWithOCR(filePath)
+	if err != nil {
+		log.Printf("OCR extraction failed: %v", err)
+		// Fallback to simple text extraction
+		text, fallbackErr := e.ExtractText(filePath)
+		if fallbackErr != nil {
+			return nil, fmt.Errorf("both OCR and text extraction failed: %v, %v", err, fallbackErr)
+		}
+
+		return &OCRResult{
+			Text:       text,
+			Confidence: 85.0,
+			PageCount:  1,
+			Method:     "text_based",
+		}, nil
+	}
+
+	log.Printf("OCR extraction successful: method=%s, confidence=%.2f, pages=%d",
+		ocrResult.Method, ocrResult.Confidence, ocrResult.PageCount)
+
+	return ocrResult, nil
+}
+
+// ParseDocumentIntelligently parses extracted text using intelligent parser
+func (e *PDFExtractor) ParseDocumentIntelligently(rawText string) (*ParsedDocument, error) {
+	log.Printf("Parsing document with intelligent parser (text length: %d)", len(rawText))
+
+	doc, err := e.Parser.ParseDocument(rawText)
+	if err != nil {
+		return nil, fmt.Errorf("parsing failed: %v", err)
+	}
+
+	log.Printf("Document parsed successfully: type=%s, items=%d, confidence=%.2f",
+		doc.DocumentType, len(doc.Items), doc.ConfidenceScore)
+
+	return doc, nil
 }
 
 // ParseInvoiceData parses invoice data from extracted text

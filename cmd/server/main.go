@@ -949,6 +949,13 @@ func setupRoutes(r *gin.Engine,
 			search.DELETE("/saved/:id", searchHandler.DeleteSavedSearch)
 		}
 
+		// PDF UI routes
+		pdfUI := protected.Group("/pdf")
+		{
+			pdfUI.GET("/review/:upload_id", pdfHandler.ShowReviewScreen)
+			pdfUI.GET("/mapping/:extraction_id", pdfHandler.ShowMappingScreen)
+		}
+
 		// PWA routes
 		pwa := protected.Group("/pwa")
 		{
@@ -1430,6 +1437,9 @@ func setupRoutes(r *gin.Engine,
 				pdfAPI.POST("/mapping", pdfHandler.SaveProductMapping)
 				pdfAPI.GET("/suggestions", pdfHandler.GetProductSuggestions)
 				pdfAPI.PUT("/items/:item_id/mapping", pdfHandler.UpdateItemMapping)
+				pdfAPI.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
+				pdfAPI.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
+				pdfAPI.GET("/products/search", pdfHandler.SearchProducts)
 			}
 
 			// Company settings API - NOW ACTIVE

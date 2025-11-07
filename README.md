@@ -43,6 +43,17 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **🆕 Manual Entry & Selection**: Add external rentals directly to jobs or select from catalog
 - **🆕 Rental Analytics**: Dedicated analytics for external equipment usage and costs
 
+### 📄 **PDF Processing & OCR**
+- **📤 PDF Upload**: Upload invoices, quotes, and delivery notes for automatic processing
+- **🔍 OCR Text Extraction**: Automatic text extraction from PDF documents
+- **🧠 Intelligent Parsing**: Smart detection of customer info, document numbers, dates, line items, prices
+- **📊 Extraction Review**: Visual review screen showing all extracted data with confidence scores
+- **🔗 Auto-Mapping**: Fuzzy matching algorithm automatically maps PDF products to database products
+- **💡 Smart Suggestions**: AI-powered product suggestions with confidence scoring (>80% auto-accept)
+- **🎯 Manual Mapping**: Searchable product database for manual mapping when needed
+- **📚 Learning System**: Saves user mappings to improve future auto-mapping accuracy
+- **🔄 Workflow Integration**: Complete workflow from upload → review → mapping → job creation
+
 ### 👥 **Customer & Job Management**
 - **Customer Database**: Comprehensive customer information with rental history
 - **Job Lifecycle**: Complete job management from creation to completion
@@ -1089,6 +1100,18 @@ All documentation is organized in the `docs/` folder for easy access:
 - ✅ **Enhanced Session Management**: Cookie domain support for cross-app authentication
 - ✅ **Seamless Navigation**: Users stay logged in when switching between apps
 - ✅ **Production Ready**: Works with localhost (no domain) and production subdomains (.server-nt.de)
+
+### **v2.85** - Comprehensive PDF Processing Workflow
+- ✅ **OCR Text Extraction**: Enhanced PDF text extraction using ledongthuc/pdf library
+- ✅ **Intelligent Document Parsing**: Automatic detection of customer info, dates, line items, prices
+- ✅ **PDF Review Screen**: Visual review interface showing all extracted data with confidence scores
+- ✅ **Auto-Mapping Engine**: Fuzzy matching algorithm with Levenshtein distance for product mapping
+- ✅ **Mapping Interface**: Interactive mapping screen with suggestions and manual search
+- ✅ **Smart Suggestions**: AI-powered product suggestions with confidence scoring
+- ✅ **Learning System**: pdf_product_mappings table saves user mappings for improved accuracy
+- ✅ **Complete Workflow**: Upload → Extract → Review → Map → Assign to Jobs
+- ✅ **API Endpoints**: 9 new endpoints for PDF processing and product mapping
+- ✅ **Mobile-Responsive UI**: Fully responsive templates for review and mapping screens
 
 ### **v2.9** - Complete Responsive Design System
 - ✅ **Mobile-First Responsive Design**: Complete overhaul with mobile-first approach

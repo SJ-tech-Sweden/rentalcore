@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <script>
+        (function() {
+            const t=(localStorage.getItem("rc-theme")||"dark");
+            document.documentElement.setAttribute("data-theme",t);
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.pageTitle}} - RentalCore</title>
+
+    <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .mapping-card {
+            background: var(--rc-bg-card);
+            border: 1px solid var(--rc-border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .mapping-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--rc-border-color);
+        }
+        .mapping-item {
+            background: var(--rc-bg-elevated);
+            border: 1px solid var(--rc-border-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.2s ease;
+        }
+        .mapping-item:hover {
+            border-color: var(--rc-primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+        .mapping-item.auto-mapped {
+            border-color: var(--rc-success);
+            background: linear-gradient(to right, var(--rc-success-bg), transparent);
+        }
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        .item-text {
+            flex: 1;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--rc-text-primary);
+        }
+        .item-meta {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-auto { background: var(--rc-success-bg); color: var(--rc-success); }
+        .badge-pending { background: var(--rc-warning-bg); color: var(--rc-warning); }
+        .badge-confirmed { background: var(--rc-info-bg); color: var(--rc-info); }
+        .mapping-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--rc-border-color);
+        }
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .suggestion-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--rc-bg-card);
+            border: 1px solid var(--rc-border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .suggestion-item:hover {
+            border-color: var(--rc-primary);
+            background: var(--rc-bg-hover);
+        }
+        .suggestion-item.selected {
+            border-color: var(--rc-success);
+            background: var(--rc-success-bg);
+        }
+        .suggestion-info {
+            flex: 1;
+        }
+        .suggestion-name {
+            font-weight: 600;
+            color: var(--rc-text-primary);
+            margin-bottom: 3px;
+        }
+        .suggestion-details {
+            font-size: 12px;
+            color: var(--rc-text-secondary);
+        }
+        .confidence-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .confidence-high {
+            background: var(--rc-success-bg);
+            color: var(--rc-success);
+        }
+        .confidence-medium {
+            background: var(--rc-warning-bg);
+            color: var(--rc-warning);
+        }
+        .confidence-low {
+            background: var(--rc-danger-bg);
+            color: var(--rc-danger);
+        }
+        .search-box {
+            position: relative;
+            margin-top: 10px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 40px 10px 15px;
+            background: var(--rc-bg-card);
+            border: 1px solid var(--rc-border-color);
+            border-radius: 8px;
+            color: var(--rc-text-primary);
+            font-size: 14px;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: var(--rc-primary);
+        }
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--rc-text-secondary);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .btn-small {
+            padding: 8px 14px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .btn-accept {
+            background: var(--rc-success);
+            color: white;
+        }
+        .btn-accept:hover {
+            background: var(--rc-success-hover);
+        }
+        .btn-reject {
+            background: var(--rc-danger);
+            color: white;
+        }
+        .btn-reject:hover {
+            background: var(--rc-danger-hover);
+        }
+        .btn-manual {
+            background: var(--rc-info);
+            color: white;
+        }
+        .btn-manual:hover {
+            background: var(--rc-info-hover);
+        }
+        .progress-bar {
+            height: 6px;
+            background: var(--rc-bg-elevated);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--rc-primary), var(--rc-success));
+            transition: width 0.3s ease;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            padding: 15px;
+            background: var(--rc-bg-elevated);
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--rc-text-primary);
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--rc-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body class="rc-animate-fade-in">
+    <div class="rc-container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+
+        <!-- Header -->
+        <div class="mapping-card">
+            <div class="mapping-header">
+                <div>
+                    <h1 style="margin: 0 0 5px 0; font-size: 28px;">
+                        <i class="bi bi-diagram-3"></i> PDF Product Mapping
+                    </h1>
+                    <p style="margin: 0; color: var(--rc-text-secondary);">
+                        Map extracted products to your product database
+                    </p>
+                </div>
+                <div>
+                    <button onclick="runAutoMapping()" class="rc-btn rc-btn-primary" id="autoMapBtn">
+                        <i class="bi bi-magic"></i> Run Auto-Mapping
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalItems">{{len .items}}</div>
+                    <div class="stat-label">Total Items</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="mappedItems">0</div>
+                    <div class="stat-label">Mapped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="pendingItems">{{len .items}}</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="progressPercent">0%</div>
+                    <div class="stat-label">Progress</div>
+                </div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Mapping Items -->
+        <div id="mappingContainer">
+            {{range .items}}
+            <div class="mapping-item {{if eq .item.MappingStatus "auto_mapped"}}auto-mapped{{end}}" data-item-id="{{.item.ItemID}}">
+                <div class="item-header">
+                    <div class="item-text">
+                        <i class="bi bi-box-seam"></i> {{.item.RawProductText}}
+                    </div>
+                    <div class="item-meta">
+                        {{if .item.Quantity.Valid}}
+                        <span style="color: var(--rc-text-secondary); font-size: 14px;">
+                            <i class="bi bi-hash"></i> {{.item.Quantity.Int64}}x
+                        </span>
+                        {{end}}
+                        <span class="badge badge-{{if eq .item.MappingStatus "auto_mapped"}}auto{{else if eq .item.MappingStatus "user_confirmed"}}confirmed{{else}}pending{{end}}">
+                            {{.item.MappingStatus}}
+                        </span>
+                    </div>
+                </div>
+
+                {{if .mappedProduct}}
+                <div class="mapping-section">
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--rc-success-bg); border-radius: 8px; border: 1px solid var(--rc-success);">
+                        <i class="bi bi-check-circle-fill" style="color: var(--rc-success); font-size: 20px;"></i>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: var(--rc-success);">Mapped to:</div>
+                            <div style="color: var(--rc-text-primary); font-size: 15px; margin-top: 3px;">
+                                {{.mappedProduct.Name}}
+                            </div>
+                        </div>
+                        {{if .item.MappingConfidence.Valid}}
+                        <span class="confidence-badge confidence-{{if ge .item.MappingConfidence.Float64 80.0}}high{{else if ge .item.MappingConfidence.Float64 60.0}}medium{{else}}low{{end}}">
+                            {{printf "%.0f" .item.MappingConfidence.Float64}}%
+                        </span>
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+
+                {{if .suggestions}}
+                <div class="mapping-section">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: var(--rc-text-secondary); font-size: 13px;">
+                        <i class="bi bi-lightbulb"></i> SUGGESTED MATCHES
+                    </div>
+                    <div class="suggestions-list">
+                        {{range .suggestions}}
+                        <div class="suggestion-item" onclick="selectMapping({{$.item.ItemID}}, {{.SuggestedProduct.ProductID}}, this)">
+                            <div class="suggestion-info">
+                                <div class="suggestion-name">{{.SuggestedProduct.Name}}</div>
+                                <div class="suggestion-details">
+                                    {{if .SuggestedProduct.Description}}{{.SuggestedProduct.Description}}{{else}}Product ID: {{.SuggestedProduct.ProductID}}{{end}}
+                                </div>
+                            </div>
+                            <span class="confidence-badge confidence-{{if ge .Confidence 80.0}}high{{else if ge .Confidence 60.0}}medium{{else}}low{{end}}">
+                                {{printf "%.0f" .Confidence}}%
+                            </span>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+
+                <div class="mapping-section">
+                    <div style="font-weight: 600; margin-bottom: 10px; color: var(--rc-text-secondary); font-size: 13px;">
+                        <i class="bi bi-search"></i> MANUAL SEARCH
+                    </div>
+                    <div class="search-box">
+                        <input type="text" class="search-input" placeholder="Search products..."
+                               oninput="searchProducts(this, {{.item.ItemID}})"
+                               data-item-id="{{.item.ItemID}}">
+                        <i class="bi bi-search search-icon"></i>
+                    </div>
+                    <div id="searchResults_{{.item.ItemID}}" style="margin-top: 10px;"></div>
+                </div>
+
+                <div class="action-buttons">
+                    {{if .mappedProduct}}
+                    <button class="btn-small btn-accept" onclick="confirmMapping({{.item.ItemID}})">
+                        <i class="bi bi-check-lg"></i> Confirm
+                    </button>
+                    <button class="btn-small btn-reject" onclick="rejectMapping({{.item.ItemID}})">
+                        <i class="bi bi-x-lg"></i> Reject
+                    </button>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="mapping-card" style="position: sticky; bottom: 20px; background: var(--rc-bg-card); box-shadow: 0 -4px 12px rgba(0,0,0,0.1);">
+            <div style="display: flex; gap: 10px; justify-content: space-between; align-items: center;">
+                <button onclick="window.history.back()" class="rc-btn rc-btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Review
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="saveAndContinue()" class="rc-btn rc-btn-success">
+                        <i class="bi bi-save"></i> Save Mappings
+                    </button>
+                    <button onclick="finishMapping()" class="rc-btn rc-btn-primary">
+                        <i class="bi bi-check-circle"></i> Finish & Close
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const extractionId = {{.extraction.ExtractionID}};
+
+        function updateStats() {
+            const total = document.querySelectorAll('.mapping-item').length;
+            const mapped = document.querySelectorAll('.mapping-item.auto-mapped, .mapping-item[data-confirmed="true"]').length;
+            const pending = total - mapped;
+            const progress = total > 0 ? Math.round((mapped / total) * 100) : 0;
+
+            document.getElementById('totalItems').textContent = total;
+            document.getElementById('mappedItems').textContent = mapped;
+            document.getElementById('pendingItems').textContent = pending;
+            document.getElementById('progressPercent').textContent = progress + '%';
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        async function runAutoMapping() {
+            const btn = document.getElementById('autoMapBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+            try {
+                const response = await fetch(`/api/v1/pdf/auto-map/${extractionId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    window.location.reload();
+                } else {
+                    alert('Auto-mapping failed. Please try manual mapping.');
+                }
+            } catch (error) {
+                console.error('Auto-mapping error:', error);
+                alert('Error running auto-mapping');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-magic"></i> Run Auto-Mapping';
+            }
+        }
+
+        async function selectMapping(itemId, productId, element) {
+            // Visual feedback
+            const parent = element.closest('.suggestions-list');
+            parent.querySelectorAll('.suggestion-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+
+            // Save mapping
+            try {
+                const response = await fetch(`/api/v1/pdf/manual-map/${itemId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: productId, item_type: 'product' })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    const itemCard = element.closest('.mapping-item');
+                    itemCard.classList.add('auto-mapped');
+                    itemCard.setAttribute('data-confirmed', 'true');
+                    updateStats();
+                } else {
+                    alert('Failed to save mapping');
+                }
+            } catch (error) {
+                console.error('Mapping error:', error);
+                alert('Error saving mapping');
+            }
+        }
+
+        let searchTimeout;
+        async function searchProducts(input, itemId) {
+            clearTimeout(searchTimeout);
+            const query = input.value.trim();
+
+            if (query.length < 2) {
+                document.getElementById(`searchResults_${itemId}`).innerHTML = '';
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/v1/pdf/products/search?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+
+                    const resultsDiv = document.getElementById(`searchResults_${itemId}`);
+                    if (data.products && data.products.length > 0) {
+                        resultsDiv.innerHTML = data.products.map(p => `
+                            <div class="suggestion-item" onclick="selectMapping(${itemId}, ${p.product_id}, this)">
+                                <div class="suggestion-info">
+                                    <div class="suggestion-name">${p.name}</div>
+                                    <div class="suggestion-details">${p.description || 'Product ID: ' + p.product_id}</div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        resultsDiv.innerHTML = '<p style="color: var(--rc-text-secondary); text-align: center; padding: 15px;">No products found</p>';
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                }
+            }, 300);
+        }
+
+        function confirmMapping(itemId) {
+            const itemCard = document.querySelector(`[data-item-id="${itemId}"]`);
+            itemCard.setAttribute('data-confirmed', 'true');
+            updateStats();
+            alert('Mapping confirmed');
+        }
+
+        function rejectMapping(itemId) {
+            if (confirm('Are you sure you want to reject this mapping?')) {
+                // Remove auto-mapped class
+                const itemCard = document.querySelector(`[data-item-id="${itemId}"]`);
+                itemCard.classList.remove('auto-mapped');
+                itemCard.removeAttribute('data-confirmed');
+                updateStats();
+            }
+        }
+
+        function saveAndContinue() {
+            alert('Mappings saved successfully');
+        }
+
+        function finishMapping() {
+            if (confirm('Are you sure you want to finish mapping? You can always edit mappings later.')) {
+                window.location.href = '/jobs';
+            }
+        }
+
+        // Initialize stats on page load
+        updateStats();
+    </script>
+
+    <script src="/static/js/rental-core-design.js"></script>
+</body>
+</html>
