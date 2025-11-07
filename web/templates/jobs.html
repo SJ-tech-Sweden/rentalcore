@@ -1912,10 +1912,17 @@
                 const devices = data.devices || [];
                 let totalRevenue = 0;
 
-                // Sum up all device prices
+                // Sum up all device prices using the same logic as display
                 devices.forEach(deviceEntry => {
-                    const price = parseFloat(deviceEntry.price) || 0;
+                    const deviceObj = deviceEntry.device || deviceEntry;
+
+                    // Calculate effective price: custom_price if exists and > 0, otherwise product price
+                    const customPrice = parseFloat(deviceEntry.custom_price) || 0;
+                    const productPrice = parseFloat(deviceObj.product?.itemcostperday || deviceObj.product?.itemCostPerDay) || 0;
+                    const price = (customPrice && customPrice > 0) ? customPrice : productPrice;
+
                     totalRevenue += price;
+                    console.log('Device price:', price, 'customPrice:', customPrice, 'productPrice:', productPrice);
                 });
 
                 // Update the revenue input field in the form
@@ -1928,7 +1935,7 @@
                     revenueInput.dispatchEvent(new Event('input', { bubbles: true }));
                 }
 
-                console.log('Revenue recalculated:', totalRevenue);
+                console.log('Revenue recalculated:', totalRevenue, 'from', devices.length, 'devices');
             })
             .catch(error => {
                 console.error('Error recalculating revenue:', error);
