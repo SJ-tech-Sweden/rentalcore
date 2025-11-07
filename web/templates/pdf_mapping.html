@@ -161,27 +161,32 @@ async function selectMapping(arg1, arg2, arg3) {
         element = arg3 ?? null;
     }
 
-    if (!element && fallbackItemId != null && fallbackProductId != null) {
-        element = document.querySelector(
-            `.mapping-item[data-item-id="${fallbackItemId}"] .suggestion-item[data-product-id="${fallbackProductId}"]`
-        );
+    const itemContainer =
+        element?.closest('.mapping-item[data-item-id]') ||
+        (fallbackItemId != null
+            ? document.querySelector(`.mapping-item[data-item-id="${fallbackItemId}"]`)
+            : null);
+
+    if (!element) {
+        if (fallbackProductId != null && itemContainer) {
+            element = itemContainer.querySelector(`.suggestion-item[data-product-id="${fallbackProductId}"]`);
+        }
+        if (!element && itemContainer) {
+            element = itemContainer.querySelector('.suggestion-item');
+        }
     }
 
-    const container = element?.closest('[data-item-id]');
-
     const resolvedItemId = parseInt(
-        fallbackItemId ??
-        element?.dataset?.itemId ??
-        element?.getAttribute('data-item-id') ??
-        container?.dataset?.itemId ??
-        container?.getAttribute('data-item-id'),
+        itemContainer?.dataset?.itemId ??
+        itemContainer?.getAttribute('data-item-id') ??
+        fallbackItemId,
         10,
     );
 
     const resolvedProductId = parseInt(
-        fallbackProductId ??
         element?.dataset?.productId ??
-        element?.getAttribute('data-product-id'),
+        element?.getAttribute?.('data-product-id') ??
+        fallbackProductId,
         10,
     );
 
