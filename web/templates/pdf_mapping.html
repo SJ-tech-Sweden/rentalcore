@@ -91,11 +91,20 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px;
+            width: 100%;
             background: var(--rc-bg-card);
             border: 1px solid var(--rc-border-color);
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
+            color: var(--rc-text-primary);
+            text-align: left;
+            font: inherit;
+            background-clip: padding-box;
+        }
+        .suggestion-item:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
         }
         .suggestion-item:hover {
             border-color: var(--rc-primary);
@@ -328,7 +337,7 @@
                     </div>
                     <div class="suggestions-list">
                         {{range .suggestions}}
-                        <div class="suggestion-item" onclick="selectMapping({{$.item.ItemID}}, {{.SuggestedProduct.ProductID}}, this)">
+                        <button type="button" class="suggestion-item" onclick="selectMapping({{$.item.ItemID}}, {{.SuggestedProduct.ProductID}}, this)">
                             <div class="suggestion-info">
                                 <div class="suggestion-name">{{.SuggestedProduct.Name}}</div>
                                 <div class="suggestion-details">
@@ -338,7 +347,7 @@
                             <span class="confidence-badge confidence-{{if ge .Confidence 80.0}}high{{else if ge .Confidence 60.0}}medium{{else}}low{{end}}">
                                 {{printf "%.0f" .Confidence}}%
                             </span>
-                        </div>
+                        </button>
                         {{end}}
                     </div>
                 </div>
@@ -406,10 +415,12 @@
             document.getElementById('progressBar').style.width = progress + '%';
         }
 
-        async function runAutoMapping() {
+        async function runAutoMapping(autoTrigger = false) {
             const btn = document.getElementById('autoMapBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            if (!autoTrigger && btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+            }
 
             try {
                 const response = await fetch(`/api/v1/pdf/auto-map/${extractionId}`, {
@@ -418,18 +429,28 @@
                 });
 
                 const result = await response.json();
-                if (result.success) {
+                if (!result.success) {
+                    throw new Error(result.error || 'Auto-mapping failed');
+                }
+
+                if (autoTrigger) {
+                    if (result.auto_mapped > 0) {
+                        window.location.reload();
+                    }
+                } else {
                     alert(result.message);
                     window.location.reload();
-                } else {
-                    alert('Auto-mapping failed. Please try manual mapping.');
                 }
             } catch (error) {
                 console.error('Auto-mapping error:', error);
-                alert('Error running auto-mapping');
+                if (!autoTrigger) {
+                    alert('Error running auto-mapping');
+                }
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-magic"></i> Run Auto-Mapping';
+                if (!autoTrigger && btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-magic"></i> Run Auto-Mapping';
+                }
             }
         }
 
@@ -484,16 +505,16 @@
                     const resultsDiv = document.getElementById(`searchResults_${itemId}`);
                     if (data.products && data.products.length > 0) {
                         resultsDiv.innerHTML = data.products.map(p => {
-                            const pid = p.productID ?? p.product_id ?? p.ProductID;
+                            const pid = p.productID ?? p.product_id ?? p.ProductID ?? p.productId;
                             const pname = p.name || p.Name || `Product ${pid}`;
                             const desc = p.description || p.Description || `Product ID: ${pid}`;
                             return `
-                                <div class="suggestion-item" onclick="selectMapping(${itemId}, ${pid}, this)">
+                                <button type="button" class="suggestion-item" onclick="selectMapping(${itemId}, ${pid}, this)">
                                     <div class="suggestion-info">
                                         <div class="suggestion-name">${pname}</div>
                                         <div class="suggestion-details">${desc}</div>
                                     </div>
-                                </div>
+                                </button>
                             `;
                         }).join('');
                     } else {
@@ -532,8 +553,14 @@
             }
         }
 
-        // Initialize stats on page load
-        updateStats();
+        document.addEventListener('DOMContentLoaded', () => {
+            const sessionKey = `pdf_auto_map_${extractionId}`;
+            if (!sessionStorage.getItem(sessionKey)) {
+                sessionStorage.setItem(sessionKey, '1');
+                runAutoMapping(true);
+            }
+            updateStats();
+        });
     </script>
 
     <script src="/static/js/rental-core-design.js"></script>
