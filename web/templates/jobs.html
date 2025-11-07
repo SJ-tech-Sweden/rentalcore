@@ -1853,10 +1853,12 @@
                         }
                     }
 
-                    // Refresh the assigned devices display
+                    // Refresh the assigned devices display and recalculate revenue
                     refreshEditAssignedDevices(jobID);
                     // Refresh product availability after device removal
                     loadEditProductTree(jobID);
+                    // Recalculate and update revenue
+                    recalculateJobRevenue(jobID);
                     // Show success feedback
                     showToast('Device removed successfully', 'success');
                 })
@@ -1900,6 +1902,37 @@
         }
 
         return null;
+    }
+
+    // Recalculate job revenue based on current assigned devices
+    function recalculateJobRevenue(jobID) {
+        fetch(`/api/v1/jobs/${jobID}/devices`)
+            .then(response => response.json())
+            .then(data => {
+                const devices = data.devices || [];
+                let totalRevenue = 0;
+
+                // Sum up all device prices
+                devices.forEach(deviceEntry => {
+                    const price = parseFloat(deviceEntry.price) || 0;
+                    totalRevenue += price;
+                });
+
+                // Update the revenue input field in the form
+                const revenueInput = document.querySelector('input[name="revenue"]');
+                if (revenueInput) {
+                    revenueInput.value = totalRevenue.toFixed(2);
+
+                    // Trigger change event to update any listeners
+                    revenueInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    revenueInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+
+                console.log('Revenue recalculated:', totalRevenue);
+            })
+            .catch(error => {
+                console.error('Error recalculating revenue:', error);
+            });
     }
 
     // Show job devices overview
@@ -2080,9 +2113,12 @@
             }
             // Show success feedback
             showPriceUpdateFeedback(true);
-            
+
             // Refresh the job data in the main jobs table
             refreshJobRevenue(jobID);
+
+            // Recalculate and update revenue in the edit modal form
+            recalculateJobRevenue(jobID);
         })
         .catch(error => {
             console.error('Error updating device price:', error);
