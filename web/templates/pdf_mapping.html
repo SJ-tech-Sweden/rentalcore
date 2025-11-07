@@ -435,8 +435,12 @@
 
         async function selectMapping(itemId, productId, element) {
             // Visual feedback
-            const parent = element.closest('.suggestions-list');
-            parent.querySelectorAll('.suggestion-item').forEach(el => el.classList.remove('selected'));
+            const parent =
+                element.closest('.suggestions-list') ||
+                element.parentElement;
+            if (parent) {
+                parent.querySelectorAll('.suggestion-item').forEach(el => el.classList.remove('selected'));
+            }
             element.classList.add('selected');
 
             // Save mapping
