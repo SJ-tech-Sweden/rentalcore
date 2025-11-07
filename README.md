@@ -442,7 +442,25 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.82** (Latest) - Fixed Revenue Calculation Logic
+### **v2.83** (Latest) - PDF Invoice/Offer Processing (Phase 1 - Issue #24)
+- ✅ **PDF Upload Interface**: New "Upload PDF" button in job creation form
+- ✅ **Database Schema**: 4 new tables (pdf_uploads, pdf_extractions, pdf_extraction_items, pdf_product_mappings)
+- ✅ **Text Extraction**: Automated PDF text parsing with regex-based data extraction
+- ✅ **Product Mapping**: Fuzzy string matching with Levenshtein distance algorithm
+- ✅ **Smart Suggestions**: Automatic product mapping with confidence scores (70%+ threshold)
+- ✅ **Data Parser**: Extracts customer names, invoice numbers, dates, amounts, discounts, line items
+- ✅ **Mapping Persistence**: Saved mappings improve accuracy over time
+- ✅ **5 API Endpoints**:
+  - POST /api/pdf/upload - Upload and process PDFs
+  - GET /api/pdf/extraction/:id - Retrieve extraction results
+  - POST /api/pdf/mapping - Save product mappings
+  - GET /api/pdf/suggestions - Get mapping suggestions
+  - PUT /api/pdf/items/:id/mapping - Update item mappings
+- ✅ **Async Processing**: Background processing with status polling
+- ✅ **Modal UI**: Clean upload interface with extraction preview
+- 📝 **Phase 2 Planned**: Full PDF library integration, review UI, auto-population
+
+### **v2.82** - Fixed Revenue Calculation Logic
 - ✅ **Correct Price Structure**: Fixed revenue calculation to use proper nested device structure
 - ✅ **Custom Price Support**: Properly checks custom_price before falling back to product price
 - ✅ **Multi-Property Handling**: Handles both itemcostperday and itemCostPerDay properties

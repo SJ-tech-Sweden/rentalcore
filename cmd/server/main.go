@@ -354,6 +354,7 @@ func main() {
 	companyHandler := handlers.NewCompanyHandler(db.DB, companyProvider)
 	monitoringHandler := handlers.NewMonitoringHandler(db.DB, monitoring.GlobalErrorTracker, perfMonitor, cacheManager)
 	jobAttachmentHandler := handlers.NewJobAttachmentHandler(jobAttachmentRepo, jobRepo)
+	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads")
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
@@ -1418,6 +1419,16 @@ func setupRoutes(r *gin.Engine,
 				jobAttachmentsAPI.GET("/attachments/:id/download", jobAttachmentHandler.DownloadAttachment)
 				jobAttachmentsAPI.DELETE("/attachments/:id", jobAttachmentHandler.DeleteAttachment)
 				jobAttachmentsAPI.PUT("/attachments/:id/description", jobAttachmentHandler.UpdateAttachmentDescription)
+			}
+
+			// PDF Processing API
+			pdfAPI := legacyAPI.Group("/pdf")
+			{
+				pdfAPI.POST("/upload", pdfHandler.UploadPDF)
+				pdfAPI.GET("/extraction/:upload_id", pdfHandler.GetExtractionResult)
+				pdfAPI.POST("/mapping", pdfHandler.SaveProductMapping)
+				pdfAPI.GET("/suggestions", pdfHandler.GetProductSuggestions)
+				pdfAPI.PUT("/items/:item_id/mapping", pdfHandler.UpdateItemMapping)
 			}
 
 			// Company settings API - NOW ACTIVE

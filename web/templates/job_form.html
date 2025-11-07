@@ -167,9 +167,20 @@
                     {{.error}}
                 </div>
                 {{end}}
-                
+
+                <!-- PDF Upload Banner -->
+                <div class="rc-alert rc-alert-info rc-mb-lg" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <strong>Have an existing offer or invoice?</strong> Upload the PDF to automatically extract products and customer data.
+                    </div>
+                    <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="openPDFUploadModal()">
+                        <i class="bi bi-upload"></i> Upload PDF
+                    </button>
+                </div>
+
                 <form method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
-                    
+
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
                         <div class="rc-form-group" data-role="customer-section">
                             <label class="rc-label">Customer *</label>
@@ -2102,7 +2113,163 @@
             displaySelectedFiles();
         }
 
+        // PDF Upload Modal Functions
+        function openPDFUploadModal() {
+            const modal = document.getElementById('pdfUploadModal');
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closePDFUploadModal() {
+            const modal = document.getElementById('pdfUploadModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.getElementById('pdfUploadInput').value = '';
+                document.getElementById('pdfUploadStatus').innerHTML = '';
+            }
+        }
+
+        async function uploadPDFFile() {
+            const fileInput = document.getElementById('pdfUploadInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            if (file.type !== 'application/pdf') {
+                alert('Only PDF files are allowed');
+                return;
+            }
+
+            const statusDiv = document.getElementById('pdfUploadStatus');
+            statusDiv.innerHTML = '<div class="rc-alert rc-alert-info"><i class="bi bi-hourglass-split"></i> Uploading and processing PDF...</div>';
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                const response = await fetch('/api/pdf/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    statusDiv.innerHTML = '<div class="rc-alert rc-alert-success"><i class="bi bi-check-circle"></i> PDF uploaded successfully! Processing...</div>';
+
+                    // Poll for extraction results
+                    pollExtractionResults(result.upload_id);
+                } else {
+                    statusDiv.innerHTML = `<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Upload failed: ${result.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                console.error('PDF upload error:', error);
+                statusDiv.innerHTML = '<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Upload failed. Please try again.</div>';
+            }
+        }
+
+        async function pollExtractionResults(uploadID, attempts = 0) {
+            if (attempts > 20) { // Max 20 attempts (10 seconds)
+                document.getElementById('pdfUploadStatus').innerHTML = '<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Processing timeout. Please try again.</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/pdf/extraction/${uploadID}`);
+                const data = await response.json();
+
+                if (response.ok && data.extraction_id) {
+                    // Successfully extracted data
+                    displayExtractionResults(data);
+                } else {
+                    // Still processing, try again
+                    setTimeout(() => pollExtractionResults(uploadID, attempts + 1), 500);
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+                setTimeout(() => pollExtractionResults(uploadID, attempts + 1), 500);
+            }
+        }
+
+        function displayExtractionResults(data) {
+            const statusDiv = document.getElementById('pdfUploadStatus');
+
+            let html = '<div class="rc-alert rc-alert-success"><i class="bi bi-check-circle"></i> PDF processed successfully!</div>';
+            html += '<div style="margin-top: 16px;">';
+            html += '<h4 style="margin-bottom: 12px;">Extracted Data:</h4>';
+
+            if (data.customer_name) {
+                html += `<p><strong>Customer:</strong> ${data.customer_name}</p>`;
+            }
+            if (data.document_number) {
+                html += `<p><strong>Document #:</strong> ${data.document_number}</p>`;
+            }
+            if (data.total_amount) {
+                html += `<p><strong>Total:</strong> €${data.total_amount.toFixed(2)}</p>`;
+            }
+
+            if (data.items && data.items.length > 0) {
+                html += '<p><strong>Products:</strong></p><ul style="margin-left: 20px;">';
+                data.items.forEach(item => {
+                    html += `<li>${item.raw_product_text} (Qty: ${item.quantity || '?'})`;
+                    if (item.mapping_status === 'auto_mapped') {
+                        html += ' <span style="color: var(--success);">✓ Mapped</span>';
+                    }
+                    html += '</li>';
+                });
+                html += '</ul>';
+            }
+
+            html += '<div style="margin-top: 16px; display: flex; gap: 8px;">';
+            html += '<button class="rc-btn rc-btn-primary" onclick="applyPDFDataToForm(' + JSON.stringify(data).replace(/"/g, '&quot;') + ')"><i class="bi bi-check"></i> Apply to Form</button>';
+            html += '<button class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Cancel</button>';
+            html += '</div>';
+
+            html += '</div>';
+
+            statusDiv.innerHTML = html;
+        }
+
+        function applyPDFDataToForm(data) {
+            // TODO: Implement form population with extracted data
+            alert('PDF data application coming soon! For now, please manually copy the data.');
+            closePDFUploadModal();
+        }
+
     </script>
+
+    <!-- PDF Upload Modal -->
+    <div id="pdfUploadModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-overlay" onclick="closePDFUploadModal()"></div>
+        <div class="rc-modal-content" style="max-width: 600px;">
+            <div class="rc-modal-header">
+                <h3><i class="bi bi-file-earmark-pdf"></i> Upload PDF Invoice/Offer</h3>
+                <button class="rc-modal-close" onclick="closePDFUploadModal()">&times;</button>
+            </div>
+            <div class="rc-modal-body">
+                <div class="rc-form-group">
+                    <label class="rc-label">Select PDF File</label>
+                    <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="rc-input">
+                    <p class="rc-text-xs rc-text-muted rc-mt-xs">
+                        Upload an invoice or offer PDF. The system will automatically extract products, quantities, and customer information.
+                    </p>
+                </div>
+                <div id="pdfUploadStatus" style="margin-top: 16px;"></div>
+            </div>
+            <div class="rc-modal-footer">
+                <button type="button" class="rc-btn rc-btn-primary" onclick="uploadPDFFile()">
+                    <i class="bi bi-upload"></i> Upload & Process
+                </button>
+                <button type="button" class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
     {{if .scripts}}
         {{range .scripts}}
