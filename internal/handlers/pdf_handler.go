@@ -696,7 +696,8 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 		discount = extraction.DiscountAmount.Float64
 	}
 
-	desc := fmt.Sprintf("Generated from PDF %s (Extraction %d)", upload.OriginalFilename, extraction.ExtractionID)
+	desc := fmt.Sprintf("Generated from %s (Extraction %d)", upload.OriginalFilename, extraction.ExtractionID)
+	truncatedDesc := truncateString(desc, 48)
 
 	job := models.Job{
 		CustomerID: customerID,
@@ -704,7 +705,7 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 		Discount:   discount,
 		Revenue:    revenue,
 	}
-	job.Description = &desc
+	job.Description = &truncatedDesc
 	if startDate != nil {
 		job.StartDate = startDate
 	}
@@ -713,7 +714,9 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 	}
 
 	if err := h.DB.Create(&job).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create job"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to create job: %v", err),
+		})
 		return
 	}
 
@@ -770,4 +773,14 @@ func (h *PDFHandler) findDefaultJobStatus() (uint, error) {
 	}
 
 	return 0, fmt.Errorf("no job status configured")
+}
+
+func truncateString(value string, max int) string {
+	if len(value) <= max {
+		return value
+	}
+	if max <= 3 {
+		return value[:max]
+	}
+	return value[:max-3] + "..."
 }
