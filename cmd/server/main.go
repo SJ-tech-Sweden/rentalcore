@@ -1353,6 +1353,7 @@ func setupRoutes(r *gin.Engine,
 				apiPDF.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
 				apiPDF.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				apiPDF.GET("/products/search", pdfHandler.SearchProducts)
+				apiPDF.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
 			}
 
 			// Financial API

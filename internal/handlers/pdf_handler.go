@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"go-barcode-webapp/internal/models"
@@ -616,4 +617,157 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 		"success": true,
 		"message": "Mapping saved and learned for future use",
 	})
+}
+
+// FinalizeExtraction creates or links a job for the PDF extraction
+// POST /api/v1/pdf/extractions/:extraction_id/finalize
+func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
+	extractionID := c.Param("extraction_id")
+
+	var extraction models.PDFExtraction
+	if err := h.DB.First(&extraction, extractionID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Extraction not found"})
+		return
+	}
+
+	var upload models.PDFUpload
+	if err := h.DB.First(&upload, extraction.UploadID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Upload not found"})
+		return
+	}
+
+	// If job already linked, return it
+	if upload.JobID.Valid {
+		var job models.Job
+		if err := h.DB.First(&job, upload.JobID.Int64).Error; err == nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"job_id":  job.JobID,
+				"job_url": fmt.Sprintf("/jobs/%d", job.JobID),
+			})
+			return
+		}
+	}
+
+	customerID, err := h.ensureCustomerForExtraction(&extraction)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	statusID, err := h.findDefaultJobStatus()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var meta map[string]string
+	if extraction.Metadata.Valid {
+		_ = json.Unmarshal([]byte(extraction.Metadata.String), &meta)
+	}
+
+	getMetaDate := func(key string) *time.Time {
+		if meta == nil {
+			return nil
+		}
+		if value, ok := meta[key]; ok && value != "" {
+			if t, err := time.Parse(time.RFC3339, value); err == nil {
+				return &t
+			}
+		}
+		return nil
+	}
+
+	startDate := getMetaDate("start_date")
+	endDate := getMetaDate("end_date")
+
+	if startDate == nil && extraction.DocumentDate.Valid {
+		value := extraction.DocumentDate.Time
+		startDate = &value
+	}
+
+	revenue := 0.0
+	if extraction.TotalAmount.Valid {
+		revenue = extraction.TotalAmount.Float64
+	}
+
+	discount := 0.0
+	if extraction.DiscountAmount.Valid {
+		discount = extraction.DiscountAmount.Float64
+	}
+
+	desc := fmt.Sprintf("Generated from PDF %s (Extraction %d)", upload.OriginalFilename, extraction.ExtractionID)
+
+	job := models.Job{
+		CustomerID: customerID,
+		StatusID:   statusID,
+		Discount:   discount,
+		Revenue:    revenue,
+	}
+	job.Description = &desc
+	if startDate != nil {
+		job.StartDate = startDate
+	}
+	if endDate != nil {
+		job.EndDate = endDate
+	}
+
+	if err := h.DB.Create(&job).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create job"})
+		return
+	}
+
+	h.DB.Model(&models.PDFUpload{}).Where("upload_id = ?", upload.UploadID).
+		Update("job_id", job.JobID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"job_id":  job.JobID,
+		"job_url": fmt.Sprintf("/jobs/%d", job.JobID),
+	})
+}
+
+func (h *PDFHandler) ensureCustomerForExtraction(extraction *models.PDFExtraction) (uint, error) {
+	if extraction.CustomerID.Valid && extraction.CustomerID.Int64 > 0 {
+		var existing models.Customer
+		if err := h.DB.First(&existing, extraction.CustomerID.Int64).Error; err == nil {
+			return existing.CustomerID, nil
+		}
+	}
+
+	if extraction.CustomerName.Valid {
+		name := strings.TrimSpace(extraction.CustomerName.String)
+		if name != "" {
+			var customer models.Customer
+			if err := h.DB.Where("companyname = ?", name).First(&customer).Error; err == nil {
+				return customer.CustomerID, nil
+			}
+
+			customer = models.Customer{}
+			customer.CompanyName = &name
+			if err := h.DB.Create(&customer).Error; err == nil {
+				return customer.CustomerID, nil
+			}
+		}
+	}
+
+	var fallback models.Customer
+	if err := h.DB.Order("customerID").First(&fallback).Error; err == nil {
+		return fallback.CustomerID, nil
+	}
+
+	return 0, fmt.Errorf("no customers available to assign job")
+}
+
+func (h *PDFHandler) findDefaultJobStatus() (uint, error) {
+	var status models.Status
+	if err := h.DB.Where("status LIKE ?", "%Draft%").First(&status).Error; err == nil {
+		return status.StatusID, nil
+	}
+
+	if err := h.DB.Order("statusID").First(&status).Error; err == nil {
+		return status.StatusID, nil
+	}
+
+	return 0, fmt.Errorf("no job status configured")
 }

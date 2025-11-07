@@ -337,7 +337,11 @@
                     </div>
                     <div class="suggestions-list">
                         {{range .suggestions}}
-                        <button type="button" class="suggestion-item" onclick="selectMapping({{$.item.ItemID}}, {{.SuggestedProduct.ProductID}}, this)">
+                        <button type="button"
+                                class="suggestion-item"
+                                data-item-id="{{$.item.ItemID}}"
+                                data-product-id="{{.SuggestedProduct.ProductID}}"
+                                onclick="selectMapping({{$.item.ItemID}}, {{.SuggestedProduct.ProductID}}, this)">
                             <div class="suggestion-info">
                                 <div class="suggestion-name">{{.SuggestedProduct.Name}}</div>
                                 <div class="suggestion-details">
@@ -387,10 +391,10 @@
                     <i class="bi bi-arrow-left"></i> Back to Review
                 </button>
                 <div style="display: flex; gap: 10px;">
-                    <button onclick="saveAndContinue()" class="rc-btn rc-btn-success">
+                    <button id="saveMappingsBtn" onclick="saveAndContinue()" class="rc-btn rc-btn-success">
                         <i class="bi bi-save"></i> Save Mappings
                     </button>
-                    <button onclick="finishMapping()" class="rc-btn rc-btn-primary">
+                    <button id="finishMappingsBtn" onclick="finishMapping()" class="rc-btn rc-btn-primary">
                         <i class="bi bi-check-circle"></i> Finish & Close
                     </button>
                 </div>
@@ -455,6 +459,13 @@
         }
 
         async function selectMapping(itemId, productId, element) {
+            const resolvedItemId = Number(itemId ?? element?.dataset.itemId ?? element?.closest('.mapping-item')?.dataset.itemId);
+            const resolvedProductId = Number(productId ?? element?.dataset.productId);
+            if (!resolvedItemId || !resolvedProductId) {
+                alert('Missing item or product information for mapping');
+                return;
+            }
+
             // Visual feedback
             const parent =
                 element.closest('.suggestions-list') ||
@@ -466,10 +477,10 @@
 
             // Save mapping
             try {
-                const response = await fetch(`/api/v1/pdf/manual-map/${itemId}`, {
+                const response = await fetch(`/api/v1/pdf/manual-map/${resolvedItemId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ product_id: productId, item_type: 'product' })
+                    body: JSON.stringify({ product_id: resolvedProductId, item_type: 'product' })
                 });
 
                 const result = await response.json();
@@ -509,7 +520,11 @@
                             const pname = p.name || p.Name || `Product ${pid}`;
                             const desc = p.description || p.Description || `Product ID: ${pid}`;
                             return `
-                                <button type="button" class="suggestion-item" onclick="selectMapping(${itemId}, ${pid}, this)">
+                                <button type="button"
+                                        class="suggestion-item"
+                                        data-item-id="${itemId}"
+                                        data-product-id="${pid}"
+                                        onclick="selectMapping(${itemId}, ${pid}, this)">
                                     <div class="suggestion-info">
                                         <div class="suggestion-name">${pname}</div>
                                         <div class="suggestion-details">${desc}</div>
@@ -543,22 +558,65 @@
             }
         }
 
+        let finalizeInProgress = false;
+
+        async function finalizeMappings(closeAfter = false) {
+            if (finalizeInProgress) {
+                return;
+            }
+            finalizeInProgress = true;
+
+            const saveBtn = document.getElementById('saveMappingsBtn');
+            const finishBtn = document.getElementById('finishMappingsBtn');
+            const targetBtn = closeAfter ? finishBtn : saveBtn;
+            const originalText = targetBtn ? targetBtn.innerHTML : '';
+
+            if (targetBtn) {
+                targetBtn.disabled = true;
+                targetBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Finalizing...';
+            }
+
+            try {
+                const response = await fetch(`/api/v1/pdf/extractions/${extractionId}/finalize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Failed to finalize mapping');
+                }
+
+                if (closeAfter && result.job_url) {
+                    window.location.href = result.job_url;
+                } else {
+                    alert('Mappings saved to job #' + result.job_id);
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Finalize error:', error);
+                alert(error.message || 'Failed to finalize mappings');
+            } finally {
+                finalizeInProgress = false;
+                if (targetBtn) {
+                    targetBtn.disabled = false;
+                    targetBtn.innerHTML = originalText;
+                }
+            }
+        }
+
         function saveAndContinue() {
-            alert('Mappings saved successfully');
+            finalizeMappings(false);
         }
 
         function finishMapping() {
-            if (confirm('Are you sure you want to finish mapping? You can always edit mappings later.')) {
-                window.location.href = '/jobs';
+            if (confirm('Create/Update the job with these mappings and close this screen?')) {
+                finalizeMappings(true);
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const sessionKey = `pdf_auto_map_${extractionId}`;
-            if (!sessionStorage.getItem(sessionKey)) {
-                sessionStorage.setItem(sessionKey, '1');
-                runAutoMapping(true);
-            }
+            runAutoMapping(true);
             updateStats();
         });
     </script>
