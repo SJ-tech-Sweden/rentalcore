@@ -162,7 +162,8 @@ async function selectMapping(arg1, arg2, arg3) {
     }
 
     if (!element && fallbackItemId != null) {
-        element = document.querySelector(`.mapping-item[data-item-id="${fallbackItemId}"] .suggestion-item[data-product-id="${fallbackProductId}"]`);
+        const container = document.querySelector(`.mapping-item[data-item-id="${fallbackItemId}"]`);
+        element = container?.querySelector('.suggestion-item');
     }
 
     const resolvedItemId = parseInt(
