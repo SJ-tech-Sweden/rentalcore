@@ -2115,9 +2115,15 @@
 
         // PDF Upload Modal Functions
         function openPDFUploadModal() {
+            console.log('openPDFUploadModal called');
             const modal = document.getElementById('pdfUploadModal');
+            console.log('Modal element:', modal);
             if (modal) {
                 modal.style.display = 'flex';
+                console.log('Modal display set to flex');
+            } else {
+                console.error('PDF Upload Modal not found!');
+                alert('Modal element not found. Please refresh the page.');
             }
         }
 
