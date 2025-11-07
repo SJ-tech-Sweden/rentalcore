@@ -2221,9 +2221,23 @@
             if (data.items && data.items.length > 0) {
                 html += '<p><strong>Products:</strong></p><ul style="margin-left: 20px;">';
                 data.items.forEach(item => {
-                    html += `<li>${item.raw_product_text} (Qty: ${item.quantity || '?'})`;
+                    // Handle sql.NullInt64 objects from API
+                    const qty = item.quantity?.Int64 || item.quantity || '?';
+                    const unitPrice = item.unit_price?.Float64 || item.unit_price;
+                    const lineTotal = item.line_total?.Float64 || item.line_total;
+
+                    html += `<li><strong>${item.raw_product_text}</strong>`;
+                    html += ` - Qty: ${qty}`;
+                    if (unitPrice) {
+                        html += ` @ €${unitPrice.toFixed(2)}`;
+                    }
+                    if (lineTotal) {
+                        html += ` = €${lineTotal.toFixed(2)}`;
+                    }
                     if (item.mapping_status === 'auto_mapped') {
-                        html += ' <span style="color: var(--success);">✓ Mapped</span>';
+                        html += ' <span style="color: var(--success);">✓ Auto-Mapped</span>';
+                    } else {
+                        html += ' <span style="color: var(--warning);">⚠ Needs Mapping</span>';
                     }
                     html += '</li>';
                 });
@@ -2231,8 +2245,8 @@
             }
 
             html += '<div style="margin-top: 16px; display: flex; gap: 8px;">';
-            html += '<button class="rc-btn rc-btn-primary" onclick="applyPDFDataToForm(' + JSON.stringify(data).replace(/"/g, '&quot;') + ')"><i class="bi bi-check"></i> Apply to Form</button>';
-            html += '<button class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Cancel</button>';
+            html += `<a href="/pdf/review/${data.upload_id}" class="rc-btn rc-btn-primary"><i class="bi bi-eye"></i> Review & Map Products</a>`;
+            html += '<button class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Close</button>';
             html += '</div>';
 
             html += '</div>';

@@ -189,14 +189,21 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 	totalRegex := regexp.MustCompile(`(?i)(?:gesamt|total|summe|sum)[\s:]*€?\s*([0-9,]+\.?\d*)`)
 	discountRegex := regexp.MustCompile(`(?i)(?:rabatt|discount|nachlass)[\s:]*€?\s*([0-9,]+\.?\d*)`)
 
-	// Parse line items (position, quantity, description, price)
-	// Format examples:
-	// 1  2x  LED PAR 64  €50.00  €100.00
-	// Pos. | Menge | Beschreibung | Einzelpreis | Gesamt
-	itemRegex := regexp.MustCompile(`(\d+)\s+(\d+)x?\s+(.+?)\s+€?\s*([0-9,]+\.?\d*)\s+€?\s*([0-9,]+\.?\d*)`)
+	// Parse line items with multiple patterns for flexibility
+	// Pattern 1: Full format with prices: "1  2x  LED PAR 64  €50.00  €100.00"
+	itemRegexFull := regexp.MustCompile(`^(\d+)\s+(\d+)x?\s+(.+?)\s+€?\s*([0-9.,]+)\s+€?\s*([0-9.,]+)\s*$`)
+	// Pattern 2: Without position: "2x  LED PAR 64  €50.00  €100.00"
+	itemRegexNoPosPrice := regexp.MustCompile(`^(\d+)x?\s+(.+?)\s+€?\s*([0-9.,]+)\s+€?\s*([0-9.,]+)\s*$`)
+	// Pattern 3: Only quantity and description: "2x LED PAR 64"
+	itemRegexSimple := regexp.MustCompile(`^(\d+)x?\s+(.+?)\s*$`)
+	// Pattern 4: Position and description (common in tables): "0045  LD Systems Stinger Sub 18A G3"
+	itemRegexPosDesc := regexp.MustCompile(`^(\d+)\s{2,}(.+?)\s*$`)
 
 	for i, line := range lines {
 		line = strings.TrimSpace(line)
+		if line == "" || len(line) < 3 {
+			continue
+		}
 
 		// Extract customer name
 		if matches := customerRegex.FindStringSubmatch(line); len(matches) > 1 {
@@ -235,25 +242,74 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 			}
 		}
 
-		// Extract line items
-		if matches := itemRegex.FindStringSubmatch(line); len(matches) > 5 {
+		// Try to extract line items with multiple patterns
+		var item *ParsedLineItem
+
+		// Pattern 1: Full format with position, quantity, description, prices
+		if matches := itemRegexFull.FindStringSubmatch(line); len(matches) > 5 {
 			lineNumber, _ := strconv.Atoi(matches[1])
 			quantity, _ := strconv.Atoi(matches[2])
 			description := strings.TrimSpace(matches[3])
-			unitPriceStr := strings.ReplaceAll(matches[4], ",", ".")
+			unitPriceStr := strings.ReplaceAll(strings.ReplaceAll(matches[4], ",", "."), " ", "")
 			unitPrice, _ := strconv.ParseFloat(unitPriceStr, 64)
-			lineTotalStr := strings.ReplaceAll(matches[5], ",", ".")
+			lineTotalStr := strings.ReplaceAll(strings.ReplaceAll(matches[5], ",", "."), " ", "")
 			lineTotal, _ := strconv.ParseFloat(lineTotalStr, 64)
 
-			item := ParsedLineItem{
-				LineNumber:     lineNumber,
-				Quantity:       quantity,
-				ProductText:    description,
-				UnitPrice:      unitPrice,
-				LineTotal:      lineTotal,
-				OriginalLine:   i + 1,
+			item = &ParsedLineItem{
+				LineNumber:   lineNumber,
+				Quantity:     quantity,
+				ProductText:  description,
+				UnitPrice:    unitPrice,
+				LineTotal:    lineTotal,
+				OriginalLine: i + 1,
 			}
-			data.Items = append(data.Items, item)
+		} else if matches := itemRegexNoPosPrice.FindStringSubmatch(line); len(matches) > 4 {
+			// Pattern 2: No position, but has quantity, description, prices
+			quantity, _ := strconv.Atoi(matches[1])
+			description := strings.TrimSpace(matches[2])
+			unitPriceStr := strings.ReplaceAll(strings.ReplaceAll(matches[3], ",", "."), " ", "")
+			unitPrice, _ := strconv.ParseFloat(unitPriceStr, 64)
+			lineTotalStr := strings.ReplaceAll(strings.ReplaceAll(matches[4], ",", "."), " ", "")
+			lineTotal, _ := strconv.ParseFloat(lineTotalStr, 64)
+
+			item = &ParsedLineItem{
+				Quantity:     quantity,
+				ProductText:  description,
+				UnitPrice:    unitPrice,
+				LineTotal:    lineTotal,
+				OriginalLine: i + 1,
+			}
+		} else if matches := itemRegexPosDesc.FindStringSubmatch(line); len(matches) > 2 {
+			// Pattern 4: Position and description only (e.g., "0045  LD Systems Stinger Sub 18A G3")
+			lineNumber, _ := strconv.Atoi(matches[1])
+			description := strings.TrimSpace(matches[2])
+
+			// Only add if description is meaningful (not just numbers)
+			if len(description) > 5 && !regexp.MustCompile(`^\d+$`).MatchString(description) {
+				item = &ParsedLineItem{
+					LineNumber:   lineNumber,
+					Quantity:     1, // Default to 1 if not specified
+					ProductText:  description,
+					OriginalLine: i + 1,
+				}
+			}
+		} else if matches := itemRegexSimple.FindStringSubmatch(line); len(matches) > 2 {
+			// Pattern 3: Simple format (quantity and description only)
+			quantity, _ := strconv.Atoi(matches[1])
+			description := strings.TrimSpace(matches[2])
+
+			// Only add if description is meaningful
+			if len(description) > 5 {
+				item = &ParsedLineItem{
+					Quantity:     quantity,
+					ProductText:  description,
+					OriginalLine: i + 1,
+				}
+			}
+		}
+
+		if item != nil {
+			data.Items = append(data.Items, *item)
 		}
 	}
 
