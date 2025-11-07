@@ -220,7 +220,7 @@
                     {{ if .results.jobs.data }}
                         {{ range .results.jobs.data }}
                         <div class="border-bottom pb-2 mb-2">
-                            <h6><a href="/jobs/{{ .JobID }}" class="text-decoration-none">Job #{{ .JobID }}</a></h6>
+                            <h6><a href="/jobs?editJob={{ .JobID }}" class="text-decoration-none">Job #{{ .JobID }}</a></h6>
                             <p class="mb-1">{{ .Description }}</p>
                             <small class="text-muted">
                                 {{ if .Customer }}{{ .Customer.GetDisplayName }}{{ end }} • 
@@ -230,7 +230,7 @@
                         {{ end }}
                         {{ if gt .results.jobs.total (len .results.jobs.data) }}
                         <div class="text-center mt-3">
-                            <a href="/jobs?q={{ .query }}" class="btn btn-sm btn-outline-primary">
+                            <a href="/jobs?search={{ .query }}" class="btn btn-sm btn-outline-primary">
                                 View all {{ .results.jobs.total }} jobs
                             </a>
                         </div>

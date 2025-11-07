@@ -2065,6 +2065,31 @@ CREATE TABLE `pdf_product_mappings` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `pdf_customer_mappings`
+--
+
+CREATE TABLE `pdf_customer_mappings` (
+  `mapping_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `pdf_customer_text` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Customer text from PDF',
+  `normalized_text` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Normalized customer text',
+  `customer_id` int NOT NULL COMMENT 'Mapped customer ID',
+  `mapping_type` enum('exact','fuzzy','manual') COLLATE utf8mb4_unicode_ci DEFAULT 'manual',
+  `confidence_score` decimal(5,2) DEFAULT NULL COMMENT 'Mapping confidence 0-100',
+  `usage_count` int DEFAULT '0' COMMENT 'Times this mapping was used',
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint UNSIGNED DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_active` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`mapping_id`),
+  KEY `idx_pdf_customer_mappings_text` (`pdf_customer_text`),
+  KEY `idx_pdf_customer_mappings_customer` (`customer_id`),
+  KEY `idx_pdf_customer_mappings_normalized` (`normalized_text`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Saved mappings between PDF text and customers';
+
+-- --------------------------------------------------------
+
+--
 -- Indizes der exportierten Tabellen
 --
 

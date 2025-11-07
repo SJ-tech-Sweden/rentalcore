@@ -18,17 +18,21 @@ import (
 
 // PDFHandler handles PDF upload and processing requests
 type PDFHandler struct {
-	DB        *gorm.DB
-	Extractor *pdf.PDFExtractor
-	Mapper    *pdf.ProductMapper
+	DB             *gorm.DB
+	Extractor      *pdf.PDFExtractor
+	Mapper         *pdf.ProductMapper
+	CustomerMapper *pdf.CustomerMapper
+	JobHandler     *JobHandler
 }
 
 // NewPDFHandler creates a new PDF handler
-func NewPDFHandler(db *gorm.DB, uploadDir string) *PDFHandler {
+func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler) *PDFHandler {
 	return &PDFHandler{
-		DB:        db,
-		Extractor: pdf.NewPDFExtractor(uploadDir),
-		Mapper:    pdf.NewProductMapper(db),
+		DB:             db,
+		Extractor:      pdf.NewPDFExtractor(uploadDir),
+		Mapper:         pdf.NewProductMapper(db),
+		CustomerMapper: pdf.NewCustomerMapper(db),
+		JobHandler:     jobHandler,
 	}
 }
 
@@ -120,6 +124,14 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 		return
 	}
 
+	// Attempt customer auto-mapping
+	if parsedData.CustomerName != "" && h.CustomerMapper != nil {
+		if _, customer, confidence, err := h.CustomerMapper.FindBestMatch(parsedData.CustomerName); err == nil && customer != nil && confidence >= 70 {
+			customerID := int(customer.CustomerID)
+			parsedData.CustomerID = &customerID
+		}
+	}
+
 	parsedData.RawText = rawText
 
 	// Convert to JSON
@@ -141,6 +153,9 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 		DocumentNumber:   sql.NullString{String: parsedData.DocumentNumber, Valid: parsedData.DocumentNumber != ""},
 		TotalAmount:      sql.NullFloat64{Float64: parsedData.TotalAmount, Valid: parsedData.TotalAmount > 0},
 		DiscountAmount:   sql.NullFloat64{Float64: parsedData.DiscountAmount, Valid: parsedData.DiscountAmount > 0},
+	}
+	if parsedData.CustomerID != nil && *parsedData.CustomerID > 0 {
+		extraction.CustomerID = sql.NullInt64{Int64: int64(*parsedData.CustomerID), Valid: true}
 	}
 
 	if !parsedData.DocumentDate.IsZero() {
@@ -491,11 +506,49 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		itemsWithSuggestions = append(itemsWithSuggestions, itemData)
 	}
 
+	var meta map[string]string
+	if extraction.Metadata.Valid {
+		_ = json.Unmarshal([]byte(extraction.Metadata.String), &meta)
+	}
+
+	parseMetaDate := func(key string) *time.Time {
+		if meta == nil {
+			return nil
+		}
+		if value, ok := meta[key]; ok && value != "" {
+			if t, err := time.Parse(time.RFC3339, value); err == nil {
+				return &t
+			}
+		}
+		return nil
+	}
+
+	startDate := parseMetaDate("start_date")
+	endDate := parseMetaDate("end_date")
+
+	if startDate == nil && extraction.DocumentDate.Valid {
+		value := extraction.DocumentDate.Time
+		startDate = &value
+	}
+
 	data := gin.H{
 		"extraction": extraction,
 		"upload":     upload,
 		"items":      itemsWithSuggestions,
 		"pageTitle":  "PDF Product Mapping",
+		"startDate":  formatDateInput(startDate),
+		"endDate":    formatDateInput(endDate),
+	}
+
+	if extraction.CustomerName.Valid {
+		data["extractedCustomerName"] = extraction.CustomerName.String
+	}
+	if extraction.CustomerID.Valid {
+		data["selectedCustomerID"] = extraction.CustomerID.Int64
+		var customer models.Customer
+		if err := h.DB.First(&customer, extraction.CustomerID.Int64).Error; err == nil {
+			data["selectedCustomerName"] = customer.GetDisplayName()
+		}
 	}
 
 	c.HTML(http.StatusOK, "pdf_mapping.html", data)
@@ -569,6 +622,42 @@ func (h *PDFHandler) SearchProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"products": products})
 }
 
+// SearchCustomers searches customers for manual mapping
+// GET /api/v1/pdf/customers/search?q=term
+func (h *PDFHandler) SearchCustomers(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("q"))
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter required"})
+		return
+	}
+
+	pattern := "%" + query + "%"
+	var customers []models.Customer
+	if err := h.DB.Where("companyname LIKE ? OR lastname LIKE ? OR firstname LIKE ?", pattern, pattern, pattern).
+		Limit(20).
+		Find(&customers).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Customer search failed"})
+		return
+	}
+
+	results := make([]gin.H, 0, len(customers))
+	for _, customer := range customers {
+		results = append(results, gin.H{
+			"customerID":   customer.CustomerID,
+			"displayName":  customer.GetDisplayName(),
+			"companyname":  customer.CompanyName,
+			"firstname":    customer.FirstName,
+			"lastname":     customer.LastName,
+			"city":         customer.City,
+			"email":        customer.Email,
+			"phonenumber":  customer.PhoneNumber,
+			"customertype": customer.CustomerType,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"customers": results})
+}
+
 // SaveManualMapping saves a manual product mapping
 // POST /api/v1/pdf/manual-map/:item_id
 func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
@@ -603,6 +692,11 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 		return
 	}
 
+	var product models.Product
+	if err := h.DB.First(&product, req.ProductID).Error; err != nil {
+		product = models.Product{}
+	}
+
 	// Save to learning table for future auto-mapping
 	userID := int64(1)
 	if uid, exists := c.Get("userID"); exists {
@@ -616,7 +710,58 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Mapping saved and learned for future use",
+		"product": product,
+		"item_id": item.ItemID,
 	})
+}
+
+// SaveCustomerMapping saves a manual customer mapping for the extraction
+// POST /api/v1/pdf/customer-map/:extraction_id
+func (h *PDFHandler) SaveCustomerMapping(c *gin.Context) {
+	extractionID := c.Param("extraction_id")
+
+	var req struct {
+		CustomerID   int    `json:"customer_id" binding:"required"`
+		CustomerText string `json:"customer_text"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil || req.CustomerID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Valid customer_id is required"})
+		return
+	}
+
+	updates := map[string]interface{}{
+		"customer_id": req.CustomerID,
+	}
+
+	if strings.TrimSpace(req.CustomerText) != "" {
+		updates["customer_name"] = req.CustomerText
+	}
+
+	if err := h.DB.Model(&models.PDFExtraction{}).Where("extraction_id = ?", extractionID).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update extraction"})
+		return
+	}
+
+	text := strings.TrimSpace(req.CustomerText)
+	if text == "" {
+		var extraction models.PDFExtraction
+		if err := h.DB.Select("customer_name").First(&extraction, extractionID).Error; err == nil && extraction.CustomerName.Valid {
+			text = extraction.CustomerName.String
+		}
+	}
+
+	if text != "" && h.CustomerMapper != nil {
+		userID := int64(1)
+		if uid, exists := c.Get("userID"); exists {
+			if id, ok := uid.(int64); ok {
+				userID = id
+			}
+		}
+		_ = h.CustomerMapper.SaveMapping(text, req.CustomerID, userID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 // FinalizeExtraction creates or links a job for the PDF extraction
@@ -636,14 +781,33 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 		return
 	}
 
+	var req struct {
+		StartDate  string `json:"start_date"`
+		EndDate    string `json:"end_date"`
+		CustomerID *int   `json:"customer_id"`
+	}
+
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid finalize payload"})
+			return
+		}
+	}
+
+	if req.CustomerID != nil && *req.CustomerID > 0 {
+		extraction.CustomerID = sql.NullInt64{Int64: int64(*req.CustomerID), Valid: true}
+		h.DB.Model(&models.PDFExtraction{}).Where("extraction_id = ?", extraction.ExtractionID).
+			Update("customer_id", extraction.CustomerID)
+	}
+
 	// If job already linked, return it
 	if upload.JobID.Valid {
 		var job models.Job
 		if err := h.DB.First(&job, upload.JobID.Int64).Error; err == nil {
 			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"job_id":  job.JobID,
-				"job_url": fmt.Sprintf("/jobs/%d", job.JobID),
+				"success":  true,
+				"job_id":   job.JobID,
+				"jobs_url": fmt.Sprintf("/jobs?editJob=%d", job.JobID),
 			})
 			return
 		}
@@ -665,25 +829,49 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 	if extraction.Metadata.Valid {
 		_ = json.Unmarshal([]byte(extraction.Metadata.String), &meta)
 	}
+	if meta == nil {
+		meta = map[string]string{}
+	}
 
-	getMetaDate := func(key string) *time.Time {
-		if meta == nil {
+	parseMetaDate := func(value string) *time.Time {
+		if value == "" {
 			return nil
 		}
-		if value, ok := meta[key]; ok && value != "" {
-			if t, err := time.Parse(time.RFC3339, value); err == nil {
-				return &t
-			}
+		if t, err := time.Parse(time.RFC3339, value); err == nil {
+			return &t
 		}
 		return nil
 	}
 
-	startDate := getMetaDate("start_date")
-	endDate := getMetaDate("end_date")
+	startDate := parseMetaDate(meta["start_date"])
+	endDate := parseMetaDate(meta["end_date"])
+
+	if req.StartDate != "" {
+		if t, err := time.Parse("2006-01-02", req.StartDate); err == nil {
+			startDate = &t
+			meta["start_date"] = t.Format(time.RFC3339)
+		}
+	}
+
+	if req.EndDate != "" {
+		if t, err := time.Parse("2006-01-02", req.EndDate); err == nil {
+			endDate = &t
+			meta["end_date"] = t.Format(time.RFC3339)
+		}
+	}
 
 	if startDate == nil && extraction.DocumentDate.Valid {
 		value := extraction.DocumentDate.Time
 		startDate = &value
+		meta["start_date"] = value.Format(time.RFC3339)
+	}
+
+	if len(meta) > 0 {
+		if metaBytes, err := json.Marshal(meta); err == nil {
+			h.DB.Model(&models.PDFExtraction{}).Where("extraction_id = ?", extraction.ExtractionID).
+				Update("metadata", string(metaBytes))
+			extraction.Metadata = sql.NullString{String: string(metaBytes), Valid: true}
+		}
 	}
 
 	revenue := 0.0
@@ -720,13 +908,20 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 		return
 	}
 
+	assignErr := h.assignProductsToJob(&job, extraction.ExtractionID)
+	if assignErr != nil {
+		h.DB.Delete(&job)
+		c.JSON(http.StatusBadRequest, gin.H{"error": assignErr.Error()})
+		return
+	}
+
 	h.DB.Model(&models.PDFUpload{}).Where("upload_id = ?", upload.UploadID).
 		Update("job_id", job.JobID)
 
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"job_id":  job.JobID,
-		"job_url": fmt.Sprintf("/jobs/%d", job.JobID),
+		"success":  true,
+		"job_id":   job.JobID,
+		"jobs_url": fmt.Sprintf("/jobs?editJob=%d", job.JobID),
 	})
 }
 
@@ -783,4 +978,56 @@ func truncateString(value string, max int) string {
 		return value[:max]
 	}
 	return value[:max-3] + "..."
+}
+
+func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) error {
+	if h.JobHandler == nil {
+		return nil
+	}
+
+	var items []models.PDFExtractionItem
+	if err := h.DB.Where("extraction_id = ?", extractionID).Find(&items).Error; err != nil {
+		return err
+	}
+
+	productCounts := make(map[uint]int)
+	for _, item := range items {
+		if !item.MappedProductID.Valid {
+			continue
+		}
+		pid := uint(item.MappedProductID.Int64)
+		qty := 1
+		if item.Quantity.Valid && item.Quantity.Int64 > 0 {
+			qty = int(item.Quantity.Int64)
+		}
+		productCounts[pid] += qty
+	}
+
+	if len(productCounts) == 0 {
+		return nil
+	}
+
+	selections := make([]JobProductSelection, 0, len(productCounts))
+	for pid, qty := range productCounts {
+		if qty <= 0 {
+			continue
+		}
+		selections = append(selections, JobProductSelection{
+			ProductID: pid,
+			Quantity:  qty,
+		})
+	}
+
+	if len(selections) == 0 {
+		return nil
+	}
+
+	return h.JobHandler.ApplyProductSelections(job, selections)
+}
+
+func formatDateInput(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format("2006-01-02")
 }

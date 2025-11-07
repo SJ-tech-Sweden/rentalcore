@@ -205,7 +205,7 @@
                                     </td>
                                     <td>
                                         {{if .Job}}
-                                            <a href="/jobs/{{.Job.JobID}}" class="text-decoration-none">
+                                            <a href="/jobs?editJob={{.Job.JobID}}" class="text-decoration-none">
                                                 Job #{{.Job.JobID}}
                                             </a>
                                         {{else}}

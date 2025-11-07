@@ -186,7 +186,7 @@
                                 <label class="form-label fw-bold">Related Job</label>
                                 <div class="form-control-plaintext">
                                     {{if .transaction.Job}}
-                                        <a href="/jobs/{{.transaction.Job.JobID}}" class="text-decoration-none">
+                                        <a href="/jobs?editJob={{.transaction.Job.JobID}}" class="text-decoration-none">
                                             <i class="fas fa-briefcase me-2"></i>Job #{{.transaction.Job.JobID}}
                                         </a>
                                         {{if .transaction.Job.Description}}

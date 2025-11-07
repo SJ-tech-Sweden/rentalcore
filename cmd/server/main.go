@@ -354,7 +354,7 @@ func main() {
 	companyHandler := handlers.NewCompanyHandler(db.DB, companyProvider)
 	monitoringHandler := handlers.NewMonitoringHandler(db.DB, monitoring.GlobalErrorTracker, perfMonitor, cacheManager)
 	jobAttachmentHandler := handlers.NewJobAttachmentHandler(jobAttachmentRepo, jobRepo)
-	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads")
+	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler)
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
@@ -1353,6 +1353,8 @@ func setupRoutes(r *gin.Engine,
 				apiPDF.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
 				apiPDF.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				apiPDF.GET("/products/search", pdfHandler.SearchProducts)
+				apiPDF.GET("/customers/search", pdfHandler.SearchCustomers)
+				apiPDF.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
 				apiPDF.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
 			}
 
@@ -1454,6 +1456,9 @@ func setupRoutes(r *gin.Engine,
 				pdfAPI.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
 				pdfAPI.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				pdfAPI.GET("/products/search", pdfHandler.SearchProducts)
+				pdfAPI.GET("/customers/search", pdfHandler.SearchCustomers)
+				pdfAPI.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
+				pdfAPI.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
 			}
 
 			// Company settings API - NOW ACTIVE

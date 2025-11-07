@@ -385,114 +385,21 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 }
 
 func (h *JobHandler) GetJob(c *gin.Context) {
-	user, _ := GetCurrentUser(c)
-
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Invalid job ID", "user": user})
-		return
+	jobID := strings.TrimSpace(c.Param("id"))
+	target := "/jobs"
+	if jobID != "" {
+		target = fmt.Sprintf("/jobs?editJob=%s", jobID)
 	}
-
-	job, err := h.jobRepo.GetByID(uint(id))
-	if err != nil {
-		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "Job not found", "user": user})
-		return
-	}
-
-	jobDevices, err := h.jobRepo.GetJobDevices(uint(id))
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	// Group devices by product and calculate pricing
-	productGroups := make(map[string]*ProductGroup)
-	totalDevices := len(jobDevices)
-	totalValue := 0.0
-
-	for _, jd := range jobDevices {
-		if jd.Device.Product == nil {
-			continue
-		}
-
-		productName := jd.Device.Product.Name
-		if _, exists := productGroups[productName]; !exists {
-			productGroups[productName] = &ProductGroup{
-				Product: jd.Device.Product,
-				Devices: []models.JobDevice{},
-			}
-		}
-
-		// Calculate effective price (custom price if set, otherwise default product price)
-		var effectivePrice float64
-		if jd.CustomPrice != nil && *jd.CustomPrice > 0 {
-			effectivePrice = *jd.CustomPrice
-		} else if jd.Device.Product.ItemCostPerDay != nil {
-			effectivePrice = *jd.Device.Product.ItemCostPerDay
-		}
-
-		// Create a copy of the job device with calculated price for display
-		jdCopy := jd
-		jdCopy.CustomPrice = &effectivePrice
-
-		productGroups[productName].Devices = append(productGroups[productName].Devices, jdCopy)
-		productGroups[productName].Count = len(productGroups[productName].Devices)
-		productGroups[productName].TotalValue += effectivePrice
-		totalValue += effectivePrice
-	}
-
-	c.HTML(http.StatusOK, "job_detail.html", gin.H{
-		"title":         "Job Details",
-		"job":           job,
-		"jobDevices":    jobDevices,
-		"productGroups": productGroups,
-		"totalDevices":  totalDevices,
-		"totalValue":    totalValue,
-		"user":          user,
-	})
+	c.Redirect(http.StatusFound, target)
 }
 
 func (h *JobHandler) EditJobForm(c *gin.Context) {
-	user, _ := GetCurrentUser(c)
-
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Invalid job ID", "user": user})
-		return
+	jobID := strings.TrimSpace(c.Param("id"))
+	target := "/jobs"
+	if jobID != "" {
+		target = fmt.Sprintf("/jobs?editJob=%s", jobID)
 	}
-
-	job, err := h.jobRepo.GetByID(uint(id))
-	if err != nil {
-		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "Job not found", "user": user})
-		return
-	}
-
-	customers, err := h.customerRepo.List(&models.FilterParams{})
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	statuses, err := h.statusRepo.List()
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	jobCategories, err := h.jobCategoryRepo.List()
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	c.HTML(http.StatusOK, "job_form.html", gin.H{
-		"title":         "Edit Job",
-		"job":           job,
-		"customers":     customers,
-		"statuses":      statuses,
-		"jobCategories": jobCategories,
-		"user":          user,
-	})
+	c.Redirect(http.StatusFound, target)
 }
 
 func (h *JobHandler) UpdateJob(c *gin.Context) {
@@ -939,6 +846,11 @@ func (h *JobHandler) applyProductSelections(job *models.Job, selections []JobPro
 	}
 
 	return nil
+}
+
+// ApplyProductSelections exposes product selection logic for programmatic consumers
+func (h *JobHandler) ApplyProductSelections(job *models.Job, selections []JobProductSelection) error {
+	return h.applyProductSelections(job, selections)
 }
 
 func (h *JobHandler) CreateJobAPI(c *gin.Context) {

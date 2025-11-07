@@ -4405,6 +4405,20 @@ function showToast(message, type) {
             }
         }
 
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const editJobId = params.get('editJob');
+            if (editJobId) {
+                setTimeout(() => {
+                    showEditJob(editJobId);
+                }, 300);
+                params.delete('editJob');
+                const remaining = params.toString();
+                const newUrl = window.location.pathname + (remaining ? `?${remaining}` : '') + window.location.hash;
+                window.history.replaceState({}, '', newUrl);
+            }
+        });
+
         function applyPDFDataToForm(data) {
             alert('PDF data application coming soon! For now, please manually copy the data.');
             closePDFUploadModal();

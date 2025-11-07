@@ -96,6 +96,27 @@ func (PDFProductMapping) TableName() string {
 	return "pdf_product_mappings"
 }
 
+// PDFCustomerMapping represents saved mappings between PDF text and customers
+type PDFCustomerMapping struct {
+	MappingID       uint64          `gorm:"primaryKey;column:mapping_id;autoIncrement" json:"mapping_id"`
+	PDFCustomerText string          `gorm:"column:pdf_customer_text;not null;index:idx_pdf_customer_mappings_text" json:"pdf_customer_text"`
+	NormalizedText  sql.NullString  `gorm:"column:normalized_text;index:idx_pdf_customer_mappings_normalized" json:"normalized_text"`
+	CustomerID      int             `gorm:"column:customer_id;not null;index:idx_pdf_customer_mappings_customer" json:"customer_id"`
+	MappingType     string          `gorm:"column:mapping_type;type:enum('exact','fuzzy','manual');default:'manual'" json:"mapping_type"`
+	ConfidenceScore sql.NullFloat64 `gorm:"column:confidence_score" json:"confidence_score"`
+	UsageCount      int             `gorm:"column:usage_count;default:0" json:"usage_count"`
+	LastUsedAt      sql.NullTime    `gorm:"column:last_used_at" json:"last_used_at"`
+	CreatedBy       sql.NullInt64   `gorm:"column:created_by" json:"created_by"`
+	CreatedAt       time.Time       `gorm:"column:created_at;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt       time.Time       `gorm:"column:updated_at;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	IsActive        bool            `gorm:"column:is_active;default:true" json:"is_active"`
+}
+
+// TableName specifies the table name for PDFCustomerMapping
+func (PDFCustomerMapping) TableName() string {
+	return "pdf_customer_mappings"
+}
+
 // PDFExtractionResponse is the API response structure for extracted data
 type PDFExtractionResponse struct {
 	UploadID        uint64                     `json:"upload_id"`
