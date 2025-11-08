@@ -957,22 +957,6 @@ func (h *PDFHandler) ensureCustomerForExtraction(extraction *models.PDFExtractio
 		}
 	}
 
-	if extraction.CustomerName.Valid {
-		name := strings.TrimSpace(extraction.CustomerName.String)
-		if name != "" {
-			var customer models.Customer
-			if err := h.DB.Where("companyname = ?", name).First(&customer).Error; err == nil {
-				return customer.CustomerID, nil
-			}
-
-			customer = models.Customer{}
-			customer.CompanyName = &name
-			if err := h.DB.Create(&customer).Error; err == nil {
-				return customer.CustomerID, nil
-			}
-		}
-	}
-
 	return 0, fmt.Errorf("Please select a customer before creating this job")
 }
 

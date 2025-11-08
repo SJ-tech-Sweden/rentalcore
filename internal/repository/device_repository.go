@@ -664,8 +664,7 @@ func (r *DeviceRepository) GetProductAvailabilityForJob(productID uint, jobID *u
 		Joins("LEFT JOIN devicescases dc ON dc.deviceID = d.deviceID").
 		Joins("LEFT JOIN cases c ON c.caseID = dc.caseID").
 		Joins("LEFT JOIN jobdevices jd_current ON jd_current.deviceID = d.deviceID AND jd_current.jobID = ?", jobIDVal).
-		Where("d.productID = ?", productID).
-		Where("(d.status = 'free' OR jd_current.jobID IS NOT NULL)")
+		Where("d.productID = ?", productID)
 
 	if err := query.Scan(&rows).Error; err != nil {
 		return nil, err
@@ -702,8 +701,19 @@ func (r *DeviceRepository) GetProductAvailabilityForJob(productID uint, jobID *u
 	results := make([]ProductDeviceAvailability, 0, len(rows))
 	for _, row := range rows {
 		available := !conflicts[row.DeviceID]
-		if row.Status != "free" && !row.AssignedToJob {
-			available = false
+		statusValue := strings.ToLower(strings.TrimSpace(row.Status))
+		if !row.AssignedToJob {
+			if strings.Contains(statusValue, "retired") ||
+				strings.Contains(statusValue, "maintenance") ||
+				strings.Contains(statusValue, "repair") ||
+				strings.Contains(statusValue, "defect") ||
+				strings.Contains(statusValue, "damaged") ||
+				strings.Contains(statusValue, "lost") ||
+				strings.Contains(statusValue, "out_of_service") ||
+				strings.Contains(statusValue, "inactive") ||
+				strings.Contains(statusValue, "decommissioned") {
+				available = false
+			}
 		}
 
 		results = append(results, ProductDeviceAvailability{
