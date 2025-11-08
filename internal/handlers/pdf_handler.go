@@ -542,6 +542,25 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		"endDate":    formatDateInput(endDate),
 	}
 
+	if extraction.TotalAmount.Valid {
+		data["totalAmount"] = extraction.TotalAmount.Float64
+	}
+
+	if extraction.DiscountAmount.Valid {
+		data["discountAmount"] = extraction.DiscountAmount.Float64
+	}
+
+	if extraction.TotalAmount.Valid {
+		net := extraction.TotalAmount.Float64
+		if extraction.DiscountAmount.Valid {
+			net -= extraction.DiscountAmount.Float64
+			if net < 0 {
+				net = 0
+			}
+		}
+		data["netAmount"] = net
+	}
+
 	if extraction.CustomerName.Valid {
 		data["extractedCustomerName"] = extraction.CustomerName.String
 	}

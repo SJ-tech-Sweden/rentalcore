@@ -927,6 +927,35 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
 
+        {{if or .totalAmount .discountAmount .netAmount}}
+        <div class="mapping-card">
+            <h3 style="margin: 0 0 12px 0;"><i class="bi bi-receipt"></i> Invoice Summary</h3>
+            <div class="stats-grid">
+                {{if .totalAmount}}
+                <div class="stat-card">
+                    <div class="stat-label">Parsed Total</div>
+                    <div class="stat-value">€{{printf "%.2f" .totalAmount}}</div>
+                </div>
+                {{end}}
+                {{if .discountAmount}}
+                <div class="stat-card">
+                    <div class="stat-label">Parsed Discount</div>
+                    <div class="stat-value" style="color: var(--rc-success);">-€{{printf "%.2f" .discountAmount}}</div>
+                </div>
+                {{end}}
+                {{if .netAmount}}
+                <div class="stat-card">
+                    <div class="stat-label">Net After Discount</div>
+                    <div class="stat-value">€{{printf "%.2f" .netAmount}}</div>
+                </div>
+                {{end}}
+            </div>
+            <p class="rc-text-xs rc-text-muted" style="margin-top: 8px;">
+                Parsed totals are used to override per-device prices when they differ from catalog values.
+            </p>
+        </div>
+        {{end}}
+
         <div class="mapping-toolbar">
             <span style="font-weight: 600;">Filter:</span>
             <button type="button" class="filter-chip active" data-filter="all" onclick="setItemFilter('all', this)">All</button>
