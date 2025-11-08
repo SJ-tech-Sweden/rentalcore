@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -32,6 +33,7 @@ var finalPriceKeywords = []string{
 
 var amountTokenRegex = regexp.MustCompile(`[-+]?\s*(?:\d{1,3}(?:[.\s]\d{3})+|\d+)(?:[,\.]\d{2})`)
 var fallbackAmountTokenRegex = regexp.MustCompile(`[-+]?\s*\d{2,}`)
+var percentageRegex = regexp.MustCompile(`[-+]?\s*\d{1,3}(?:[.,]\d+)?\s*%`)
 
 func findAmountToken(line string) (string, bool) {
 	if token, ok := findTokenWithRegex(line, amountTokenRegex); ok {
@@ -60,4 +62,24 @@ func findTokenWithRegex(line string, rx *regexp.Regexp) (string, bool) {
 		return candidate, true
 	}
 	return "", false
+}
+
+func findPercentage(line string) (float64, bool) {
+	indexes := percentageRegex.FindAllStringIndex(line, -1)
+	if len(indexes) == 0 {
+		return 0, false
+	}
+	idx := indexes[len(indexes)-1]
+	token := strings.TrimSpace(line[idx[0]:idx[1]])
+	token = strings.TrimSuffix(token, "%")
+	token = strings.ReplaceAll(token, " ", "")
+	token = strings.ReplaceAll(token, ",", ".")
+	if token == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(token, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
 }

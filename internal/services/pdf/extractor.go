@@ -358,14 +358,20 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 
 		// Extract discount
 		if containsKeyword(lineLower, discountKeywords) {
+			discount := 0.0
 			if token, ok := findAmountToken(line); ok {
-				discount := e.Parser.parseAmount(token)
-				if discount < 0 {
-					discount = -discount
+				discount = e.Parser.parseAmount(token)
+			}
+			if discount <= 0 {
+				if pct, ok := findPercentage(line); ok && data.TotalAmount > 0 {
+					discount = data.TotalAmount * pct / 100
 				}
-				if discount > 0 {
-					data.DiscountAmount = discount
-				}
+			}
+			if discount < 0 {
+				discount = -discount
+			}
+			if discount > 0 {
+				data.DiscountAmount = discount
 			}
 		}
 

@@ -129,7 +129,7 @@ func (p *IntelligentParser) ParseDocument(rawText string) (*ParsedDocument, erro
 	doc.TotalAmount = p.extractTotalAmount(lines)
 
 	// 6. Extract discount
-	doc.DiscountAmount = p.extractDiscount(lines)
+	doc.DiscountAmount = p.extractDiscount(lines, doc.TotalAmount)
 
 	// 7. Parse line items
 	items, err := p.parseLineItems(lines)
@@ -270,7 +270,7 @@ func (p *IntelligentParser) extractTotalAmount(lines []string) float64 {
 }
 
 // extractDiscount extracts discount amount
-func (p *IntelligentParser) extractDiscount(lines []string) float64 {
+func (p *IntelligentParser) extractDiscount(lines []string, totalAmount float64) float64 {
 	for _, line := range lines {
 		lineLower := strings.ToLower(line)
 		if !containsKeyword(lineLower, discountKeywords) {
@@ -281,6 +281,12 @@ func (p *IntelligentParser) extractDiscount(lines []string) float64 {
 			if amount < 0 {
 				amount = -amount
 			}
+			if amount > 0 {
+				return amount
+			}
+		}
+		if pct, ok := findPercentage(line); ok && totalAmount > 0 {
+			amount := totalAmount * pct / 100
 			if amount > 0 {
 				return amount
 			}
