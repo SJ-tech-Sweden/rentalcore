@@ -199,6 +199,7 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 	dateRangeRegex := regexp.MustCompile(`(?i)(?:zeitraum|period|vom|from)[\s:]*(\d{1,2})[\./-](\d{1,2})[\./-](\d{2,4})[\s]*(?:bis|to|-|–)[\s]*(\d{1,2})[\./-](\d{1,2})[\./-](\d{2,4})`)
 	invoiceNumberRegex := regexp.MustCompile(`(?i)(?:rechnung|invoice|angebot|offer|auftrag|order)[\s#:Nr.]+([A-Z0-9\-]+)`)
 	totalRegex := regexp.MustCompile(`(?i)(?:gesamt|total|summe|sum)[^0-9-]*([-+]?\s*[0-9][0-9\.\s,]*)`)
+	subtotalRegex := regexp.MustCompile(`(?i)(?:zwischensumme|subtotal|netto\s*summe)[^0-9-]*([-+]?\s*[0-9][0-9\.\s,]*)`)
 
 	// Parse line items with multiple patterns for flexibility (legacy one-line rows)
 	itemRegexFull := regexp.MustCompile(`^(\d+)\s+(\d+)x?\s+(.+?)\s+€?\s*([0-9.,]+)\s+€?\s*([0-9.,]+)\s*$`)
@@ -225,6 +226,8 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 	pendingDocumentNumber := false
 	pendingStartDate := false
 	pendingEndDate := false
+
+	subtotalCaptured := false
 
 	for i := 0; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
@@ -348,9 +351,18 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 			continue
 		}
 
-		// Extract total amount
+		// Extract subtotal (net amount before discount)
+		if matches := subtotalRegex.FindStringSubmatch(line); len(matches) > 1 {
+			if subtotal := e.Parser.parseAmount(matches[1]); subtotal > 0 {
+				data.TotalAmount = subtotal
+				subtotalCaptured = true
+				continue
+			}
+		}
+
+		// Extract total amount (fallback to subtotal if not found)
 		if matches := totalRegex.FindStringSubmatch(line); len(matches) > 1 {
-			if total := e.Parser.parseAmount(matches[1]); total > 0 {
+			if total := e.Parser.parseAmount(matches[1]); total > 0 && !subtotalCaptured {
 				data.TotalAmount = total
 			}
 		}
