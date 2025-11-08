@@ -471,6 +471,110 @@
 
     <!-- Product Tree Styles -->
     <style>
+        .pdf-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 20, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 10000;
+        }
+
+        .pdf-modal-overlay.is-visible {
+            display: flex;
+        }
+
+        .pdf-modal-panel {
+            width: min(640px, 92vw);
+            background: var(--rc-bg-card);
+            border-radius: 20px;
+            box-shadow: 0 25px 80px rgba(3, 7, 18, 0.65);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pdf-modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 28px 32px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .pdf-modal-header h3 {
+            margin: 4px 0 0;
+            font-size: 24px;
+        }
+
+        .pdf-modal-header .eyebrow {
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.3em;
+            color: var(--rc-text-secondary);
+            margin: 0;
+        }
+
+        .pdf-modal-subtitle {
+            margin: 6px 0 0;
+            color: var(--rc-text-secondary);
+            font-size: 14px;
+        }
+
+        .pdf-modal-body {
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .pdf-upload-card {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 20px;
+            border: 1px dashed rgba(255,255,255,0.25);
+            border-radius: 16px;
+            padding: 20px;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .pdf-upload-illustration {
+            width: 100px;
+            height: 100px;
+            border-radius: 14px;
+            background: radial-gradient(circle at 30% 30%, rgba(110,90,255,0.45), rgba(15,15,40,0.8));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            color: #fff;
+        }
+
+        .pdf-upload-hints {
+            display: grid;
+            gap: 8px;
+        }
+
+        .pdf-upload-hints span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--rc-text-secondary);
+        }
+
+        .pdf-modal-footer {
+            padding: 20px 32px 32px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
         /* Product Tree Container - Premium Dark Card Style */
         .rc-product-tree-frame {
             background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-0) 100%);
@@ -2115,22 +2219,16 @@
 
         // PDF Upload Modal Functions
         function openPDFUploadModal() {
-            console.log('openPDFUploadModal called');
             const modal = document.getElementById('pdfUploadModal');
-            console.log('Modal element:', modal);
             if (modal) {
-                modal.style.display = 'flex';
-                console.log('Modal display set to flex');
-            } else {
-                console.error('PDF Upload Modal not found!');
-                alert('Modal element not found. Please refresh the page.');
+                modal.classList.add('is-visible');
             }
         }
 
         function closePDFUploadModal() {
             const modal = document.getElementById('pdfUploadModal');
             if (modal) {
-                modal.style.display = 'none';
+                modal.classList.remove('is-visible');
                 document.getElementById('pdfUploadInput').value = '';
                 document.getElementById('pdfUploadStatus').innerHTML = '';
             }
@@ -2213,29 +2311,41 @@
     </script>
 
     <!-- PDF Upload Modal -->
-    <div id="pdfUploadModal" class="rc-modal" style="display: none;">
-        <div class="rc-modal-overlay" onclick="closePDFUploadModal()"></div>
-        <div class="rc-modal-content" style="max-width: 600px;">
-            <div class="rc-modal-header">
-                <h3><i class="bi bi-file-earmark-pdf"></i> Upload PDF Invoice/Offer</h3>
-                <button class="rc-modal-close" onclick="closePDFUploadModal()">&times;</button>
-            </div>
-            <div class="rc-modal-body">
-                <div class="rc-form-group">
-                    <label class="rc-label">Select PDF File</label>
-                    <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="rc-input">
-                    <p class="rc-text-xs rc-text-muted rc-mt-xs">
-                        Upload an invoice or offer PDF. The system will automatically extract products, quantities, and customer information.
-                    </p>
+    <div id="pdfUploadModal" class="pdf-modal-overlay" onclick="closePDFUploadModal()">
+        <div class="pdf-modal-panel" onclick="event.stopPropagation()">
+            <div class="pdf-modal-header">
+                <div>
+                    <p class="eyebrow">OCR Assistant</p>
+                    <h3>Upload Offer / Invoice PDF</h3>
+                    <p class="pdf-modal-subtitle">We extract customer info, products, and discounts for this job.</p>
                 </div>
-                <div id="pdfUploadStatus" style="margin-top: 16px;"></div>
+                <button class="rc-btn rc-btn-link" onclick="closePDFUploadModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
-            <div class="rc-modal-footer">
+            <div class="pdf-modal-body">
+                <div class="pdf-upload-card">
+                    <div class="pdf-upload-illustration">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                    </div>
+                    <div>
+                        <label class="rc-label">Select PDF File</label>
+                        <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="sr-only">
+                        <p>Drag & drop your PDF here or click to browse.</p>
+                        <button class="rc-btn rc-btn-outline" onclick="document.getElementById('pdfUploadInput').click()">Choose File</button>
+                    </div>
+                </div>
+                <div class="pdf-upload-hints">
+                    <span><i class="bi bi-lightning-charge"></i> Auto-maps line items into your catalog.</span>
+                    <span><i class="bi bi-people"></i> Prefills customer and discount data.</span>
+                    <span><i class="bi bi-eye"></i> You stay in control—review everything before saving.</span>
+                </div>
+                <div id="pdfUploadStatus"></div>
+            </div>
+            <div class="pdf-modal-footer">
+                <button type="button" class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Close</button>
                 <button type="button" class="rc-btn rc-btn-primary" onclick="uploadPDFFile()">
                     <i class="bi bi-upload"></i> Upload & Process
-                </button>
-                <button type="button" class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">
-                    Cancel
                 </button>
             </div>
         </div>

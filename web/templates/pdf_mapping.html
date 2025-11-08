@@ -648,300 +648,190 @@ document.addEventListener('DOMContentLoaded', () => {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        body.mapping-body {
+            background: radial-gradient(circle at 20% -5%, rgba(37, 99, 235, 0.35), rgba(5, 7, 15, 0.95)),
+                        radial-gradient(circle at 80% 0%, rgba(16, 185, 129, 0.25), rgba(5, 7, 15, 0.9));
+            color: var(--rc-text-primary);
+            min-height: 100vh;
+        }
+        .mapping-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
         .mapping-card {
-            background: var(--rc-bg-card);
-            border: 1px solid var(--rc-border-color);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
+            background: rgba(8, 9, 20, 0.78);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 28px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 25px 60px rgba(3,8,24,0.55);
+            backdrop-filter: blur(12px);
         }
-        .mapping-header {
+        .mapping-hero {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 28px;
+            padding: 32px;
+            border-radius: 26px;
+            background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(2,6,23,0.85));
+            border: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 32px;
+        }
+        .mapping-hero h1 {
+            margin: 6px 0 12px;
+            font-size: 32px;
+        }
+        .mapping-hero .eyebrow {
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.3em;
+            color: var(--rc-text-secondary);
+            margin-bottom: 4px;
+        }
+        .hero-actions {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--rc-border-color);
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
         }
-        .mapping-item {
-            background: var(--rc-bg-elevated);
-            border: 1px solid var(--rc-border-color);
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 15px;
-            transition: all 0.2s ease;
+        .hero-insights {
+            display: grid;
+            gap: 16px;
         }
-        .mapping-item:hover {
-            border-color: var(--rc-primary);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        .hero-insights .stat-card {
+            text-align: left;
+            padding: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.02);
         }
         .mapping-toolbar {
             display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
             align-items: center;
-            margin-bottom: 16px;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
         }
         .filter-chip {
-            border: 1px solid var(--rc-border-color);
-            background: var(--rc-bg-card);
-            border-radius: 20px;
-            padding: 6px 16px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: transparent;
+            padding: 6px 14px;
+            border-radius: 999px;
             cursor: pointer;
+            color: var(--rc-text-primary);
             font-size: 13px;
-            font-weight: 600;
-            color: var(--rc-text-secondary);
             transition: all 0.2s ease;
         }
         .filter-chip.active {
-            background: var(--rc-primary);
+            background: linear-gradient(90deg, var(--rc-primary), var(--rc-success));
+            border-color: transparent;
             color: #fff;
-            border-color: var(--rc-primary);
+        }
+        .mapping-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+        .mapping-item {
+            background: rgba(15, 17, 35, 0.92);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 18px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .mapping-item.auto-mapped {
+            border-color: rgba(14,165,233,0.4);
+            box-shadow: 0 10px 30px rgba(14,165,233,0.2);
+        }
+        .mapping-section {
+            border-top: 1px dashed rgba(255,255,255,0.08);
+            padding-top: 14px;
+            margin-top: 8px;
+        }
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .suggestion-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(19,23,42,0.9);
+        }
+        .suggestion-item.selected {
+            border-color: var(--rc-success);
+            background: rgba(16,185,129,0.12);
+        }
+        .confidence-badge {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
         }
         .customer-panel {
-            border: 1px dashed var(--rc-border-color);
-            border-radius: 10px;
-            padding: 16px;
-            background: var(--rc-bg-elevated);
+            border: 1px dashed rgba(255,255,255,0.15);
+            border-radius: 16px;
+            padding: 18px;
+            background: rgba(255,255,255,0.02);
         }
         .customer-status {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 4px 10px;
-            border-radius: 20px;
+            padding: 5px 12px;
+            border-radius: 999px;
             font-size: 12px;
-            font-weight: 600;
-        }
-        .customer-status.auto {
-            background: var(--rc-success-bg);
-            color: var(--rc-success);
+            margin-top: 10px;
         }
         .customer-status.pending {
-            background: var(--rc-warning-bg);
-            color: var(--rc-warning);
+            background: rgba(244,180,0,0.15);
+            color: rgba(244,180,0,0.9);
         }
-        .customer-search-results {
-            margin-top: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        .customer-status.auto {
+            background: rgba(16,185,129,0.15);
+            color: rgba(16,185,129,0.95);
         }
-        .mapping-item.auto-mapped {
-            border-color: var(--rc-success);
-            background: linear-gradient(to right, var(--rc-success-bg), transparent);
-        }
-        .item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 15px;
-        }
-        .item-text {
-            flex: 1;
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--rc-text-primary);
-        }
-        .item-meta {
-            display: flex;
-            gap: 10px;
+        .invoice-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
             align-items: center;
         }
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
         }
-        .badge-auto { background: var(--rc-success-bg); color: var(--rc-success); }
-        .badge-pending { background: var(--rc-warning-bg); color: var(--rc-warning); }
-        .badge-confirmed { background: var(--rc-info-bg); color: var(--rc-info); }
-        .mapping-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px dashed var(--rc-border-color);
-        }
-        .suggestions-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .suggestion-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            width: 100%;
-            background: var(--rc-bg-card);
-            border: 1px solid var(--rc-border-color);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: var(--rc-text-primary);
+        .summary-stats .stat-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 16px;
             text-align: left;
-            font: inherit;
-            background-clip: padding-box;
         }
-        .suggestion-item:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
-        }
-        .suggestion-item:hover {
-            border-color: var(--rc-primary);
-            background: var(--rc-bg-hover);
-        }
-        .suggestion-item.selected {
-            border-color: var(--rc-success);
-            background: var(--rc-success-bg);
-        }
-        .suggestion-info {
-            flex: 1;
-        }
-        .suggestion-name {
-            font-weight: 600;
-            color: var(--rc-text-primary);
-            margin-bottom: 3px;
-        }
-        .suggestion-details {
-            font-size: 12px;
-            color: var(--rc-text-secondary);
-        }
-        .confidence-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-        }
-        .confidence-high {
-            background: var(--rc-success-bg);
-            color: var(--rc-success);
-        }
-        .confidence-medium {
-            background: var(--rc-warning-bg);
-            color: var(--rc-warning);
-        }
-        .confidence-low {
-            background: var(--rc-danger-bg);
-            color: var(--rc-danger);
-        }
-        .search-box {
-            position: relative;
-            margin-top: 10px;
-        }
-        .search-input {
-            width: 100%;
-            padding: 10px 40px 10px 15px;
-            background: var(--rc-bg-card);
-            border: 1px solid var(--rc-border-color);
-            border-radius: 8px;
-            color: var(--rc-text-primary);
-            font-size: 14px;
-        }
-        .search-input:focus {
-            outline: none;
-            border-color: var(--rc-primary);
-        }
-        .search-icon {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--rc-text-secondary);
-        }
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .btn-small {
-            padding: 8px 14px;
-            font-size: 13px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s ease;
-        }
-        .btn-accept {
-            background: var(--rc-success);
-            color: white;
-        }
-        .btn-accept:hover {
-            background: var(--rc-success-hover);
-        }
-        .btn-reject {
-            background: var(--rc-danger);
-            color: white;
-        }
-        .btn-reject:hover {
-            background: var(--rc-danger-hover);
-        }
-        .btn-manual {
-            background: var(--rc-info);
-            color: white;
-        }
-        .btn-manual:hover {
-            background: var(--rc-info-hover);
+        .discount-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            align-items: end;
         }
         .progress-bar {
-            height: 6px;
-            background: var(--rc-bg-elevated);
-            border-radius: 3px;
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 999px;
             overflow: hidden;
-            margin: 20px 0;
         }
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, var(--rc-primary), var(--rc-success));
-            transition: width 0.3s ease;
-        }
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .stat-card {
-            padding: 15px;
-            background: var(--rc-bg-elevated);
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--rc-text-primary);
-            margin-bottom: 5px;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: var(--rc-text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .status-message-container {
-            margin: 16px 0;
-        }
-        .mapped-summary-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--rc-success);
-            background: var(--rc-success-bg);
-        }
-        .mapped-summary-card .mapped-summary-text {
-            flex: 1;
         }
         .rc-modal {
             position: fixed;
@@ -970,30 +860,47 @@ document.addEventListener('DOMContentLoaded', () => {
             align-items: center;
             margin-bottom: 16px;
         }
+    
     </style>
 </head>
-<body class="rc-animate-fade-in">
-    <div class="rc-container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+<body class="rc-animate-fade-in mapping-body">
+    <div class="mapping-wrapper">
 
-        <!-- Header -->
-        <div class="mapping-card">
-            <div class="mapping-header">
-                <div>
-                    <h1 style="margin: 0 0 5px 0; font-size: 28px;">
-                        <i class="bi bi-diagram-3"></i> PDF Product Mapping
-                    </h1>
-                    <p style="margin: 0; color: var(--rc-text-secondary);">
-                        Map extracted products to your product database
-                    </p>
-                </div>
-                <div>
+        <section class="mapping-hero">
+            <div>
+                <p class="eyebrow">Extraction #{{.extraction.ExtractionID}}</p>
+                <h1>Review & Map Products</h1>
+                <p style="color: var(--rc-text-secondary); max-width: 520px;">
+                    {{.upload.OriginalFilename}} • {{len .items}} detected line items ready for mapping. Adjust matches, confirm discounts, and create a customer in minutes.
+                </p>
+                <div class="hero-actions">
                     <button onclick="runAutoMapping()" class="rc-btn rc-btn-primary" id="autoMapBtn">
-                        <i class="bi bi-magic"></i> Run Auto-Mapping
+                        <i class="bi bi-stars"></i> Run Auto-Mapping
                     </button>
+                    <a href="/pdf/review/{{.upload.UploadID}}" class="rc-btn rc-btn-outline">
+                        <i class="bi bi-arrow-left"></i> Back to Review
+                    </a>
                 </div>
             </div>
+            <div class="hero-insights">
+                <div class="stat-card">
+                    <div class="stat-label">Confidence Score</div>
+                    <div class="stat-value">
+                        {{if .extraction.ConfidenceScore.Valid}}
+                            {{printf "%.0f%%" .extraction.ConfidenceScore.Float64}}
+                        {{else}}N/A{{end}}
+                    </div>
+                    <small style="color: var(--rc-text-secondary);">Based on OCR quality</small>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Items Detected</div>
+                    <div class="stat-value">{{len .items}}</div>
+                    <small style="color: var(--rc-text-secondary);">Ready for mapping</small>
+                </div>
+            </div>
+        </section>
 
-            <!-- Statistics -->
+        <div class="mapping-card">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="totalItems">{{len .items}}</div>
@@ -1012,12 +919,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="stat-label">Progress</div>
                 </div>
             </div>
-
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressBar" style="width: 0%"></div>
-        </div>
-
-        <div id="mappingStatusMessage" class="status-message-container"></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+            <div id="mappingStatusMessage" class="status-message-container"></div>
         </div>
 
         <!-- Customer & Schedule -->
@@ -1080,23 +985,26 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
 
-        <div class="mapping-card">
-            <h3 style="margin: 0 0 12px 0;"><i class="bi bi-receipt"></i> Invoice Summary</h3>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Parsed Total</div>
-                    <div class="stat-value">€{{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}0.00{{end}}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Parsed Discount</div>
-                    <div class="stat-value" id="discountPreviewValue" style="color: var(--rc-success);">-€{{if .discountAmount}}{{printf "%.2f" .discountAmount}}{{else}}0.00{{end}}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Net After Discount</div>
-                    <div class="stat-value" id="netAmountPreview">€{{if .netAmount}}{{printf "%.2f" .netAmount}}{{else}}{{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}0.00{{end}}{{end}}</div>
+        <div class="mapping-card invoice-summary">
+            <div>
+                <h3 style="margin-top:0;"><i class="bi bi-receipt"></i> Invoice Summary</h3>
+                <p class="rc-text-xs rc-text-muted" style="margin-bottom:16px;">Parsed totals are used to override per-device prices when they differ from catalog values.</p>
+                <div class="summary-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Parsed Total</div>
+                        <div class="stat-value">€{{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}0.00{{end}}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Parsed Discount</div>
+                        <div class="stat-value" id="discountPreviewValue" style="color: var(--rc-success);">-€{{if .discountAmount}}{{printf "%.2f" .discountAmount}}{{else}}0.00{{end}}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Net After Discount</div>
+                        <div class="stat-value" id="netAmountPreview">€{{if .netAmount}}{{printf "%.2f" .netAmount}}{{else}}{{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}0.00{{end}}{{end}}</div>
+                    </div>
                 </div>
             </div>
-            <div class="rc-grid rc-grid-2 rc-grid-gap-md" style="margin-top: 16px;">
+            <div class="discount-controls">
                 <div class="rc-form-group">
                     <label class="rc-label">Discount Type</label>
                     <select class="rc-input" id="discountTypeSelect">
@@ -1109,9 +1017,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="number" class="rc-input" id="discountValueInput" step="0.01" min="0" placeholder="0.00">
                 </div>
             </div>
-            <p class="rc-text-xs rc-text-muted" style="margin-top: 8px;">
-                Adjust the discount before saving. For percentages we still store the effective euro amount for future OCR comparisons.
-            </p>
         </div>
 
         <div class="mapping-toolbar">
