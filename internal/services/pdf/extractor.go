@@ -350,8 +350,7 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 
 		// Extract total amount
 		if matches := totalRegex.FindStringSubmatch(line); len(matches) > 1 {
-			totalStr := strings.ReplaceAll(matches[1], ",", ".")
-			if total, err := strconv.ParseFloat(totalStr, 64); err == nil {
+			if total := e.Parser.parseAmount(matches[1]); total > 0 {
 				data.TotalAmount = total
 			}
 		}
