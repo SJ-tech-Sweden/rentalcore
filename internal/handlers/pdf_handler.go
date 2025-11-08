@@ -805,15 +805,29 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 			Update("customer_id", extraction.CustomerID)
 	}
 
-	// If job already linked, return it
+	if err := h.persistExtractionMappings(c, extraction.ExtractionID); err != nil {
+		log.Printf("warning: failed to persist mappings for extraction %d: %v", extraction.ExtractionID, err)
+	}
+
+	// If job already linked, keep it in sync with the latest mappings
 	if upload.JobID.Valid {
 		var job models.Job
 		if err := h.DB.First(&job, upload.JobID.Int64).Error; err == nil {
-			c.JSON(http.StatusOK, gin.H{
+			warningMsg, assignErr := h.assignProductsToJob(&job, extraction.ExtractionID)
+			if assignErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": assignErr.Error()})
+				return
+			}
+
+			response := gin.H{
 				"success":  true,
 				"job_id":   job.JobID,
 				"jobs_url": fmt.Sprintf("/jobs?editJob=%d", job.JobID),
-			})
+			}
+			if warningMsg != "" {
+				response["warning"] = warningMsg
+			}
+			c.JSON(http.StatusOK, response)
 			return
 		}
 	}
@@ -911,10 +925,6 @@ func (h *PDFHandler) FinalizeExtraction(c *gin.Context) {
 			"error": fmt.Sprintf("Failed to create job: %v", err),
 		})
 		return
-	}
-
-	if err := h.persistExtractionMappings(c, extraction.ExtractionID); err != nil {
-		log.Printf("warning: failed to persist mappings for extraction %d: %v", extraction.ExtractionID, err)
 	}
 
 	warningMsg, assignErr := h.assignProductsToJob(&job, extraction.ExtractionID)
