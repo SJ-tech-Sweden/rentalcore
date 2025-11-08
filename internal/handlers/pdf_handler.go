@@ -1234,7 +1234,11 @@ var (
 	zipCityRegex    = regexp.MustCompile(`^(\d{4,5})\s+(.+)$`)
 	honorificsRegex = regexp.MustCompile(`(?i)\b(herrn|herr|frau|mr|mrs|ms)\b\.?`)
 	addressKeywords = []string{"angebotsnr", "kundennr", "rechnung", "invoice", "offer", "angebot"}
-	vendorNoise     = []string{"tel", "telefon", "fax", "email", "info@", "iban", "bic", "sparkasse", "www.", "tsunami events"}
+	vendorNoise     = []string{
+		"tsunami events", "ringstraße", "ringstrasse", "haiger", "sparkasse", "steuernummer",
+		"amtsgericht", "geschäftsführer", "geschaeftsfuehrer", "iban", "bic", "tel", "telefon",
+		"fax", "email", "info@", "www.", "tsunami-events", "tsunami events ug",
+	}
 )
 
 func (h *PDFHandler) buildCustomerPrefill(extraction *models.PDFExtraction) *customerPrefill {
@@ -1323,6 +1327,9 @@ func captureBlockBeforeKeywords(lines []string) []string {
 					continue
 				}
 				if isVendorNoise(line) {
+					if len(block) > 0 {
+						break
+					}
 					continue
 				}
 				block = append([]string{line}, block...)
