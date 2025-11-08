@@ -19,6 +19,17 @@ var discountKeywords = []string{
 	"gutschrift",
 }
 
+var finalPriceKeywords = []string{
+	"endpreis",
+	"finalpreis",
+	"gesamtpreis",
+	"nach rabatt",
+	"rabattpreis",
+	"rabattiert",
+	"nettopreis",
+	"endbetrag",
+}
+
 var amountTokenRegex = regexp.MustCompile(`[-+]?\s*(?:\d{1,3}(?:[.\s]\d{3})+|\d+)(?:[,\.]\d{2})`)
 var fallbackAmountTokenRegex = regexp.MustCompile(`[-+]?\s*\d{2,}`)
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -983,6 +984,11 @@ func truncateString(value string, max int) string {
 	return value[:max-3] + "..."
 }
 
+type productPricingAggregate struct {
+	totalAmount    float64
+	pricedQuantity int
+}
+
 func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (string, error) {
 	if h.JobHandler == nil {
 		return "", nil
@@ -994,6 +1000,7 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 	}
 
 	productCounts := make(map[uint]int)
+	pricingAggregates := make(map[uint]*productPricingAggregate)
 	for _, item := range items {
 		if !item.MappedProductID.Valid {
 			continue
@@ -1004,10 +1011,31 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 			qty = int(item.Quantity.Int64)
 		}
 		productCounts[pid] += qty
+
+		lineTotal := 0.0
+		if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
+			lineTotal = item.LineTotal.Float64
+		} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
+			lineTotal = item.UnitPrice.Float64 * float64(qty)
+		}
+		if lineTotal > 0 && qty > 0 {
+			agg := pricingAggregates[pid]
+			if agg == nil {
+				agg = &productPricingAggregate{}
+				pricingAggregates[pid] = agg
+			}
+			agg.totalAmount += lineTotal
+			agg.pricedQuantity += qty
+		}
 	}
 
 	if len(productCounts) == 0 {
 		return "", nil
+	}
+
+	priceOverrides, err := h.computePriceOverrides(pricingAggregates)
+	if err != nil {
+		return "", err
 	}
 
 	selections := make([]JobProductSelection, 0, len(productCounts))
@@ -1033,7 +1061,103 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 		return fmt.Sprintf("Could not auto-assign devices: %s", err.Error()), nil
 	}
 
+	if err := h.applyCustomPriceOverrides(job, priceOverrides); err != nil {
+		return "", err
+	}
+
 	return "", nil
+}
+
+func (h *PDFHandler) computePriceOverrides(aggregates map[uint]*productPricingAggregate) (map[uint]float64, error) {
+	if len(aggregates) == 0 {
+		return nil, nil
+	}
+
+	productIDs := make([]uint, 0, len(aggregates))
+	for pid, agg := range aggregates {
+		if agg == nil || agg.pricedQuantity == 0 || agg.totalAmount <= 0 {
+			continue
+		}
+		productIDs = append(productIDs, pid)
+	}
+
+	if len(productIDs) == 0 {
+		return nil, nil
+	}
+
+	var products []models.Product
+	if err := h.DB.Where("productID IN ?", productIDs).Find(&products).Error; err != nil {
+		return nil, err
+	}
+
+	productMap := make(map[uint]*models.Product, len(products))
+	for i := range products {
+		product := &products[i]
+		productMap[product.ProductID] = product
+	}
+
+	overrides := make(map[uint]float64)
+	for pid, agg := range aggregates {
+		if agg == nil || agg.pricedQuantity == 0 || agg.totalAmount <= 0 {
+			continue
+		}
+		unitPrice := agg.totalAmount / float64(agg.pricedQuantity)
+		if unitPrice <= 0 {
+			continue
+		}
+
+		defaultPrice := 0.0
+		if product := productMap[pid]; product != nil && product.ItemCostPerDay != nil {
+			defaultPrice = *product.ItemCostPerDay
+		}
+
+		if defaultPrice > 0 && math.Abs(defaultPrice-unitPrice) < 0.01 {
+			continue
+		}
+
+		overrides[pid] = unitPrice
+	}
+
+	if len(overrides) == 0 {
+		return nil, nil
+	}
+
+	return overrides, nil
+}
+
+func (h *PDFHandler) applyCustomPriceOverrides(job *models.Job, overrides map[uint]float64) error {
+	if len(overrides) == 0 {
+		return nil
+	}
+
+	jobDevices, err := h.JobHandler.jobRepo.GetJobDevices(job.JobID)
+	if err != nil {
+		return err
+	}
+
+	for _, jd := range jobDevices {
+		if jd.Device.DeviceID == "" {
+			continue
+		}
+		var productID uint
+		if jd.Device.ProductID != nil {
+			productID = *jd.Device.ProductID
+		} else if jd.Device.Product != nil {
+			productID = jd.Device.Product.ProductID
+		}
+		if productID == 0 {
+			continue
+		}
+		price, ok := overrides[productID]
+		if !ok || price <= 0 {
+			continue
+		}
+		if err := h.JobHandler.jobRepo.UpdateDevicePrice(job.JobID, jd.DeviceID, price); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func formatDateInput(t *time.Time) string {

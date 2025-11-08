@@ -578,6 +578,20 @@ func (e *PDFExtractor) parseStackedLineItem(
 			break
 		}
 
+		if containsKeyword(candidateLower, discountKeywords) || containsKeyword(candidateLower, finalPriceKeywords) {
+			if token, ok := findAmountToken(candidate); ok {
+				value := e.Parser.parseAmount(token)
+				if value > 0 {
+					lineTotal = value
+					priceValuesFound = 2
+					j++
+					continue
+				}
+			}
+			j++
+			continue
+		}
+
 		if priceRegex.MatchString(candidate) || strings.Contains(candidateLower, "€") {
 			value, err := parseEuroAmount(candidate)
 			if err == nil {
@@ -586,9 +600,20 @@ func (e *PDFExtractor) parseStackedLineItem(
 				} else if priceValuesFound == 1 {
 					lineTotal = value
 				} else {
-					break
+					j++
+					continue
 				}
 				priceValuesFound++
+				j++
+				continue
+			}
+		}
+
+		if token, ok := findAmountToken(candidate); ok {
+			value := e.Parser.parseAmount(token)
+			if value > 0 {
+				lineTotal = value
+				priceValuesFound = 2
 				j++
 				continue
 			}
