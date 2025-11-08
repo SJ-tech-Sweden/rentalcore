@@ -282,7 +282,7 @@ func (p *IntelligentParser) extractDiscount(lines []string, totalAmount float64)
 				return amount
 			}
 		}
-		if token, ok := findAmountToken(line); ok {
+		if token, ok := findDecimalAmountToken(line); ok {
 			amount := p.parseAmount(token)
 			if amount < 0 {
 				amount = -amount

@@ -363,7 +363,7 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 				discount = data.TotalAmount * pct / 100
 			}
 			if discount <= 0 {
-				if token, ok := findAmountToken(line); ok {
+				if token, ok := findDecimalAmountToken(line); ok {
 					discount = e.Parser.parseAmount(token)
 				}
 			}

@@ -42,6 +42,10 @@ func findAmountToken(line string) (string, bool) {
 	return findTokenWithRegex(line, fallbackAmountTokenRegex)
 }
 
+func findDecimalAmountToken(line string) (string, bool) {
+	return findTokenWithRegex(line, amountTokenRegex)
+}
+
 func findTokenWithRegex(line string, rx *regexp.Regexp) (string, bool) {
 	indexes := rx.FindAllStringIndex(line, -1)
 	if len(indexes) == 0 {
