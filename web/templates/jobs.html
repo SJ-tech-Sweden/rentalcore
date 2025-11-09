@@ -435,7 +435,8 @@
         jobID: null,
         heartbeatTimer: null,
         pollTimer: null,
-        knownPeerIds: new Set()
+        knownPeerIds: new Set(),
+        initialized: false
     };
 
     function getJobEditingEndpoint(jobID) {
@@ -457,11 +458,13 @@
 
             if (!jobEditSessionState.knownPeerIds.has(editor.user_id)) {
                 const name = editor.display_name || editor.username || 'Another user';
-                showToast(`${name} is already editing this job`, 'info');
+                const verb = jobEditSessionState.initialized ? 'started to edit' : 'is already editing';
+                showToast(`${name} ${verb} this job`, 'info');
             }
         });
 
         jobEditSessionState.knownPeerIds = nextPeerIds;
+        jobEditSessionState.initialized = true;
     }
 
     async function postJobEditingHeartbeat(jobID) {
@@ -506,6 +509,7 @@
 
         jobEditSessionState.jobID = jobID;
         jobEditSessionState.knownPeerIds = new Set();
+        jobEditSessionState.initialized = false;
 
         postJobEditingHeartbeat(jobID);
         jobEditSessionState.heartbeatTimer = setInterval(() => {
@@ -524,6 +528,7 @@
         const { jobID } = jobEditSessionState;
         jobEditSessionState.knownPeerIds = new Set();
         jobEditSessionState.jobID = null;
+        jobEditSessionState.initialized = false;
 
         if (jobEditSessionState.heartbeatTimer) {
             clearInterval(jobEditSessionState.heartbeatTimer);
