@@ -453,7 +453,10 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.31** (Latest) - Job Presence Schema Fix
+### **v3.32** (Latest) - Presence Messaging Polish
+- ✅ **Clearer Alerts**: Editors now see “started to edit” when someone joins mid-session, keeping the order of events obvious.
+
+### **v3.31** - Job Presence Schema Fix
 - ✅ **Migration Compatibility**: Aligns the new `job_edit_sessions` table with existing `jobs`/`users` column types so MySQL accepts the foreign keys without manual tweaks.
 - ✅ **Init SQL Updated**: Fresh installations now ship with the corrected schema.
 - ✅ **Applied in Production**: The running MySQL instance is already migrated via `026_add_job_edit_sessions.up.sql`.
