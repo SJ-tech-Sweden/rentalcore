@@ -2,12 +2,15 @@ package pdf
 
 import (
 	"database/sql"
+	"math"
 	"strings"
 	"time"
 
 	"go-barcode-webapp/internal/models"
 	"gorm.io/gorm"
 )
+
+const customerMatchThreshold = 60.0
 
 // CustomerMapper handles customer mapping between PDF text and CRM customers
 type CustomerMapper struct {
@@ -51,15 +54,40 @@ func (m *CustomerMapper) FindBestMatch(customerText string) (*models.PDFCustomer
 	bestScore := 0.0
 
 	for i := range customers {
-		name := customers[i].GetDisplayName()
-		score := calculateSimilarity(normalized, normalizeCustomerText(name))
+		candidateName := customers[i].GetDisplayName()
+		normalizedCandidate := normalizeCustomerText(candidateName)
+		score := calculateSimilarity(normalized, normalizedCandidate)
+
+		if normalizedCandidate != "" && (strings.Contains(normalizedCandidate, normalized) || strings.Contains(normalized, normalizedCandidate)) {
+			score = math.Max(score, 90)
+		}
+
+		if customers[i].CompanyName != nil {
+			companyNorm := normalizeCustomerText(*customers[i].CompanyName)
+			if companyNorm == normalized {
+				score = 100
+			} else if companyNorm != "" && (strings.Contains(companyNorm, normalized) || strings.Contains(normalized, companyNorm)) {
+				score = math.Max(score, 95)
+			}
+		}
+
+		if fullName := normalizeCustomerText(buildCustomerFullName(&customers[i])); fullName != "" {
+			fullScore := calculateSimilarity(normalized, fullName)
+			if fullScore > score {
+				score = fullScore
+			}
+			if strings.Contains(fullName, normalized) || strings.Contains(normalized, fullName) {
+				score = math.Max(score, 85)
+			}
+		}
+
 		if score > bestScore {
 			bestScore = score
 			bestMatch = &customers[i]
 		}
 	}
 
-	if bestScore >= 70.0 && bestMatch != nil {
+	if bestScore >= customerMatchThreshold && bestMatch != nil {
 		return nil, bestMatch, bestScore, nil
 	}
 
@@ -95,6 +123,39 @@ func normalizeCustomerText(text string) string {
 		}
 		return -1
 	}, text)
-	text = strings.Join(strings.Fields(text), " ")
+	fields := strings.Fields(text)
+	filtered := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if shouldSkipCustomerToken(field) {
+			continue
+		}
+		filtered = append(filtered, field)
+	}
+	text = strings.Join(filtered, " ")
 	return strings.TrimSpace(text)
+}
+
+func shouldSkipCustomerToken(token string) bool {
+	switch token {
+	case "gmbh", "mbh", "ug", "kg", "ag", "ltd", "inc", "co", "und", "&", "eventtechnik", "events", "event", "verleih":
+		return true
+	}
+	return false
+}
+
+func buildCustomerFullName(customer *models.Customer) string {
+	if customer == nil {
+		return ""
+	}
+	parts := make([]string, 0, 2)
+	if customer.FirstName != nil && strings.TrimSpace(*customer.FirstName) != "" {
+		parts = append(parts, *customer.FirstName)
+	}
+	if customer.LastName != nil && strings.TrimSpace(*customer.LastName) != "" {
+		parts = append(parts, *customer.LastName)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, " ")
 }

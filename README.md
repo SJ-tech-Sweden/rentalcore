@@ -453,7 +453,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.32** (Latest) - Presence Messaging Polish
+### **v3.33** (Latest) - OCR Duplicate Safeguards & Discounts (Issue #30)
+- ✅ **Duplicate Detection**: PDF mapping screen now warns when an identical job (same customer + product mix) already exists, with live re-checks and a public API hook for future automations.
+- 🛠️ **Ready-to-Check Counts**: Server-side mapping summaries now feed the duplicate detector immediately, so alerts appear as soon as products are mapped without reloading the page.
+- ✅ **Accurate Shortage Errors**: Device assignment failures mention the actual product name instead of opaque IDs, making shortages actionable.
+- ✅ **Discount-Aware Pricing**: Line items that include per-row discounts now feed the discounted totals into custom device prices, so the resulting job reflects the real quoted rates.
+- ✅ **Smarter Customer Auto-Match**: OCR names are normalized against company/legal suffixes and fuzzy-matched with a lower threshold, so existing customers auto-link without manual mapping.
+
+### **v3.32** - Presence Messaging Polish
 - ✅ **Clearer Alerts**: Editors now see “started to edit” when someone joins mid-session, keeping the order of events obvious.
 
 ### **v3.31** - Job Presence Schema Fix

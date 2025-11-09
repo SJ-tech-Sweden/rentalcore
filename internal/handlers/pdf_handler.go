@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +36,17 @@ type PDFHandler struct {
 	JobHandler     *JobHandler
 	AttachmentRepo *repository.JobAttachmentRepository
 	attachmentDir  string
+}
+
+type duplicateJobMatch struct {
+	JobID       uint   `json:"job_id"`
+	JobCode     string `json:"job_code"`
+	Description string `json:"description,omitempty"`
+	StartDate   string `json:"start_date,omitempty"`
+	EndDate     string `json:"end_date,omitempty"`
+	Status      string `json:"status,omitempty"`
+	DeviceCount int    `json:"device_count"`
+	JobsURL     string `json:"jobs_url"`
 }
 
 // NewPDFHandler creates a new PDF handler
@@ -532,6 +544,7 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 	// Get extraction items with product mappings
 	var items []models.PDFExtractionItem
 	h.DB.Where("extraction_id = ?", extractionID).Order("line_number").Find(&items)
+	productCounts, mappedProductItems, pendingProductItems := summarizeExtractionItems(items)
 
 	// For each item, get mapping suggestions
 	itemsWithSuggestions := make([]gin.H, 0, len(items))
@@ -606,6 +619,11 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		mappedPercent = int(math.Round(float64(mappedCount) / float64(totalItems) * 100))
 	}
 
+	currentCustomerID := uint(0)
+	if extraction.CustomerID.Valid && extraction.CustomerID.Int64 > 0 {
+		currentCustomerID = uint(extraction.CustomerID.Int64)
+	}
+
 	data := gin.H{
 		"extraction":    extraction,
 		"upload":        upload,
@@ -642,13 +660,42 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 	if extraction.CustomerName.Valid {
 		data["extractedCustomerName"] = extraction.CustomerName.String
 	}
-	if extraction.CustomerID.Valid {
-		data["selectedCustomerID"] = extraction.CustomerID.Int64
+	if currentCustomerID > 0 {
+		data["selectedCustomerID"] = currentCustomerID
 		var customer models.Customer
-		if err := h.DB.First(&customer, extraction.CustomerID.Int64).Error; err == nil {
+		if err := h.DB.First(&customer, currentCustomerID).Error; err == nil {
 			data["selectedCustomerName"] = customer.GetDisplayName()
 		}
 	}
+
+	canRunDuplicateCheck := mappedProductItems > 0 && currentCustomerID > 0
+	duplicateMatches := []duplicateJobMatch{}
+	if canRunDuplicateCheck {
+		excludeJobID := uint(0)
+		if upload.JobID.Valid && upload.JobID.Int64 > 0 {
+			excludeJobID = uint(upload.JobID.Int64)
+		}
+		if matches, err := h.detectDuplicateJobs(currentCustomerID, productCounts, excludeJobID); err != nil {
+			log.Printf("warning: duplicate detection failed: %v", err)
+		} else {
+			duplicateMatches = matches
+		}
+	}
+
+	data["duplicatePendingItems"] = pendingProductItems
+	data["duplicateCheckReady"] = canRunDuplicateCheck
+
+	bootstrap := map[string]interface{}{
+		"matches": duplicateMatches,
+		"ready":   canRunDuplicateCheck,
+		"pending": pendingProductItems,
+		"checked": canRunDuplicateCheck,
+	}
+	bootstrapJSON := `{"matches":[],"ready":false,"pending":0,"checked":false}`
+	if payload, err := json.Marshal(bootstrap); err == nil {
+		bootstrapJSON = string(payload)
+	}
+	data["duplicateCheckJSON"] = template.JS(bootstrapJSON)
 
 	if prefill := h.buildCustomerPrefill(&extraction); prefill != nil {
 		data["hasCustomerPrefill"] = true
@@ -767,6 +814,68 @@ func (h *PDFHandler) SearchCustomers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"customers": results})
+}
+
+// GetDuplicateJobCandidates returns possible duplicate jobs for an extraction
+func (h *PDFHandler) GetDuplicateJobCandidates(c *gin.Context) {
+	extractionID := c.Param("extraction_id")
+
+	var extraction models.PDFExtraction
+	if err := h.DB.First(&extraction, extractionID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Extraction not found"})
+		return
+	}
+
+	var items []models.PDFExtractionItem
+	if err := h.DB.Where("extraction_id = ?", extraction.ExtractionID).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load items"})
+		return
+	}
+
+	productCounts, mappedItems, pendingItems := summarizeExtractionItems(items)
+
+	customerID := uint(0)
+	if cid := strings.TrimSpace(c.Query("customer_id")); cid != "" {
+		if parsed, err := strconv.ParseUint(cid, 10, 32); err == nil && parsed > 0 {
+			customerID = uint(parsed)
+		}
+	}
+	if customerID == 0 && extraction.CustomerID.Valid && extraction.CustomerID.Int64 > 0 {
+		customerID = uint(extraction.CustomerID.Int64)
+	}
+
+	ready := mappedItems > 0 && customerID > 0
+
+	response := gin.H{
+		"matches": []duplicateJobMatch{},
+		"ready":   ready,
+		"pending": pendingItems,
+		"checked": false,
+	}
+
+	if !ready {
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	excludeJobID := uint(0)
+	var upload models.PDFUpload
+	if err := h.DB.First(&upload, extraction.UploadID).Error; err == nil {
+		if upload.JobID.Valid && upload.JobID.Int64 > 0 {
+			excludeJobID = uint(upload.JobID.Int64)
+		}
+	}
+
+	matches, err := h.detectDuplicateJobs(customerID, productCounts, excludeJobID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check duplicates"})
+		return
+	}
+
+	response["matches"] = matches
+	response["checked"] = true
+
+	c.JSON(http.StatusOK, response)
 }
 
 // SaveManualMapping saves a manual product mapping
@@ -1714,6 +1823,172 @@ func (h *PDFHandler) applyCustomPriceOverrides(job *models.Job, overrides map[ui
 	}
 
 	return nil
+}
+
+func summarizeExtractionItems(items []models.PDFExtractionItem) (map[uint]int, int, int) {
+	counts := make(map[uint]int)
+	mapped := 0
+	unmapped := 0
+
+	for _, item := range items {
+		if !item.MappedProductID.Valid {
+			unmapped++
+			continue
+		}
+		mapped++
+
+		qty := 1
+		if item.Quantity.Valid && item.Quantity.Int64 > 0 {
+			qty = int(item.Quantity.Int64)
+		}
+		counts[uint(item.MappedProductID.Int64)] += qty
+	}
+
+	return counts, mapped, unmapped
+}
+
+func (h *PDFHandler) detectDuplicateJobs(customerID uint, productCounts map[uint]int, excludeJobID uint) ([]duplicateJobMatch, error) {
+	if customerID == 0 || len(productCounts) == 0 {
+		return nil, nil
+	}
+
+	totalDevices := 0
+	for _, qty := range productCounts {
+		totalDevices += qty
+	}
+	if totalDevices == 0 {
+		return nil, nil
+	}
+
+	candidateQuery := h.DB.Table("jobs").
+		Select("jobs.jobID").
+		Joins("JOIN jobdevices jd ON jd.jobID = jobs.jobID").
+		Where("jobs.customerID = ?", customerID)
+	if excludeJobID > 0 {
+		candidateQuery = candidateQuery.Where("jobs.jobID <> ?", excludeJobID)
+	}
+
+	var candidateIDs []uint
+	if err := candidateQuery.Group("jobs.jobID").
+		Having("COUNT(*) = ?", totalDevices).
+		Scan(&candidateIDs).Error; err != nil {
+		return nil, err
+	}
+	if len(candidateIDs) == 0 {
+		return nil, nil
+	}
+
+	type jobProductRow struct {
+		JobID     uint
+		ProductID uint
+		Quantity  int
+	}
+
+	var rows []jobProductRow
+	if err := h.DB.Table("jobdevices AS jd").
+		Select("jd.jobID, dev.productID, COUNT(*) AS quantity").
+		Joins("JOIN devices dev ON dev.deviceID = jd.deviceID").
+		Where("jd.jobID IN ?", candidateIDs).
+		Where("dev.productID IS NOT NULL").
+		Group("jd.jobID, dev.productID").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	jobCounts := make(map[uint]map[uint]int)
+	jobTotals := make(map[uint]int)
+
+	for _, row := range rows {
+		if row.ProductID == 0 {
+			continue
+		}
+		if jobCounts[row.JobID] == nil {
+			jobCounts[row.JobID] = make(map[uint]int)
+		}
+		jobCounts[row.JobID][row.ProductID] = row.Quantity
+		jobTotals[row.JobID] += row.Quantity
+	}
+
+	matchingIDs := make([]uint, 0, len(candidateIDs))
+	for _, candidateID := range candidateIDs {
+		counts := jobCounts[candidateID]
+		if len(counts) == 0 {
+			continue
+		}
+		if len(counts) != len(productCounts) {
+			continue
+		}
+		match := true
+		for pid, qty := range productCounts {
+			if counts[pid] != qty {
+				match = false
+				break
+			}
+		}
+		if match {
+			matchingIDs = append(matchingIDs, candidateID)
+		}
+	}
+
+	if len(matchingIDs) == 0 {
+		return nil, nil
+	}
+
+	sort.Slice(matchingIDs, func(i, j int) bool { return matchingIDs[i] < matchingIDs[j] })
+
+	type jobInfo struct {
+		JobID       uint
+		JobCode     string
+		Description sql.NullString
+		StartDate   sql.NullTime
+		EndDate     sql.NullTime
+		StatusName  sql.NullString
+	}
+
+	var infoRows []jobInfo
+	if err := h.DB.Table("jobs").
+		Select("jobs.jobID, jobs.job_code, jobs.description, jobs.startDate, jobs.endDate, status.status AS status_name").
+		Joins("LEFT JOIN status ON status.statusID = jobs.statusID").
+		Where("jobs.jobID IN ?", matchingIDs).
+		Scan(&infoRows).Error; err != nil {
+		return nil, err
+	}
+
+	infoMap := make(map[uint]jobInfo, len(infoRows))
+	for _, info := range infoRows {
+		infoMap[info.JobID] = info
+		if jobTotals[info.JobID] == 0 {
+			jobTotals[info.JobID] = totalDevices
+		}
+	}
+
+	results := make([]duplicateJobMatch, 0, len(matchingIDs))
+	for _, jobID := range matchingIDs {
+		info, ok := infoMap[jobID]
+		if !ok {
+			continue
+		}
+
+		results = append(results, duplicateJobMatch{
+			JobID:       jobID,
+			JobCode:     info.JobCode,
+			Description: info.Description.String,
+			StartDate:   formatJobDate(info.StartDate),
+			EndDate:     formatJobDate(info.EndDate),
+			Status:      info.StatusName.String,
+			DeviceCount: jobTotals[jobID],
+			JobsURL:     fmt.Sprintf("/jobs?editJob=%d", jobID),
+		})
+	}
+
+	return results, nil
+}
+
+func formatJobDate(value sql.NullTime) string {
+	if value.Valid {
+		return value.Time.Format("2006-01-02")
+	}
+	return ""
 }
 
 func (h *PDFHandler) attachUploadToJob(upload *models.PDFUpload, jobID uint) {

@@ -315,16 +315,18 @@
                                 <div id="selectedProductsEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
                                     No products selected yet.
                                 </div>
-                                <table class="rc-table rc-table-compact" id="selectedProductsTable" style="display: none;">
-                                    <thead>
-                                        <tr>
-                                            <th>Product</th>
-                                            <th style="width: 120px;">Quantity</th>
-                                            <th style="width: 140px;">Available</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="selectedProductsTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th style="width: 120px;">Quantity</th>
+                                                <th style="width: 140px;">Available</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                             <input type="hidden" name="selected_products" id="selectedProductsInput" value="">
                         </div>
@@ -584,6 +586,8 @@
             box-shadow: var(--shadow-xl), 0 0 40px rgba(0, 0, 0, 0.4);
             position: relative;
             overflow: hidden;
+            min-height: 360px;
+            isolation: isolate;
         }
 
         .rc-product-tree-frame::before {
@@ -601,6 +605,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: var(--space-lg);
             padding: var(--space-lg);
             border-radius: var(--radius-md);
@@ -630,6 +635,8 @@
             display: flex;
             align-items: center;
             gap: var(--space-sm);
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .rc-btn.rc-btn-ghost {
@@ -651,6 +658,28 @@
             display: flex;
             flex-direction: column;
             gap: var(--space-md);
+            max-height: min(65vh, 640px);
+            overflow-y: auto;
+            padding-right: var(--space-sm);
+            padding-bottom: var(--space-md);
+            margin-right: calc(var(--space-sm) * -1);
+            scrollbar-width: thin;
+            scrollbar-color: var(--surface-3) transparent;
+            scroll-behavior: smooth;
+            scroll-padding-top: var(--space-lg);
+        }
+
+        .rc-product-tree::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .rc-product-tree::-webkit-scrollbar-thumb {
+            background: var(--surface-3);
+            border-radius: 999px;
+        }
+
+        .rc-product-tree::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         .rc-product-tree details {
@@ -1037,6 +1066,37 @@
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .rc-product-tree-frame {
+                padding: var(--space-lg) var(--space-md);
+                margin: 0 calc(var(--space-sm) * -1);
+                border-radius: var(--radius-md);
+                overflow: visible;
+            }
+
+            .rc-product-tree {
+                max-height: none;
+                padding-right: 0;
+                margin-right: 0;
+            }
+
+            .rc-product-tree summary {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-metrics {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+
             .rc-product-entry {
                 flex-wrap: wrap;
                 gap: var(--space-sm);
@@ -1048,11 +1108,13 @@
 
             .rc-product-entry-input {
                 flex: 1;
+                width: 100%;
             }
 
             .rc-product-entry-meta {
                 flex: 1;
                 justify-content: flex-start;
+                width: 100%;
             }
 
             .rc-product-tree-toolbar {
@@ -1063,6 +1125,7 @@
             .rc-product-tree-controls {
                 justify-content: stretch;
                 flex-wrap: wrap;
+                width: 100%;
             }
         }
     </style>

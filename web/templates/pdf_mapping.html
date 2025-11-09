@@ -16,6 +16,11 @@ const totalAmount = {{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}nul
 const initialDiscountValue = {{if .discountAmount}}{{printf "%.2f" .discountAmount}}{{else}}null{{end}};
 const initialDiscountType = {{printf "%q" .discountType}};
 const customerPrefill = {{.customerPrefillJSON}};
+const duplicateCheckBootstrap = {{if .duplicateCheckJSON}}{{.duplicateCheckJSON}}{{else}}{"matches":[],"ready":false,"pending":0,"checked":false}{{end}};
+let duplicateCheckReady = !!duplicateCheckBootstrap.ready;
+let duplicatePendingItems = duplicateCheckBootstrap.pending || 0;
+let duplicateCheckRan = !!duplicateCheckBootstrap.checked;
+const initialDuplicateMatches = duplicateCheckBootstrap.matches || [];
 
 function showStatusMessage(type, message) {
     const container = document.getElementById('mappingStatusMessage');
@@ -37,6 +42,117 @@ function showStatusMessage(type, message) {
             <i class="bi ${icon}"></i> ${message}
         </div>
     `;
+}
+
+function renderDuplicateMatches(matches, markChecked = true) {
+    const container = document.getElementById('duplicateJobWarning');
+    if (!container) {
+        return;
+    }
+
+    if (!selectedCustomerId) {
+        container.innerHTML = `
+            <div class="rc-alert rc-alert-info duplicate-alert">
+                <div><i class="bi bi-info-circle"></i> Select a customer to enable duplicate detection.</div>
+            </div>
+        `;
+        return;
+    }
+
+    if (!duplicateCheckReady) {
+        const note = duplicatePendingItems > 0
+            ? `Map the remaining ${duplicatePendingItems} item${duplicatePendingItems === 1 ? '' : 's'} to enable duplicate checks.`
+            : 'Map at least one item to enable duplicate detection.';
+        container.innerHTML = `
+            <div class="rc-alert rc-alert-info duplicate-alert">
+                <div class="duplicate-alert-header">
+                    <div><i class="bi bi-info-circle"></i><strong>Duplicate check not ready</strong></div>
+                    <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" onclick="refreshDuplicateCheck()">
+                        <i class="bi bi-arrow-repeat"></i> Try again
+                    </button>
+                </div>
+                <p>${note}</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (markChecked) {
+        duplicateCheckRan = true;
+    }
+
+    if (!matches || matches.length === 0) {
+        const pendingNote = duplicatePendingItems > 0
+            ? `<p class="rc-text-xs rc-text-muted">Still ${duplicatePendingItems} unmapped item${duplicatePendingItems === 1 ? '' : 's'} remaining.</p>`
+            : '';
+        container.innerHTML = `
+            <div class="rc-alert rc-alert-info duplicate-alert">
+                <div class="duplicate-alert-header">
+                    <div><i class="bi bi-check-circle"></i><strong>No duplicate jobs detected</strong></div>
+                    <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" onclick="refreshDuplicateCheck()">
+                        <i class="bi bi-arrow-repeat"></i> Check again
+                    </button>
+                </div>
+                <p>Based on the currently mapped products, no identical jobs exist for this customer.</p>
+                ${pendingNote}
+            </div>
+        `;
+        return;
+    }
+
+    const listItems = matches.map(match => {
+        const jobLabel = match.job_code || `Job #${match.job_id}`;
+        const dateRange = match.start_date && match.end_date
+            ? `${match.start_date} → ${match.end_date}`
+            : (match.start_date || match.end_date || '');
+        const status = match.status ? ` • ${match.status}` : '';
+        return `
+            <li>
+                <div>
+                    <div class="duplicate-job-title">${jobLabel}</div>
+                    ${dateRange ? `<div class="duplicate-meta">${dateRange}</div>` : ''}
+                    <div class="duplicate-meta">Devices: ${match.device_count}${status}</div>
+                </div>
+                <a href="${match.jobs_url}" target="_blank" rel="noopener" class="rc-btn rc-btn-outline rc-btn-xs">
+                    <i class="bi bi-box-arrow-up-right"></i> Open
+                </a>
+            </li>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="rc-alert rc-alert-warning duplicate-alert">
+            <div class="duplicate-alert-header">
+                <div><i class="bi bi-exclamation-triangle"></i><strong>Possible duplicate job${matches.length > 1 ? 's' : ''} detected</strong></div>
+                <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" onclick="refreshDuplicateCheck()">
+                    <i class="bi bi-arrow-repeat"></i> Check again
+                </button>
+            </div>
+            <ul class="duplicate-list">
+                ${listItems}
+            </ul>
+            <p class="rc-text-xs rc-text-muted">Matches are based on the mapped products for this extraction.</p>
+        </div>
+    `;
+}
+
+async function refreshDuplicateCheck() {
+    if (!selectedCustomerId) {
+        duplicateCheckReady = false;
+        renderDuplicateMatches([], false);
+        return;
+    }
+    try {
+        const response = await fetch(`/api/v1/pdf/extractions/${extractionId}/duplicates?customer_id=${selectedCustomerId}`);
+        const payload = await response.json();
+        duplicateCheckReady = !!payload.ready;
+        duplicatePendingItems = payload.pending || 0;
+        duplicateCheckRan = !!payload.checked;
+        renderDuplicateMatches(payload.matches || []);
+    } catch (error) {
+        console.error('Duplicate check error:', error);
+        showStatusMessage('error', 'Failed to refresh duplicate information.');
+    }
 }
 
 function getConfidenceClass(score) {
@@ -220,6 +336,7 @@ async function submitCustomerCreation() {
         updateCustomerBadge();
         closeCustomerCreationModal();
         showStatusMessage('success', `Customer #${selectedCustomerId} created and linked.`);
+        refreshDuplicateCheck();
     } catch (error) {
         console.error('Customer creation error:', error);
         showStatusMessage('error', error.message || 'Failed to create customer');
@@ -659,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStats();
     updateStats();
     updateCustomerBadge();
+    renderDuplicateMatches(initialDuplicateMatches, false);
 });
 </script>
     <meta charset="UTF-8">
@@ -843,6 +961,44 @@ document.addEventListener('DOMContentLoaded', () => {
             gap: 12px;
             align-items: end;
         }
+        .duplicate-warning {
+            margin-top: 16px;
+        }
+        .duplicate-alert {
+            margin-top: 0;
+        }
+        .duplicate-alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .duplicate-list {
+            list-style: none;
+            margin: 12px 0 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .duplicate-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .duplicate-list li:first-child {
+            border-top: none;
+        }
+        .duplicate-job-title {
+            font-weight: 600;
+        }
+        .duplicate-meta {
+            font-size: 12px;
+            color: var(--rc-text-secondary);
+        }
         .progress-bar {
             width: 100%;
             height: 8px;
@@ -883,7 +1039,54 @@ document.addEventListener('DOMContentLoaded', () => {
             align-items: center;
             margin-bottom: 16px;
         }
-    
+        @media (max-width: 1024px) {
+            .mapping-wrapper {
+                padding: 32px 18px 72px;
+            }
+            .mapping-card {
+                padding: 24px;
+            }
+        }
+        @media (max-width: 768px) {
+            .mapping-hero {
+                grid-template-columns: 1fr;
+                padding: 24px;
+                gap: 20px;
+            }
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .hero-actions .rc-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .mapping-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .mapping-grid {
+                grid-template-columns: 1fr;
+            }
+            .invoice-summary {
+                grid-template-columns: 1fr;
+            }
+            .discount-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+        @media (max-width: 520px) {
+            .mapping-card {
+                padding: 20px;
+            }
+            .mapping-hero {
+                padding: 20px;
+            }
+            .mapping-toolbar button,
+            .mapping-toolbar .rc-btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body class="rc-animate-fade-in mapping-body">
@@ -941,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="progress-bar">
                 <div class="progress-fill" id="progressBar" style="width: {{.mappedPercent}}%"></div>
             </div>
+            <div id="duplicateJobWarning" class="duplicate-warning"></div>
             <div id="mappingStatusMessage" class="status-message-container"></div>
         </div>
 

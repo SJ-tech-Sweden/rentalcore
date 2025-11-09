@@ -218,6 +218,19 @@ func (r *JobRepository) Exists(jobID uint) (bool, error) {
 	return count > 0, nil
 }
 
+// GetProductName returns the product name for the given productID.
+func (r *JobRepository) GetProductName(productID uint) (string, error) {
+	if productID == 0 {
+		return "", nil
+	}
+
+	var product models.Product
+	if err := r.db.Select("name").First(&product, productID).Error; err != nil {
+		return "", err
+	}
+	return product.Name, nil
+}
+
 // RemoveAllDevicesFromJob removes all devices assigned to a specific job
 func (r *JobRepository) RemoveAllDevicesFromJob(jobID uint) error {
 	return r.db.Where("jobID = ?", jobID).Delete(&models.JobDevice{}).Error

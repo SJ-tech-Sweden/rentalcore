@@ -714,6 +714,7 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 		return nil, fmt.Errorf("job must have start and end dates")
 	}
 
+	productNameCache := make(map[uint]string)
 	currentByProduct := make(map[uint][]string)
 	for _, jd := range currentDevices {
 		if jd.Device.ProductID == nil {
@@ -821,8 +822,13 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 		}
 
 		if remaining > 0 {
-			return nil, fmt.Errorf("not enough available devices for product %d: needed %d, but only %d more available",
-				productID, needed, needed-remaining)
+			productLabel := h.lookupProductLabel(productID, productNameCache)
+			if productLabel == "" {
+				productLabel = fmt.Sprintf("product %d", productID)
+			}
+			available := needed - remaining
+			return nil, fmt.Errorf("not enough available devices for %s: needed %d but only %d available in the selected period",
+				productLabel, needed, available)
 		}
 	}
 
@@ -876,6 +882,35 @@ func (h *JobHandler) applyProductSelections(job *models.Job, selections []JobPro
 // ApplyProductSelections exposes product selection logic for programmatic consumers
 func (h *JobHandler) ApplyProductSelections(job *models.Job, selections []JobProductSelection) error {
 	return h.applyProductSelections(job, selections)
+}
+
+func (h *JobHandler) lookupProductLabel(productID uint, cache map[uint]string) string {
+	if cache != nil {
+		if label, ok := cache[productID]; ok {
+			return label
+		}
+	}
+
+	name, err := h.jobRepo.GetProductName(productID)
+	if err != nil {
+		if cache != nil {
+			cache[productID] = ""
+		}
+		return ""
+	}
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		if cache != nil {
+			cache[productID] = ""
+		}
+		return ""
+	}
+
+	label := fmt.Sprintf("%s (ID %d)", trimmed, productID)
+	if cache != nil {
+		cache[productID] = label
+	}
+	return label
 }
 
 func (h *JobHandler) CreateJobAPI(c *gin.Context) {

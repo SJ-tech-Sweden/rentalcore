@@ -98,10 +98,16 @@
             font-weight: 600;
             color: var(--rc-text-primary);
         }
+        .items-table-wrapper {
+            border-radius: 18px;
+            border: 1px solid var(--rc-border, rgba(255,255,255,0.08));
+            overflow-x: auto;
+            margin-top: 20px;
+        }
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            min-width: 720px;
         }
         .items-table thead {
             background: rgba(255,255,255,0.02);
@@ -123,6 +129,70 @@
         .items-table tr:hover {
             background: rgba(255,255,255,0.03);
         }
+        .items-card-list {
+            display: none;
+            margin-top: 20px;
+        }
+        .item-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--rc-border, rgba(255,255,255,0.08));
+            border-radius: 18px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .item-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .item-card-line {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--rc-text-secondary);
+        }
+        .item-card-body {
+            display: grid;
+            gap: 12px;
+        }
+        .item-card-description {
+            margin: 0;
+            font-weight: 600;
+            color: var(--rc-text-primary);
+        }
+        .item-card-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+        .item-card-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 13px;
+        }
+        .item-card-field span:first-child {
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            color: var(--rc-text-secondary);
+        }
+        .item-card-field span:last-child {
+            font-weight: 600;
+            color: var(--rc-text-primary);
+        }
+        .confidence-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
         .badge {
             display: inline-block;
             padding: 4px 10px;
@@ -137,10 +207,62 @@
         .badge-confirmed { background: rgba(192,85,36,0.2); color: #fb923c; }
         .action-buttons {
             display: flex;
-            gap: 10px;
+            justify-content: flex-end;
+            gap: 12px;
             margin-top: 25px;
+            flex-wrap: wrap;
         }
-    
+        @media (max-width: 900px) {
+            .review-wrapper {
+                padding: 32px 16px 64px;
+            }
+            .review-hero {
+                grid-template-columns: 1fr;
+            }
+            .hero-block {
+                padding: 22px;
+            }
+        }
+        @media (max-width: 768px) {
+            .extraction-card {
+                padding: 20px;
+            }
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .hero-actions .rc-btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .extraction-info {
+                grid-template-columns: 1fr;
+            }
+            .items-table-wrapper {
+                display: none;
+            }
+            .items-card-list {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+            .item-card-fields {
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            }
+            .action-buttons {
+                flex-direction: column;
+            }
+            .action-buttons .rc-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        @media (max-width: 520px) {
+            .item-card-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+
     </style>
 </head>
 <body class="rc-animate-fade-in review-body">
@@ -250,59 +372,110 @@
             </h2>
 
             {{if .items}}
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">Line</th>
-                        <th>Product Description</th>
-                        <th style="width: 220px;">Mapped Product</th>
-                        <th style="width: 100px; text-align: center;">Quantity</th>
-                        <th style="width: 120px; text-align: right;">Unit Price</th>
-                        <th style="width: 120px; text-align: right;">Line Total</th>
-                        <th style="width: 150px; text-align: center;">Status</th>
-                        <th style="width: 100px; text-align: center;">Confidence</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range .items}}
-                    <tr>
-                        <td style="font-family: 'JetBrains Mono', monospace; color: var(--rc-text-secondary);">
-                            {{if .LineNumber.Valid}}#{{.LineNumber.Int64}}{{else}}-{{end}}
-                        </td>
-                        <td style="font-weight: 500;">{{.RawProductText}}</td>
-                        <td>
-                            {{with $product := index $.mappedProducts .ItemID}}
-                                <div style="font-weight: 600;">{{$product.Name}}</div>
-                                <div style="font-size: 12px; color: var(--rc-text-secondary);">ID {{$product.ProductID}}</div>
-                            {{else}}
-                                <span style="color: var(--rc-text-secondary);">—</span>
-                            {{end}}
-                        </td>
-                        <td style="text-align: center; font-family: 'JetBrains Mono', monospace;">
-                            {{if .Quantity.Valid}}{{.Quantity.Int64}}x{{else}}-{{end}}
-                        </td>
-                        <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">
-                            {{if .UnitPrice.Valid}}{{printf "%.2f" .UnitPrice.Float64}} EUR{{else}}-{{end}}
-                        </td>
-                        <td style="text-align: right; font-weight: 600; font-family: 'JetBrains Mono', monospace;">
-                            {{if .LineTotal.Valid}}{{printf "%.2f" .LineTotal.Float64}} EUR{{else}}-{{end}}
-                        </td>
-                        <td style="text-align: center;">
-                            <span class="badge badge-{{if eq .MappingStatus "auto_mapped"}}auto{{else if eq .MappingStatus "user_confirmed"}}confirmed{{else}}pending{{end}}">
-                                {{.MappingStatus}}
-                            </span>
-                        </td>
-                        <td style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+            <div class="items-table-wrapper">
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Line</th>
+                            <th>Product Description</th>
+                            <th style="width: 220px;">Mapped Product</th>
+                            <th style="width: 100px; text-align: center;">Quantity</th>
+                            <th style="width: 120px; text-align: right;">Unit Price</th>
+                            <th style="width: 120px; text-align: right;">Line Total</th>
+                            <th style="width: 150px; text-align: center;">Status</th>
+                            <th style="width: 100px; text-align: center;">Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .items}}
+                        <tr>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: var(--rc-text-secondary);">
+                                {{if .LineNumber.Valid}}#{{.LineNumber.Int64}}{{else}}-{{end}}
+                            </td>
+                            <td style="font-weight: 500;">{{.RawProductText}}</td>
+                            <td>
+                                {{with $product := index $.mappedProducts .ItemID}}
+                                    <div style="font-weight: 600;">{{$product.Name}}</div>
+                                    <div style="font-size: 12px; color: var(--rc-text-secondary);">ID {{$product.ProductID}}</div>
+                                {{else}}
+                                    <span style="color: var(--rc-text-secondary);">—</span>
+                                {{end}}
+                            </td>
+                            <td style="text-align: center; font-family: 'JetBrains Mono', monospace;">
+                                {{if .Quantity.Valid}}{{.Quantity.Int64}}x{{else}}-{{end}}
+                            </td>
+                            <td style="text-align: right; font-family: 'JetBrains Mono', monospace;">
+                                {{if .UnitPrice.Valid}}{{printf "%.2f" .UnitPrice.Float64}} EUR{{else}}-{{end}}
+                            </td>
+                            <td style="text-align: right; font-weight: 600; font-family: 'JetBrains Mono', monospace;">
+                                {{if .LineTotal.Valid}}{{printf "%.2f" .LineTotal.Float64}} EUR{{else}}-{{end}}
+                            </td>
+                            <td style="text-align: center;">
+                                <span class="badge badge-{{if eq .MappingStatus "auto_mapped"}}auto{{else if eq .MappingStatus "user_confirmed"}}confirmed{{else}}pending{{end}}">
+                                    {{.MappingStatus}}
+                                </span>
+                            </td>
+                            <td style="text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+                                {{if .MappingConfidence.Valid}}
+                                    {{printf "%.0f" .MappingConfidence.Float64}}%
+                                {{else}}
+                                    <span style="color: var(--rc-text-secondary);">-</span>
+                                {{end}}
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+            <div class="items-card-list">
+                {{range .items}}
+                <article class="item-card">
+                    <div class="item-card-header">
+                        <span class="item-card-line">
+                            {{if .LineNumber.Valid}}Line #{{.LineNumber.Int64}}{{else}}Line{{end}}
+                        </span>
+                        <span class="badge badge-{{if eq .MappingStatus "auto_mapped"}}auto{{else if eq .MappingStatus "user_confirmed"}}confirmed{{else}}pending{{end}}">
+                            {{.MappingStatus}}
+                        </span>
+                    </div>
+                    <div class="item-card-body">
+                        <p class="item-card-description">{{.RawProductText}}</p>
+                        <div class="item-card-fields">
+                            <div class="item-card-field">
+                                <span>Mapped Product</span>
+                                <span>
+                                    {{with $product := index $.mappedProducts .ItemID}}
+                                        {{$product.Name}} <small style="display:block; font-weight:400; color: var(--rc-text-secondary);">ID {{$product.ProductID}}</small>
+                                    {{else}}
+                                        <span style="color: var(--rc-text-secondary);">—</span>
+                                    {{end}}
+                                </span>
+                            </div>
+                            <div class="item-card-field">
+                                <span>Quantity</span>
+                                <span>{{if .Quantity.Valid}}{{.Quantity.Int64}}x{{else}}-{{end}}</span>
+                            </div>
+                            <div class="item-card-field">
+                                <span>Unit Price</span>
+                                <span>{{if .UnitPrice.Valid}}€{{printf "%.2f" .UnitPrice.Float64}}{{else}}-{{end}}</span>
+                            </div>
+                            <div class="item-card-field">
+                                <span>Line Total</span>
+                                <span>{{if .LineTotal.Valid}}€{{printf "%.2f" .LineTotal.Float64}}{{else}}-{{end}}</span>
+                            </div>
+                        </div>
+                        <div class="confidence-pill">
+                            <i class="bi bi-activity"></i>
                             {{if .MappingConfidence.Valid}}
-                                {{printf "%.0f" .MappingConfidence.Float64}}%
+                                {{printf "%.0f" .MappingConfidence.Float64}}% confidence
                             {{else}}
-                                <span style="color: var(--rc-text-secondary);">-</span>
+                                Pending confidence
                             {{end}}
-                        </td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
+                        </div>
+                    </div>
+                </article>
+                {{end}}
+            </div>
             {{else}}
             <div style="text-align: center; padding: 40px; color: var(--rc-text-secondary);">
                 <i class="bi bi-inbox" style="font-size: 48px; display: block; margin-bottom: 15px;"></i>

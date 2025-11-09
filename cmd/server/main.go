@@ -1358,8 +1358,9 @@ func setupRoutes(r *gin.Engine,
 				apiPDF.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				apiPDF.GET("/products/search", pdfHandler.SearchProducts)
 				apiPDF.GET("/customers/search", pdfHandler.SearchCustomers)
-			apiPDF.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
-			apiPDF.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
+				apiPDF.GET("/extractions/:extraction_id/duplicates", pdfHandler.GetDuplicateJobCandidates)
+				apiPDF.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
+				apiPDF.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
 				apiPDF.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
 			}
 
@@ -1462,8 +1463,9 @@ func setupRoutes(r *gin.Engine,
 				pdfAPI.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				pdfAPI.GET("/products/search", pdfHandler.SearchProducts)
 				pdfAPI.GET("/customers/search", pdfHandler.SearchCustomers)
-			pdfAPI.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
-			pdfAPI.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
+				pdfAPI.GET("/extractions/:extraction_id/duplicates", pdfHandler.GetDuplicateJobCandidates)
+				pdfAPI.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
+				pdfAPI.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
 				pdfAPI.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
 			}
 
