@@ -453,7 +453,12 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v2.83** (Latest) - PDF Invoice/Offer Processing (Phase 1 - Issue #24)
+### **v3.29** (Latest) - Job Attachment Delete Control (Issue #28)
+- ✅ **Inline Delete Action**: Added dedicated delete buttons next to preview/download controls inside the Job Details modal attachments list.
+- ✅ **Two-Way Sync**: When a file is removed, the view-only modal and edit modal attachment lists (plus counters) refresh automatically to stay in sync.
+- ✅ **Safer Preview Handling**: Any open preview closes automatically if its backing file is deleted, preventing stale downloads or 404s.
+
+### **v2.83** - PDF Invoice/Offer Processing (Phase 1 - Issue #24)
 - ✅ **PDF Upload Interface**: New "Upload PDF" button in job creation form
 - ✅ **Database Schema**: 4 new tables (pdf_uploads, pdf_extractions, pdf_extraction_items, pdf_product_mappings)
 - ✅ **Text Extraction**: Automated PDF text parsing with regex-based data extraction

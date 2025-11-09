@@ -2579,6 +2579,9 @@ function showToast(message, type) {
                                 <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="downloadJobDetailsAttachment(${attachment.attachmentID})" title="Download">
                                     <i class="bi bi-download"></i>
                                 </button>
+                                <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="deleteJobDetailsAttachment(${attachment.attachmentID}, '${attachment.originalFilename}')" title="Delete" style="color: var(--error);">
+                                    <i class="bi bi-trash"></i>
+                                </button>
                             </div>
                         </div>
                     `).join('')}
@@ -2617,6 +2620,42 @@ function showToast(message, type) {
 
     function downloadJobDetailsAttachment(attachmentID) {
         window.open(`/api/jobs/attachments/${attachmentID}/download`, '_blank');
+    }
+
+    async function deleteJobDetailsAttachment(attachmentID, filename) {
+        if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+            return;
+        }
+
+        const modal = document.getElementById('jobDetailsModal');
+        const jobID = modal ? modal.getAttribute('data-current-job-id') : null;
+
+        try {
+            const response = await fetch(`/api/jobs/attachments/${attachmentID}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                showToast('Attachment deleted successfully!', 'success');
+
+                if (currentPreviewFileData && currentPreviewFileData.attachmentID === attachmentID) {
+                    hideFilePreviewModal();
+                }
+
+                if (jobID) {
+                    loadJobDetailsAttachments(jobID);
+                    if (typeof loadEditJobAttachments === 'function') {
+                        loadEditJobAttachments(jobID);
+                    }
+                }
+            } else {
+                showToast('Failed to delete attachment: ' + (result.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting attachment:', error);
+            showToast('Error deleting attachment', 'error');
+        }
     }
 
     // File Preview Variables
