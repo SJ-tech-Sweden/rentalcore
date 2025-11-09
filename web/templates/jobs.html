@@ -28,6 +28,14 @@
 </head>
 <body class="rc-animate-fade-in">
     {{template "navbar.html" .}}
+    <script>
+        window.RentalCoreCurrentUser = {
+            id: {{if .user}}{{.user.UserID}}{{else}}null{{end}},
+            username: {{if .user}}{{printf "%q" .user.Username}}{{else}}""{{end}},
+            firstName: {{if .user}}{{printf "%q" .user.FirstName}}{{else}}""{{end}},
+            lastName: {{if .user}}{{printf "%q" .user.LastName}}{{else}}""{{end}}
+        };
+    </script>
 
     <!-- Main Content -->
     <main class="rc-container rc-mt-lg">
@@ -421,6 +429,116 @@
         returnToJobSummary();
     }
 
+    const JOB_EDIT_HEARTBEAT_INTERVAL = 20000;
+    const JOB_EDIT_POLL_INTERVAL = 5000;
+    const jobEditSessionState = {
+        jobID: null,
+        heartbeatTimer: null,
+        pollTimer: null,
+        knownPeerIds: new Set()
+    };
+
+    function getJobEditingEndpoint(jobID) {
+        return `/api/v1/jobs/${jobID}/editing`;
+    }
+
+    function handleJobEditingPeersResponse(data) {
+        if (!data || !Array.isArray(data.active_editors)) {
+            jobEditSessionState.knownPeerIds = new Set();
+            return;
+        }
+
+        const nextPeerIds = new Set();
+        data.active_editors.forEach(editor => {
+            if (!editor || typeof editor.user_id === 'undefined') {
+                return;
+            }
+            nextPeerIds.add(editor.user_id);
+
+            if (!jobEditSessionState.knownPeerIds.has(editor.user_id)) {
+                const name = editor.display_name || editor.username || 'Another user';
+                showToast(`${name} is already editing this job`, 'info');
+            }
+        });
+
+        jobEditSessionState.knownPeerIds = nextPeerIds;
+    }
+
+    async function postJobEditingHeartbeat(jobID) {
+        try {
+            const response = await fetch(getJobEditingEndpoint(jobID), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                handleJobEditingPeersResponse(data);
+            }
+        } catch (error) {
+            console.warn('Failed to send job editing heartbeat', error);
+        }
+    }
+
+    async function fetchJobEditingPeers(jobID) {
+        try {
+            const response = await fetch(getJobEditingEndpoint(jobID));
+            if (response.ok) {
+                const data = await response.json();
+                handleJobEditingPeersResponse(data);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch job editing peers', error);
+        }
+    }
+
+    function startJobEditSession(jobID) {
+        if (!window.RentalCoreCurrentUser || !window.RentalCoreCurrentUser.id) {
+            return;
+        }
+
+        if (jobEditSessionState.jobID === jobID) {
+            return;
+        }
+
+        stopJobEditSession();
+
+        jobEditSessionState.jobID = jobID;
+        jobEditSessionState.knownPeerIds = new Set();
+
+        postJobEditingHeartbeat(jobID);
+        jobEditSessionState.heartbeatTimer = setInterval(() => {
+            postJobEditingHeartbeat(jobID);
+        }, JOB_EDIT_HEARTBEAT_INTERVAL);
+        jobEditSessionState.pollTimer = setInterval(() => {
+            fetchJobEditingPeers(jobID);
+        }, JOB_EDIT_POLL_INTERVAL);
+    }
+
+    function stopJobEditSession() {
+        if (!jobEditSessionState.jobID) {
+            return;
+        }
+
+        const { jobID } = jobEditSessionState;
+        jobEditSessionState.knownPeerIds = new Set();
+        jobEditSessionState.jobID = null;
+
+        if (jobEditSessionState.heartbeatTimer) {
+            clearInterval(jobEditSessionState.heartbeatTimer);
+            jobEditSessionState.heartbeatTimer = null;
+        }
+        if (jobEditSessionState.pollTimer) {
+            clearInterval(jobEditSessionState.pollTimer);
+            jobEditSessionState.pollTimer = null;
+        }
+
+        fetch(getJobEditingEndpoint(jobID), { method: 'DELETE' }).catch(() => {});
+    }
+
+    window.addEventListener('beforeunload', stopJobEditSession);
+
     let currentJobID = null;
 
     function expandToDeviceView(jobID) {
@@ -602,6 +720,7 @@
         
         // Show modal with loading state
         modal.style.display = 'flex';
+        startJobEditSession(jobID);
         content.innerHTML = `
             <div class="rc-text-center rc-py-xl">
                 <div class="rc-spinner"></div>
@@ -761,16 +880,18 @@
                                                         <div id="editSelectedProductsEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
                                                             No products selected yet.
                                                         </div>
-                                                        <table class="rc-table rc-table-compact" id="editSelectedProductsTable" style="display: none;">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Product</th>
-                                                                    <th style="width: 120px;">Quantity</th>
-                                                                    <th style="width: 140px;">Available</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody></tbody>
-                                                        </table>
+                                                        <div class="rc-table-scroll">
+                                                            <table class="rc-table rc-table-compact" id="editSelectedProductsTable" style="display: none;">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Product</th>
+                                                                        <th style="width: 120px;">Quantity</th>
+                                                                        <th style="width: 140px;">Available</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody></tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
                                                     <input type="hidden" name="selected_products" id="editSelectedProductsInput" value="">
                                                 </div>
@@ -850,6 +971,7 @@
 
     function closeEditJobModal() {
         document.getElementById('jobEditModal').style.display = 'none';
+        stopJobEditSession();
     }
 
     function openNewJobModal() {
@@ -3881,6 +4003,8 @@ function showToast(message, type) {
             box-shadow: var(--shadow-xl), 0 0 40px rgba(0, 0, 0, 0.4);
             position: relative;
             overflow: hidden;
+            min-height: 360px;
+            isolation: isolate;
         }
 
         .rc-product-tree-frame::before {
@@ -3898,6 +4022,7 @@ function showToast(message, type) {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: var(--space-lg);
             padding: var(--space-lg);
             border-radius: var(--radius-md);
@@ -3927,6 +4052,8 @@ function showToast(message, type) {
             display: flex;
             align-items: center;
             gap: var(--space-sm);
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         /* Product Tree - Enhanced Visual Hierarchy */
@@ -3934,6 +4061,28 @@ function showToast(message, type) {
             display: flex;
             flex-direction: column;
             gap: var(--space-md);
+            max-height: min(65vh, 640px);
+            overflow-y: auto;
+            padding-right: var(--space-sm);
+            margin-right: calc(var(--space-sm) * -1);
+            scrollbar-width: thin;
+            scrollbar-color: var(--surface-3) transparent;
+            scroll-behavior: smooth;
+            scroll-padding-top: var(--space-lg);
+            padding-bottom: var(--space-md);
+        }
+
+        .rc-product-tree::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .rc-product-tree::-webkit-scrollbar-thumb {
+            background: var(--surface-3);
+            border-radius: 999px;
+        }
+
+        .rc-product-tree::-webkit-scrollbar-track {
+            background: transparent;
         }
 
         .rc-product-tree details {
@@ -4320,6 +4469,37 @@ function showToast(message, type) {
 
         /* Responsive Design */
         @media (max-width: 768px) {
+            .rc-product-tree-frame {
+                padding: var(--space-lg) var(--space-md);
+                margin: 0 calc(var(--space-sm) * -1);
+                border-radius: var(--radius-md);
+                overflow: visible;
+            }
+
+            .rc-product-tree {
+                max-height: none;
+                padding-right: 0;
+                margin-right: 0;
+            }
+
+            .rc-product-tree summary {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-metrics {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+
             .rc-product-entry {
                 flex-wrap: wrap;
                 gap: var(--space-sm);
@@ -4331,11 +4511,13 @@ function showToast(message, type) {
 
             .rc-product-entry-input {
                 flex: 1;
+                width: 100%;
             }
 
             .rc-product-entry-meta {
                 flex: 1;
                 justify-content: flex-start;
+                width: 100%;
             }
 
             .rc-product-tree-toolbar {
@@ -4346,6 +4528,7 @@ function showToast(message, type) {
             .rc-product-tree-controls {
                 justify-content: stretch;
                 flex-wrap: wrap;
+                width: 100%;
             }
         }
         .pdf-modal-overlay {

@@ -15,7 +15,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const jobDebugLogsEnabled = false
+const (
+	jobDebugLogsEnabled  = false
+	jobEditingSessionTTL = 2 * time.Minute
+)
 
 func jobDebugLog(format string, args ...interface{}) {
 	if !jobDebugLogsEnabled {
@@ -107,11 +110,12 @@ func parseProductSelectionsFromInterface(value interface{}) ([]JobProductSelecti
 }
 
 type JobHandler struct {
-	jobRepo         *repository.JobRepository
-	deviceRepo      *repository.DeviceRepository
-	customerRepo    *repository.CustomerRepository
-	statusRepo      *repository.StatusRepository
-	jobCategoryRepo *repository.JobCategoryRepository
+	jobRepo            *repository.JobRepository
+	deviceRepo         *repository.DeviceRepository
+	customerRepo       *repository.CustomerRepository
+	statusRepo         *repository.StatusRepository
+	jobCategoryRepo    *repository.JobCategoryRepository
+	jobEditSessionRepo *repository.JobEditSessionRepository
 }
 
 type JobProductSelection struct {
@@ -119,13 +123,34 @@ type JobProductSelection struct {
 	Quantity  int  `json:"quantity"`
 }
 
-func NewJobHandler(jobRepo *repository.JobRepository, deviceRepo *repository.DeviceRepository, customerRepo *repository.CustomerRepository, statusRepo *repository.StatusRepository, jobCategoryRepo *repository.JobCategoryRepository) *JobHandler {
+func formatUserDisplayName(user *models.User) string {
+	if user == nil {
+		return ""
+	}
+
+	first := strings.TrimSpace(user.FirstName)
+	last := strings.TrimSpace(user.LastName)
+
+	switch {
+	case first != "" && last != "":
+		return fmt.Sprintf("%s %s", first, last)
+	case first != "":
+		return first
+	case last != "":
+		return last
+	default:
+		return user.Username
+	}
+}
+
+func NewJobHandler(jobRepo *repository.JobRepository, deviceRepo *repository.DeviceRepository, customerRepo *repository.CustomerRepository, statusRepo *repository.StatusRepository, jobCategoryRepo *repository.JobCategoryRepository, jobEditSessionRepo *repository.JobEditSessionRepository) *JobHandler {
 	return &JobHandler{
-		jobRepo:         jobRepo,
-		deviceRepo:      deviceRepo,
-		customerRepo:    customerRepo,
-		statusRepo:      statusRepo,
-		jobCategoryRepo: jobCategoryRepo,
+		jobRepo:            jobRepo,
+		deviceRepo:         deviceRepo,
+		customerRepo:       customerRepo,
+		statusRepo:         statusRepo,
+		jobCategoryRepo:    jobCategoryRepo,
+		jobEditSessionRepo: jobEditSessionRepo,
 	}
 }
 
@@ -1125,6 +1150,113 @@ func (h *JobHandler) RemoveDeviceAPI(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Device removed successfully"})
+}
+
+func (h *JobHandler) respondWithActiveEditors(c *gin.Context, jobID uint, currentUserID uint) {
+	if h.jobEditSessionRepo == nil {
+		c.JSON(http.StatusOK, gin.H{"active_editors": []interface{}{}})
+		return
+	}
+
+	cutoff := time.Now().Add(-jobEditingSessionTTL)
+	editors, err := h.jobEditSessionRepo.GetActiveEditors(jobID, currentUserID, cutoff)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load editing sessions"})
+		return
+	}
+
+	response := make([]gin.H, 0, len(editors))
+	for _, editor := range editors {
+		response = append(response, gin.H{
+			"user_id":      editor.UserID,
+			"username":     editor.Username,
+			"display_name": editor.DisplayName,
+			"last_seen":    editor.LastSeen,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"active_editors": response})
+}
+
+// StartJobEditingSession registers/refreshes the current user as editing the job.
+func (h *JobHandler) StartJobEditingSession(c *gin.Context) {
+	if h.jobEditSessionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "editing session tracking not available"})
+		return
+	}
+	user, exists := GetCurrentUser(c)
+	if !exists || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	jobID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || jobID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job id"})
+		return
+	}
+
+	if exists, err := h.jobRepo.Exists(uint(jobID)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify job"})
+		return
+	} else if !exists {
+		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		return
+	}
+
+	if err := h.jobEditSessionRepo.UpsertSession(uint(jobID), user.UserID, user.Username, formatUserDisplayName(user)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to register editing session"})
+		return
+	}
+
+	h.respondWithActiveEditors(c, uint(jobID), user.UserID)
+}
+
+// StopJobEditingSession removes the current user from the editing session list.
+func (h *JobHandler) StopJobEditingSession(c *gin.Context) {
+	if h.jobEditSessionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "editing session tracking not available"})
+		return
+	}
+	user, exists := GetCurrentUser(c)
+	if !exists || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	jobID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || jobID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job id"})
+		return
+	}
+
+	if err := h.jobEditSessionRepo.RemoveSession(uint(jobID), user.UserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to stop editing session"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "stopped"})
+}
+
+// GetJobEditingSessions returns the list of active editors (excluding the current user).
+func (h *JobHandler) GetJobEditingSessions(c *gin.Context) {
+	if h.jobEditSessionRepo == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "editing session tracking not available"})
+		return
+	}
+	user, exists := GetCurrentUser(c)
+	if !exists || user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	jobID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || jobID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid job id"})
+		return
+	}
+
+	h.respondWithActiveEditors(c, uint(jobID), user.UserID)
 }
 
 func (h *JobHandler) BulkScanDevicesAPI(c *gin.Context) {

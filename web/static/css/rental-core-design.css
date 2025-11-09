@@ -1829,6 +1829,35 @@ select:focus {
 /* Removed .rc-animate-slide-in - too aggressive */
 /* Removed .rc-animate-glow - unnecessary distraction */
 
+/* Toast notifications */
+.rc-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    color: #fff;
+    font-weight: 500;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-lg);
+    animation: rc-fade-in 0.2s ease-out;
+}
+
+.rc-toast-success {
+    background: var(--success, #10b981);
+}
+
+.rc-toast-error {
+    background: var(--error, #ef4444);
+}
+
+.rc-toast-info {
+    background: var(--info, #2563eb);
+}
+
 /* Accordion Styles */
 .accordion-category, .accordion-subcategory {
     background: var(--surface-2);
@@ -2411,6 +2440,10 @@ textarea:focus {
 
 .equipment-header {
     padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -2464,6 +2497,38 @@ textarea:focus {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .equipment-group {
+        border-radius: 10px;
+    }
+
+    .equipment-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .equipment-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .equipment-device {
+        margin-top: 8px;
+    }
+
+    .equipment-device.rc-flex {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .device-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
 
 /* Grid Layout for Job Details */

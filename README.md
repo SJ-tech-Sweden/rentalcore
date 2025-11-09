@@ -453,7 +453,12 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.29** (Latest) - Job Attachment Delete Control (Issue #28)
+### **v3.30** (Latest) - Live Job Editing Presence (Issue #21)
+- ✅ **Real-Time Presence Warnings**: Users now see immediate slide-in alerts when someone else starts editing the same job, preventing conflicting updates.
+- ✅ **Session Tracking**: Backed by a dedicated `job_edit_sessions` table with automatic expiry, so stale editors disappear within minutes.
+- ✅ **Automatic Cleanup Hooks**: Edit modal opens start a heartbeat, and closing/refreshing the modal clears the session to keep signals accurate.
+
+### **v3.29** - Job Attachment Delete Control (Issue #28)
 - ✅ **Inline Delete Action**: Added dedicated delete buttons next to preview/download controls inside the Job Details modal attachments list.
 - ✅ **Two-Way Sync**: When a file is removed, the view-only modal and edit modal attachment lists (plus counters) refresh automatically to stay in sync.
 - ✅ **Safer Preview Handling**: Any open preview closes automatically if its backing file is deleted, preventing stale downloads or 404s.

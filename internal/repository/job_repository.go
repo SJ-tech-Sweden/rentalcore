@@ -209,6 +209,15 @@ func (r *JobRepository) Update(job *models.Job) error {
 	return nil
 }
 
+// Exists returns true if a job with the provided ID exists.
+func (r *JobRepository) Exists(jobID uint) (bool, error) {
+	var count int64
+	if err := r.db.Model(&models.Job{}).Where("jobID = ?", jobID).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // RemoveAllDevicesFromJob removes all devices assigned to a specific job
 func (r *JobRepository) RemoveAllDevicesFromJob(jobID uint) error {
 	return r.db.Where("jobID = ?", jobID).Delete(&models.JobDevice{}).Error

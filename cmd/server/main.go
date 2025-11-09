@@ -314,6 +314,7 @@ func main() {
 	cableRepo := repository.NewCableRepository(db)
 	rentalEquipmentRepo := repository.NewRentalEquipmentRepository(db)
 	jobAttachmentRepo := repository.NewJobAttachmentRepository(db)
+	jobEditSessionRepo := repository.NewJobEditSessionRepository(db)
 
 	// Initialize services
 	barcodeService := services.NewBarcodeService()
@@ -322,7 +323,7 @@ func main() {
 	log.Printf("Database auto-migration disabled - using manual schema management")
 
 	// Initialize handlers
-	jobHandler := handlers.NewJobHandler(jobRepo, deviceRepo, customerRepo, statusRepo, jobCategoryRepo)
+	jobHandler := handlers.NewJobHandler(jobRepo, deviceRepo, customerRepo, statusRepo, jobCategoryRepo, jobEditSessionRepo)
 	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo)
 	customerHandler := handlers.NewCustomerHandler(customerRepo)
 	statusHandler := handlers.NewStatusHandler(statusRepo)
@@ -1226,6 +1227,9 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.POST("/:id/devices/:deviceId", jobHandler.AssignDeviceAPI)
 				apiJobs.PUT("/:id/devices/:deviceId", jobHandler.UpdateDevicePriceAPI)
 				apiJobs.DELETE("/:id/devices/:deviceId", jobHandler.RemoveDeviceAPI)
+				apiJobs.POST("/:id/editing", jobHandler.StartJobEditingSession)
+				apiJobs.DELETE("/:id/editing", jobHandler.StopJobEditingSession)
+				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
 			}
 
 			// Device API
