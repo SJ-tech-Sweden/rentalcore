@@ -147,10 +147,18 @@ class OCRParser:
 
             # Check for "number word" pattern (like "6 Personal", "9 Personal") - but be very strict
             # Only match if word is short (not a long description) and alphanumeric only
+            # BUT exclude unit keywords like "2 Stück" - those are quantity, not position+description
             pos_text_match = re.match(r"^([1-9]|[1-9][0-9]|100)\s+([A-Za-zäöüÄÖÜß]{3,15})$", line)
             if pos_text_match:
                 line_number = int(pos_text_match.group(1))
                 remainder = pos_text_match.group(2).strip()
+
+                # Skip if the "word" is actually a unit keyword (e.g., "2 Stück")
+                if remainder.lower() in [kw.lower() for kw in UNIT_KEYWORDS]:
+                    # Treat this as numeric instead
+                    if current:
+                        current["numeric_parts"].append(line)
+                    continue
 
                 # If we have a current item, save it first
                 if current:
@@ -315,6 +323,56 @@ class OCRParser:
         except ValueError:
             return None
 
+    def parse_customer_name(self, lines: List[str]) -> Optional[str]:
+        """Extract customer name from document text."""
+        customer_keywords = [
+            "kunde:",
+            "auftraggeber:",
+            "rechnungsempfänger:",
+            "lieferadresse:",
+            "kundenname:",
+        ]
+
+        for i, line in enumerate(lines):
+            lower = line.lower()
+
+            # Check if this line contains a customer keyword
+            for keyword in customer_keywords:
+                if keyword in lower:
+                    # Check if name is on same line (after keyword)
+                    parts = line.split(":", 1)
+                    if len(parts) > 1:
+                        name = parts[1].strip()
+                        # Filter out numbers, dates, and other non-name text
+                        if name and not re.match(r"^\d+", name) and len(name) > 2:
+                            return name
+
+                    # Name might be on next line(s)
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        # Skip empty lines, numbers, dates
+                        if next_line and not re.match(r"^\d+", next_line) and len(next_line) > 2:
+                            # Check if it looks like a name/company (not a field label)
+                            if ":" not in next_line and not any(skip in next_line.lower() for skip in ["telefon", "email", "fax", "straße", "plz"]):
+                                return next_line
+
+        # Fallback: look for company-like patterns before the items table
+        # (lines with capital letters, multiple words, no numbers at start)
+        table_start = self._find_table_start(lines)
+        if table_start > 5:
+            for i in range(5, min(table_start, 30)):
+                line = lines[i].strip()
+                # Look for lines that could be company names
+                # Must be 3+ words or single capitalized word 5+ chars
+                if line and len(line) > 4:
+                    words = line.split()
+                    if len(words) >= 2 and not re.match(r"^\d", line):
+                        # Skip common header words
+                        if not any(skip in line.lower() for skip in ["rechnung", "angebot", "datum", "seite", "pos.", "bezeichnung", "menge", "preis"]):
+                            return line
+
+        return None
+
     def parse_totals(self, lines: List[str]) -> DocumentTotals:
         """Extract document-level totals and discounts from the text."""
         totals = DocumentTotals()
@@ -404,9 +462,10 @@ def cli(input_path: Optional[str], output_path: Optional[str], pretty: bool) -> 
     # Parse items
     items = parser.parse()
 
-    # Parse document totals
+    # Parse document totals and customer
     lines = parser.preprocess()
     totals = parser.parse_totals(lines)
+    customer_name = parser.parse_customer_name(lines)
 
     # If no subtotal found, calculate from items
     if not totals.subtotal and items:
@@ -420,8 +479,13 @@ def cli(input_path: Optional[str], output_path: Optional[str], pretty: bool) -> 
         elif totals.subtotal:
             totals.total = totals.subtotal
 
+    # Build document section
+    document_data = totals.to_dict()
+    if customer_name:
+        document_data["customer_name"] = customer_name
+
     result = {
-        "document": totals.to_dict(),
+        "document": document_data,
         "items": [item.to_dict() for item in items],
         "warnings": [],
     }

@@ -162,7 +162,7 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 	// Attempt customer auto-mapping
 	var customerID *int
 	if parsedDoc.CustomerName != "" && h.CustomerMapper != nil {
-		if _, customer, confidence, err := h.CustomerMapper.FindBestMatch(parsedDoc.CustomerName); err == nil && customer != nil && confidence >= 70 {
+		if _, customer, confidence, err := h.CustomerMapper.FindBestMatch(parsedDoc.CustomerName); err == nil && customer != nil && confidence >= 60 {
 			id := int(customer.CustomerID)
 			customerID = &id
 		}
