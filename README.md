@@ -453,7 +453,11 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.34** (Latest) - Discount Parsing Reliability
+### **v3.35** (Latest) - Forced Percent Discounts
+- ✅ **Column-Aware Discounts**: Line-item discount columns are now always interpreted as percentages even when the PDF omits the `%` symbol, so individual product rebates no longer get misread as absolute totals.
+- 🛠️ **Safer Overrides**: Percent math executes before trusting exported totals, preventing the discount cell from being mistaken for the final line total when vendors shuffle columns.
+
+### **v3.34** - Discount Parsing Reliability
 - ✅ **Per-Line Discounts Applied**: OCR now detects signed discount columns and forces recalculated device totals whenever the exported total still equals the pre-discount amount, so custom prices always inherit the actual quoted rates.
 - 🛠️ **More Forgiving Regex**: Handles negative discount cells and stray percent markers, ensuring future PDF layouts keep lowering device prices without manual tweaks.
 

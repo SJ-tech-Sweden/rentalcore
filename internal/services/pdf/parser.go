@@ -447,7 +447,7 @@ func (p *IntelligentParser) parseItemFromMatches(matches []string, lineNum int, 
 
 		linePrice := item.UnitPrice * float64(item.Quantity)
 		if discountValue > 0 && linePrice > 0 {
-			discountAmount := p.calculateLineDiscount(linePrice, discountValue, discountIndicator)
+			discountAmount := p.calculateLineDiscount(linePrice, discountValue, discountIndicator, true)
 			if discountAmount > 0 {
 				discountedTotal := linePrice - discountAmount
 				if discountedTotal < 0 {
@@ -543,20 +543,28 @@ func (p *IntelligentParser) parseItemIntelligently(line string, lineNum int) *Pa
 	return item
 }
 
-func (p *IntelligentParser) calculateLineDiscount(linePrice, discountValue float64, indicator string) float64 {
+func (p *IntelligentParser) calculateLineDiscount(linePrice, discountValue float64, indicator string, forcePercent bool) float64 {
 	if linePrice <= 0 || discountValue <= 0 {
 		return 0
 	}
 
 	indicator = strings.TrimSpace(strings.ToLower(indicator))
-	if indicator != "" {
-		if strings.Contains(indicator, "%") || strings.Contains(indicator, "prozent") || strings.Contains(indicator, "percent") {
+	if forcePercent || indicator != "" {
+		if forcePercent || strings.Contains(indicator, "%") || strings.Contains(indicator, "prozent") || strings.Contains(indicator, "percent") {
 			return linePrice * (discountValue / 100)
 		}
 	}
 
+	if forcePercent {
+		return linePrice * (discountValue / 100)
+	}
+
 	if discountValue > 0 && discountValue < 1 {
 		return linePrice * discountValue
+	}
+
+	if discountValue <= 100 {
+		return linePrice * (discountValue / 100)
 	}
 
 	if discountValue > linePrice {
