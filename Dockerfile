@@ -2,7 +2,7 @@
 FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git python3 py3-pip
 
 # Set working directory
 WORKDIR /app
@@ -19,14 +19,20 @@ COPY . .
 # Note: WASM decoder files are pre-built and included in the repo
 # web/static/scanner/wasm/decoder.wasm and wasm_exec.js
 
+# Install OCR parser dependencies in virtualenv
+RUN python3 -m venv /opt/ocr-venv && \
+    /opt/ocr-venv/bin/pip install --upgrade pip && \
+    /opt/ocr-venv/bin/pip install -r tools/ocr_parser/requirements.txt && \
+    chmod +x tools/ocr_parser/parser.py
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server cmd/server/main.go
 
 # Production stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates tzdata
+# Install ca-certificates for HTTPS requests + python runtime
+RUN apk --no-cache add ca-certificates tzdata python3
 
 # Create app directory
 WORKDIR /app
@@ -36,6 +42,10 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy binary from builder stage
 COPY --from=builder /app/server .
+
+# Copy python virtualenv and parser tool
+COPY --from=builder /opt/ocr-venv /opt/ocr-venv
+COPY --from=builder /app/tools/ocr_parser tools/ocr_parser
 
 # Copy web assets
 COPY --chown=appuser:appgroup web/ web/

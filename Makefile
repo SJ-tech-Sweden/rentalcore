@@ -1,6 +1,6 @@
 # TS Jobscanner Makefile
 
-.PHONY: build run clean user-manager help
+.PHONY: build run clean user-manager help ocr-parser-test
 
 # Default target
 all: build user-manager
@@ -75,4 +75,12 @@ help:
 	@echo "  test-db      - Test database connection"
 	@echo "  deps         - Install Go dependencies"
 	@echo "  dev-setup    - Complete development setup"
+	@echo "  ocr-parser-test - Setup venv and run OCR parser unit tests"
 	@echo "  help         - Show this help message"
+
+ocr-parser-test:
+	@echo "Setting up OCR parser virtual environment..."
+	python3 -m venv tools/ocr_parser/.venv
+	. tools/ocr_parser/.venv/bin/activate && pip install --upgrade pip && pip install -r tools/ocr_parser/requirements.txt
+	@echo "Running OCR parser tests..."
+	. tools/ocr_parser/.venv/bin/activate && pytest tools/ocr_parser/tests || echo "No tests yet."

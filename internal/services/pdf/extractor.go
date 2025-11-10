@@ -23,9 +23,11 @@ import (
 
 // PDFExtractor handles PDF text extraction and data parsing
 type PDFExtractor struct {
-	UploadDir string
-	OCREngine *OCREngine
-	Parser    *IntelligentParser
+	UploadDir    string
+	OCREngine    *OCREngine
+	Parser       *IntelligentParser
+	PythonParser *PythonParser
+	UsePython    bool
 }
 
 // NewPDFExtractor creates a new PDF extractor instance
@@ -34,10 +36,28 @@ func NewPDFExtractor(uploadDir string) *PDFExtractor {
 	tempDir := filepath.Join(uploadDir, "temp_ocr")
 	os.MkdirAll(tempDir, 0755)
 
+	// Check if Python parser should be used
+	usePython := os.Getenv("OCR_USE_PYTHON") == "true"
+	pythonParser := NewPythonParser()
+
+	// If Python parser is requested but not available, fall back to Go parser
+	if usePython && !pythonParser.IsAvailable() {
+		log.Println("[PDFExtractor] Python parser requested but not available, falling back to Go parser")
+		usePython = false
+	}
+
+	if usePython {
+		log.Println("[PDFExtractor] Using Python OCR parser")
+	} else {
+		log.Println("[PDFExtractor] Using Go intelligent parser")
+	}
+
 	return &PDFExtractor{
-		UploadDir: uploadDir,
-		OCREngine: NewOCREngine(tempDir),
-		Parser:    NewIntelligentParser(),
+		UploadDir:    uploadDir,
+		OCREngine:    NewOCREngine(tempDir),
+		Parser:       NewIntelligentParser(),
+		PythonParser: pythonParser,
+		UsePython:    usePython,
 	}
 }
 
@@ -161,11 +181,30 @@ func (e *PDFExtractor) ExtractWithOCR(filePath string) (*OCRResult, error) {
 
 // ParseDocumentIntelligently parses extracted text using intelligent parser
 func (e *PDFExtractor) ParseDocumentIntelligently(rawText string) (*ParsedDocument, error) {
-	log.Printf("Parsing document with intelligent parser (text length: %d)", len(rawText))
+	log.Printf("Parsing document (text length: %d, use_python: %v)", len(rawText), e.UsePython)
 
-	doc, err := e.Parser.ParseDocument(rawText)
-	if err != nil {
-		return nil, fmt.Errorf("parsing failed: %v", err)
+	var doc *ParsedDocument
+	var err error
+
+	// Try Python parser first if enabled
+	if e.UsePython && e.PythonParser != nil {
+		log.Println("[PDFExtractor] Using Python parser")
+		doc, err = e.PythonParser.ParseDocument(rawText)
+		if err != nil {
+			log.Printf("[PDFExtractor] Python parser failed: %v, falling back to Go parser", err)
+			// Fallback to Go parser
+			doc, err = e.Parser.ParseDocument(rawText)
+			if err != nil {
+				return nil, fmt.Errorf("both Python and Go parsers failed: %v", err)
+			}
+		}
+	} else {
+		// Use Go parser
+		log.Println("[PDFExtractor] Using Go intelligent parser")
+		doc, err = e.Parser.ParseDocument(rawText)
+		if err != nil {
+			return nil, fmt.Errorf("parsing failed: %v", err)
+		}
 	}
 
 	log.Printf("Document parsed successfully: type=%s, items=%d, confidence=%.2f",
