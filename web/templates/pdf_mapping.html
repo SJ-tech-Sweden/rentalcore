@@ -635,10 +635,23 @@ async function selectCustomer(customerId, customerName, element) {
 function validateScheduleInputs() {
     const start = startDateInput?.value || '';
     const end = endDateInput?.value || '';
-    if (!start || !end) {
-        showStatusMessage('error', 'Please provide both start and end dates.');
+
+    // If both are empty, that's okay (dates are optional)
+    if (!start && !end) {
+        return true;
+    }
+
+    // If only one is filled, require both
+    if (start && !end) {
+        showStatusMessage('error', 'Please provide an end date or leave both dates empty.');
         return false;
     }
+    if (!start && end) {
+        showStatusMessage('error', 'Please provide a start date or leave both dates empty.');
+        return false;
+    }
+
+    // If both filled, validate range
     if (end < start) {
         showStatusMessage('error', 'End date cannot be before the start date.');
         return false;
