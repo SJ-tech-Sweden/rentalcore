@@ -25,9 +25,7 @@ import (
 type PDFExtractor struct {
 	UploadDir    string
 	OCREngine    *OCREngine
-	Parser       *IntelligentParser
 	PythonParser *PythonParser
-	UsePython    bool
 }
 
 // NewPDFExtractor creates a new PDF extractor instance
@@ -36,28 +34,19 @@ func NewPDFExtractor(uploadDir string) *PDFExtractor {
 	tempDir := filepath.Join(uploadDir, "temp_ocr")
 	os.MkdirAll(tempDir, 0755)
 
-	// Check if Python parser should be used
-	usePython := os.Getenv("OCR_USE_PYTHON") == "true"
 	pythonParser := NewPythonParser()
 
-	// If Python parser is requested but not available, fall back to Go parser
-	if usePython && !pythonParser.IsAvailable() {
-		log.Println("[PDFExtractor] Python parser requested but not available, falling back to Go parser")
-		usePython = false
+	// Verify Python parser is available
+	if !pythonParser.IsAvailable() {
+		log.Fatal("[PDFExtractor] FATAL: Python parser is not available. Cannot start without OCR parser.")
 	}
 
-	if usePython {
-		log.Println("[PDFExtractor] Using Python OCR parser")
-	} else {
-		log.Println("[PDFExtractor] Using Go intelligent parser")
-	}
+	log.Println("[PDFExtractor] Using Python OCR parser (exclusive mode)")
 
 	return &PDFExtractor{
 		UploadDir:    uploadDir,
 		OCREngine:    NewOCREngine(tempDir),
-		Parser:       NewIntelligentParser(),
 		PythonParser: pythonParser,
-		UsePython:    usePython,
 	}
 }
 
@@ -179,38 +168,60 @@ func (e *PDFExtractor) ExtractWithOCR(filePath string) (*OCRResult, error) {
 	return ocrResult, nil
 }
 
-// ParseDocumentIntelligently parses extracted text using intelligent parser
+// ParseDocumentIntelligently parses extracted text using Python OCR parser
 func (e *PDFExtractor) ParseDocumentIntelligently(rawText string) (*ParsedDocument, error) {
-	log.Printf("Parsing document (text length: %d, use_python: %v)", len(rawText), e.UsePython)
+	log.Printf("[PDFExtractor] Parsing document with Python parser (text length: %d)", len(rawText))
 
-	var doc *ParsedDocument
-	var err error
-
-	// Try Python parser first if enabled
-	if e.UsePython && e.PythonParser != nil {
-		log.Println("[PDFExtractor] Using Python parser")
-		doc, err = e.PythonParser.ParseDocument(rawText)
-		if err != nil {
-			log.Printf("[PDFExtractor] Python parser failed: %v, falling back to Go parser", err)
-			// Fallback to Go parser
-			doc, err = e.Parser.ParseDocument(rawText)
-			if err != nil {
-				return nil, fmt.Errorf("both Python and Go parsers failed: %v", err)
-			}
-		}
-	} else {
-		// Use Go parser
-		log.Println("[PDFExtractor] Using Go intelligent parser")
-		doc, err = e.Parser.ParseDocument(rawText)
-		if err != nil {
-			return nil, fmt.Errorf("parsing failed: %v", err)
-		}
+	doc, err := e.PythonParser.ParseDocument(rawText)
+	if err != nil {
+		return nil, fmt.Errorf("Python parser failed: %v", err)
 	}
 
-	log.Printf("Document parsed successfully: type=%s, items=%d, confidence=%.2f",
+	log.Printf("[PDFExtractor] Document parsed successfully: type=%s, items=%d, confidence=%.2f",
 		doc.DocumentType, len(doc.Items), doc.ConfidenceScore)
 
 	return doc, nil
+}
+
+// parseAmount parses a monetary amount from string (helper function)
+func parseAmount(s string) float64 {
+	// Remove currency symbols and whitespace
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "€", "")
+	s = strings.ReplaceAll(s, "$", "")
+	s = strings.ReplaceAll(s, "£", "")
+	s = strings.ReplaceAll(s, "\u00a0", "")
+	s = strings.ReplaceAll(s, " ", "")
+	s = strings.TrimSpace(s)
+
+	// Handle European format (1.234,56)
+	if strings.Count(s, ".") > 0 && strings.Count(s, ",") > 0 {
+		// Mixed format - remove thousand separators
+		if strings.LastIndex(s, ",") > strings.LastIndex(s, ".") {
+			// European: 1.234,56
+			s = strings.ReplaceAll(s, ".", "")
+			s = strings.ReplaceAll(s, ",", ".")
+		} else {
+			// American: 1,234.56
+			s = strings.ReplaceAll(s, ",", "")
+		}
+	} else if strings.Count(s, ",") > 0 {
+		// Only commas - could be thousand sep or decimal
+		if strings.LastIndex(s, ",") == len(s)-3 {
+			// Likely decimal: 123,45
+			s = strings.ReplaceAll(s, ",", ".")
+		} else {
+			// Likely thousand separator: 1,234
+			s = strings.ReplaceAll(s, ",", "")
+		}
+	}
+
+	amount, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+
+	return amount
 }
 
 // ParseInvoiceData parses invoice data from extracted text
@@ -392,7 +403,7 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 
 		// Extract subtotal (net amount before discount)
 		if matches := subtotalRegex.FindStringSubmatch(line); len(matches) > 1 {
-			if subtotal := e.Parser.parseAmount(matches[1]); subtotal > 0 {
+			if subtotal := parseAmount(matches[1]); subtotal > 0 {
 				data.TotalAmount = subtotal
 				subtotalCaptured = true
 				continue
@@ -401,7 +412,7 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 
 		// Extract total amount (fallback to subtotal if not found)
 		if matches := totalRegex.FindStringSubmatch(line); len(matches) > 1 {
-			if total := e.Parser.parseAmount(matches[1]); total > 0 && !subtotalCaptured {
+			if total := parseAmount(matches[1]); total > 0 && !subtotalCaptured {
 				data.TotalAmount = total
 			}
 		}
@@ -411,12 +422,12 @@ func (e *PDFExtractor) ParseInvoiceData(text string) (*ParsedInvoiceData, error)
 			discount := 0.0
 			discountType := ""
 			if token, ok := findDecimalAmountToken(line); ok {
-				discount = e.Parser.parseAmount(token)
+				discount = parseAmount(token)
 				discountType = "amount"
 			}
 			if discount <= 0 {
 				if token, ok := findAmountAfterLine(lines, i, 3); ok {
-					discount = e.Parser.parseAmount(token)
+					discount = parseAmount(token)
 					discountType = "amount"
 				}
 			}
@@ -652,7 +663,7 @@ func (e *PDFExtractor) parseStackedLineItem(
 
 		if containsKeyword(candidateLower, discountKeywords) || containsKeyword(candidateLower, finalPriceKeywords) {
 			if token, ok := findAmountToken(candidate); ok {
-				value := e.Parser.parseAmount(token)
+				value := parseAmount(token)
 				if value > 0 {
 					lineTotal = value
 					priceValuesFound = 2
@@ -682,7 +693,7 @@ func (e *PDFExtractor) parseStackedLineItem(
 		}
 
 		if token, ok := findAmountToken(candidate); ok {
-			value := e.Parser.parseAmount(token)
+			value := parseAmount(token)
 			if value > 0 {
 				lineTotal = value
 				priceValuesFound = 2
