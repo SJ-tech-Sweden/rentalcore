@@ -338,24 +338,43 @@ class OCRParser:
         # Search in the first 40 lines before the table
         search_end = min(40, table_start)
 
+        # PRIORITY 1: Look for "Herrn/Frau/Herr" salutation
         for i in range(search_end):
             line = lines[i].strip()
             lower = line.lower()
 
-            # Skip sender blocks (containing company info like "Tsunami Events UG")
+            # Skip sender blocks
             if any(skip in lower for skip in ["tel.:", "fax:", "email:", "@", "http", "www.", "steuernummer", "amtsgericht", "iban", "bic"]):
                 continue
 
             # Look for recipient indicator words
             if line.startswith(("Herrn ", "Frau ", "Herr ")):
                 # Extract name after salutation
-                name = line.split(None, 1)
-                if len(name) > 1:
-                    return name[1].strip()
+                parts = line.split(None, 1)
+                if len(parts) > 1:
+                    return parts[1].strip()
+                # Name might be on next line
+                elif i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    # Make sure it's not a street name
+                    if next_line and not any(street in next_line.lower() for street in ["straße", "strasse", "weg", "platz", "gasse", "allee"]):
+                        return next_line
 
-            # Look for address block pattern: Name, then Street, then PLZ+City
+        # PRIORITY 2: Look for address block pattern
+        for i in range(search_end):
+            line = lines[i].strip()
+            lower = line.lower()
+
+            # Skip sender blocks
+            if any(skip in lower for skip in ["tel.:", "fax:", "email:", "@", "http", "www.", "steuernummer", "amtsgericht", "iban", "bic", "tsunami", "events", "ringstraße", "haiger"]):
+                continue
+
+            # Skip lines that are clearly streets
+            if any(street in lower for street in ["straße", "strasse", "weg", "platz", "gasse", "allee"]):
+                continue
+
             # Name should be 2+ words, not a field label, not starting with number
-            if line and len(line) > 3 and not line.endswith(":"):
+            if line and len(line) > 3 and not line.endswith(":") and ":" not in line:
                 words = line.split()
 
                 # Check if this could be a name (2+ words, capitalized, no numbers at start)
@@ -365,17 +384,15 @@ class OCRParser:
                         next1 = lines[i + 1].strip()
                         next2 = lines[i + 2].strip()
 
-                        # next1 should look like a street (contains "straße", "weg", "platz" or just text)
-                        # next2 should look like PLZ + City (starts with 5 digits)
+                        # next1 should look like a street
                         has_street = any(word in next1.lower() for word in ["straße", "strasse", "weg", "platz", "gasse", "allee"])
+                        # next2 should look like PLZ + City (starts with 5 digits)
                         has_plz = re.match(r"^\d{5}\s+\w+", next2)
 
-                        if (has_street or (next1 and len(next1) > 3 and not ":" in next1)) and has_plz:
-                            # Skip if this looks like sender info
-                            if not any(sender in lower for sender in ["tsunami", "events", "ringstraße 12", "haiger"]):
-                                return line
+                        if has_street and has_plz:
+                            return line
 
-        # Fallback: Look for "Kundennr.:" field and get text before it
+        # PRIORITY 3: Fallback - Look backwards from "Kundennr.:" field
         for i, line in enumerate(lines):
             if "kundennr" in line.lower() and ":" in line:
                 # Search backwards for the name
@@ -384,6 +401,9 @@ class OCRParser:
                     if candidate and len(candidate) > 3:
                         words = candidate.split()
                         if len(words) >= 2 and not re.match(r"^\d", candidate):
+                            # Skip street names
+                            if any(street in candidate.lower() for street in ["straße", "strasse", "weg", "platz", "gasse", "allee"]):
+                                continue
                             # Check if this is not a field label
                             if ":" not in candidate and not any(skip in candidate.lower() for skip in ["angebot", "rechnung", "datum", "gültig", "seite"]):
                                 return candidate
