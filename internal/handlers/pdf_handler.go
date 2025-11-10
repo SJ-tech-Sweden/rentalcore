@@ -185,8 +185,10 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 		ExtractionMethod: "python_parser",
 		CustomerName:     sql.NullString{String: parsedDoc.CustomerName, Valid: parsedDoc.CustomerName != ""},
 		DocumentNumber:   sql.NullString{String: parsedDoc.DocumentNumber, Valid: parsedDoc.DocumentNumber != ""},
-		TotalAmount:      sql.NullFloat64{Float64: parsedDoc.TotalAmount, Valid: parsedDoc.TotalAmount > 0},
+		ParsedTotal:      sql.NullFloat64{Float64: parsedDoc.ParsedTotal, Valid: parsedDoc.ParsedTotal > 0},
 		DiscountAmount:   sql.NullFloat64{Float64: parsedDoc.DiscountAmount, Valid: parsedDoc.DiscountAmount > 0},
+		DiscountPercent:  sql.NullFloat64{Float64: parsedDoc.DiscountPercent, Valid: parsedDoc.DiscountPercent > 0},
+		TotalAmount:      sql.NullFloat64{Float64: parsedDoc.TotalAmount, Valid: parsedDoc.TotalAmount > 0},
 	}
 	if customerID != nil && *customerID > 0 {
 		extraction.CustomerID = sql.NullInt64{Int64: int64(*customerID), Valid: true}
@@ -511,11 +513,17 @@ func (h *PDFHandler) ShowReviewScreen(c *gin.Context) {
 			}
 		}
 	}
-	if extraction.TotalAmount.Valid {
-		data["totalAmount"] = extraction.TotalAmount.Float64
+	if extraction.ParsedTotal.Valid {
+		data["parsedTotal"] = extraction.ParsedTotal.Float64
 	}
 	if extraction.DiscountAmount.Valid {
 		data["discountAmount"] = extraction.DiscountAmount.Float64
+	}
+	if extraction.DiscountPercent.Valid {
+		data["discountPercent"] = extraction.DiscountPercent.Float64
+	}
+	if extraction.TotalAmount.Valid {
+		data["totalAmount"] = extraction.TotalAmount.Float64
 	}
 
 	c.HTML(http.StatusOK, "pdf_review.html", data)
@@ -636,15 +644,20 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		"mappedPercent": mappedPercent,
 	}
 
-	if extraction.TotalAmount.Valid {
-		data["totalAmount"] = extraction.TotalAmount.Float64
+	if extraction.ParsedTotal.Valid {
+		data["parsedTotal"] = extraction.ParsedTotal.Float64
 	}
 
 	if extraction.DiscountAmount.Valid {
 		data["discountAmount"] = extraction.DiscountAmount.Float64
 	}
 
+	if extraction.DiscountPercent.Valid {
+		data["discountPercent"] = extraction.DiscountPercent.Float64
+	}
+
 	if extraction.TotalAmount.Valid {
+		data["totalAmount"] = extraction.TotalAmount.Float64
 		net := extraction.TotalAmount.Float64
 		if extraction.DiscountAmount.Valid {
 			net -= extraction.DiscountAmount.Float64

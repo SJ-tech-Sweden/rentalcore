@@ -57,9 +57,11 @@ type PythonParserOutput struct {
 	Document struct {
 		Number         string  `json:"number,omitempty"`
 		Date           string  `json:"date,omitempty"`
-		CustomerName   string  `json:"customer_name,omitempty"`
-		TotalAmount    float64 `json:"total_amount,omitempty"`
-		DiscountAmount float64 `json:"discount_amount,omitempty"`
+		CustomerName    string  `json:"customer_name,omitempty"`
+		Subtotal        float64 `json:"subtotal,omitempty"`         // Subtotal before discount
+		DiscountAmount  float64 `json:"discount_amount,omitempty"`  // Total discount
+		DiscountPercent float64 `json:"discount_percent,omitempty"` // Discount percentage
+		Total           float64 `json:"total,omitempty"`            // Final total after discount
 	} `json:"document"`
 	Items []struct {
 		LineNumber      int     `json:"line_number"`
@@ -124,8 +126,10 @@ func (p *PythonParser) ParseDocument(rawText string) (*ParsedDocument, error) {
 		DocumentType:    DocTypeInvoice, // Default type
 		CustomerName:    output.Document.CustomerName,
 		DocumentNumber:  output.Document.Number,
-		TotalAmount:     output.Document.TotalAmount,
+		ParsedTotal:     output.Document.Subtotal,
 		DiscountAmount:  output.Document.DiscountAmount,
+		DiscountPercent: output.Document.DiscountPercent,
+		TotalAmount:     output.Document.Total,
 		Items:           make([]ParsedItem, 0, len(output.Items)),
 		RawSections:     make(map[string]string),
 		Metadata:        make(map[string]interface{}),

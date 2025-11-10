@@ -74,8 +74,10 @@ type ParsedDocument struct {
 	CustomerID      *int
 	DocumentNumber  string
 	DocumentDate    time.Time
-	TotalAmount     float64
-	DiscountAmount  float64
+	ParsedTotal     float64 // Subtotal before discount (Zwischensumme netto)
+	DiscountAmount  float64 // Total discount amount
+	DiscountPercent float64 // Discount percentage
+	TotalAmount     float64 // Final amount after discount (Gesamtbetrag)
 	Items           []ParsedItem
 	RawSections     map[string]string // Store raw sections for reference
 	ConfidenceScore float64

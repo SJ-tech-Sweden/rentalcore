@@ -656,10 +656,11 @@ async function finalizeMappings(closeAfter = true) {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Finalizing...';
+        btn.innerHTML = closeAfter ? '<i class="bi bi-hourglass-split"></i> Finalizing...' : '<i class="bi bi-hourglass-split"></i> Saving...';
     }
 
-    if (!validateScheduleInputs()) {
+    // Only validate dates if creating the job (closeAfter = true)
+    if (closeAfter && !validateScheduleInputs()) {
         finalizeInProgress = false;
         if (btn) {
             btn.disabled = false;

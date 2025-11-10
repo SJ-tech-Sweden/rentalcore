@@ -66,6 +66,18 @@ class ParsedItem:
         return asdict(self)
 
 
+@dataclass
+class DocumentTotals:
+    """Document-level totals and discounts."""
+    subtotal: Optional[float] = None  # Last Zwischensumme before discount
+    discount_amount: Optional[float] = None  # Total discount amount
+    discount_percent: Optional[float] = None  # Total discount percentage
+    total: Optional[float] = None  # Final Gesamtbetrag after discount
+
+    def to_dict(self) -> dict:
+        return {k: v for k, v in asdict(self).items() if v is not None}
+
+
 class OCRParser:
     def __init__(self, raw_text: str) -> None:
         self.raw_text = raw_text
@@ -133,13 +145,17 @@ class OCRParser:
                 }
                 continue
 
-            # Check for "number word" pattern (like "6 Personal") - but be very strict
+            # Check for "number word" pattern (like "6 Personal", "9 Personal") - but be very strict
             # Only match if word is short (not a long description) and alphanumeric only
             pos_text_match = re.match(r"^([1-9]|[1-9][0-9]|100)\s+([A-Za-zäöüÄÖÜß]{3,15})$", line)
-            if pos_text_match and current is None:
+            if pos_text_match:
                 line_number = int(pos_text_match.group(1))
                 remainder = pos_text_match.group(2).strip()
-                
+
+                # If we have a current item, save it first
+                if current:
+                    segments.append(current)
+
                 current = {
                     "line_number": line_number,
                     "description_parts": [remainder],
@@ -295,6 +311,65 @@ class OCRParser:
         except ValueError:
             return None
 
+    def parse_totals(self, lines: List[str]) -> DocumentTotals:
+        """Extract document-level totals and discounts from the text."""
+        totals = DocumentTotals()
+        last_zwischensumme = None
+
+        for i, line in enumerate(lines):
+            lower = line.lower()
+
+            # Extract Zwischensumme (netto) / Subtotal
+            if "zwischensumme" in lower and "netto" in lower:
+                # Look for amount on same line or next line
+                numbers = self._extract_numbers(line)
+                if numbers:
+                    last_zwischensumme = numbers[-1]
+                elif i + 1 < len(lines):
+                    numbers = self._extract_numbers(lines[i + 1])
+                    if numbers:
+                        last_zwischensumme = numbers[-1]
+
+            # Extract discount: "abzgl. 20,00 % Rabatt" or "abzgl. 20%" followed by amount
+            if "abzgl" in lower or "rabatt" in lower:
+                # Try to extract discount percentage
+                percent_match = re.search(r"(\d+(?:,\d+)?)\s*%", line)
+                if percent_match:
+                    totals.discount_percent = self._to_float(percent_match.group(1))
+
+                # Try to extract discount amount (negative number or on next line)
+                numbers = self._extract_numbers(line)
+                if numbers:
+                    # Discount amount is usually negative or the last number
+                    totals.discount_amount = abs(numbers[-1])
+                elif i + 1 < len(lines):
+                    numbers = self._extract_numbers(lines[i + 1])
+                    if numbers:
+                        totals.discount_amount = abs(numbers[-1])
+
+            # Extract Gesamtbetrag / Total
+            if "gesamtbetrag" in lower or "gesamt" in lower:
+                # Skip "Gesamt €" column header
+                if "bezeichnung" in lower or "menge" in lower:
+                    continue
+
+                numbers = self._extract_numbers(line)
+                if numbers:
+                    totals.total = numbers[-1]
+                elif i + 1 < len(lines):
+                    numbers = self._extract_numbers(lines[i + 1])
+                    if numbers:
+                        totals.total = numbers[-1]
+
+        # Set subtotal to the last Zwischensumme found
+        if last_zwischensumme:
+            totals.subtotal = last_zwischensumme
+
+        # If no subtotal found but we have a total, use items to calculate
+        # This will be handled by the caller if needed
+
+        return totals
+
 def parse_input_payload(raw: str) -> str:
     raw = raw.strip()
     if not raw:
@@ -321,9 +396,28 @@ def cli(input_path: Optional[str], output_path: Optional[str], pretty: bool) -> 
         raw_text = sys.stdin.read()
     raw_text = parse_input_payload(raw_text)
     parser = OCRParser(raw_text)
+
+    # Parse items
     items = parser.parse()
+
+    # Parse document totals
+    lines = parser.preprocess()
+    totals = parser.parse_totals(lines)
+
+    # If no subtotal found, calculate from items
+    if not totals.subtotal and items:
+        calculated_total = sum(item.line_total for item in items)
+        totals.subtotal = calculated_total
+
+    # If no total found, calculate from subtotal and discount
+    if not totals.total:
+        if totals.subtotal and totals.discount_amount:
+            totals.total = totals.subtotal - totals.discount_amount
+        elif totals.subtotal:
+            totals.total = totals.subtotal
+
     result = {
-        "document": {},
+        "document": totals.to_dict(),
         "items": [item.to_dict() for item in items],
         "warnings": [],
     }

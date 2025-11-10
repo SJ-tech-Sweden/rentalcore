@@ -335,17 +335,30 @@
                 </div>
                 {{end}}
 
-                {{if .totalAmount}}
+                {{if .parsedTotal}}
                 <div class="info-item">
-                    <div class="info-label"><i class="bi bi-currency-euro"></i> Total Amount</div>
-                    <div class="info-value">{{printf "%.2f" .totalAmount}} EUR</div>
+                    <div class="info-label"><i class="bi bi-receipt"></i> Subtotal</div>
+                    <div class="info-value">{{printf "%.2f" .parsedTotal}} EUR</div>
                 </div>
                 {{end}}
 
                 {{if .discountAmount}}
                 <div class="info-item">
                     <div class="info-label"><i class="bi bi-percent"></i> Discount</div>
-                    <div class="info-value">{{printf "%.2f" .discountAmount}} EUR</div>
+                    <div class="info-value">
+                        {{if .discountPercent}}
+                            {{printf "%.2f" .discountPercent}}% ({{printf "%.2f" .discountAmount}} EUR)
+                        {{else}}
+                            {{printf "%.2f" .discountAmount}} EUR
+                        {{end}}
+                    </div>
+                </div>
+                {{end}}
+
+                {{if .totalAmount}}
+                <div class="info-item">
+                    <div class="info-label"><i class="bi bi-currency-euro"></i> Total Amount</div>
+                    <div class="info-value">{{printf "%.2f" .totalAmount}} EUR</div>
                 </div>
                 {{end}}
 
