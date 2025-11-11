@@ -666,9 +666,15 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		data["discountPercent"] = extraction.DiscountPercent.Float64
 	}
 
+	// totalAmount is the final amount AFTER discount (Gesamtbetrag)
+	// parsedTotal is the subtotal BEFORE discount (Zwischensumme)
 	if extraction.TotalAmount.Valid {
 		data["totalAmount"] = extraction.TotalAmount.Float64
-		net := extraction.TotalAmount.Float64
+		// Net amount is the final amount (already includes discount)
+		data["netAmount"] = extraction.TotalAmount.Float64
+	} else if extraction.ParsedTotal.Valid {
+		// Fallback: calculate from parsed_total if total_amount not available
+		net := extraction.ParsedTotal.Float64
 		if extraction.DiscountAmount.Valid {
 			net -= extraction.DiscountAmount.Float64
 			if net < 0 {
@@ -676,6 +682,7 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 			}
 		}
 		data["netAmount"] = net
+		data["totalAmount"] = net
 	}
 
 	if extraction.CustomerName.Valid {

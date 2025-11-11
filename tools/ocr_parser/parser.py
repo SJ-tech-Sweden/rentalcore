@@ -436,15 +436,26 @@ class OCRParser:
                 if percent_match:
                     totals.discount_percent = self._to_float(percent_match.group(1))
 
-                # Try to extract discount amount (negative number or on next line)
-                numbers = self._extract_numbers(line)
-                if numbers:
-                    # Discount amount is usually negative or the last number
-                    totals.discount_amount = abs(numbers[-1])
-                elif i + 1 < len(lines):
-                    numbers = self._extract_numbers(lines[i + 1])
+                # Try to extract discount amount
+                # If we found a percentage, look for the amount on next line (not the % value)
+                if percent_match:
+                    # Look for amount on next line(s) that doesn't have a % sign
+                    for j in range(i + 1, min(i + 3, len(lines))):
+                        next_line = lines[j]
+                        if "%" not in next_line:
+                            numbers = self._extract_numbers(next_line)
+                            if numbers:
+                                totals.discount_amount = abs(numbers[-1])
+                                break
+                else:
+                    # No percentage found, extract amount directly
+                    numbers = self._extract_numbers(line)
                     if numbers:
                         totals.discount_amount = abs(numbers[-1])
+                    elif i + 1 < len(lines):
+                        numbers = self._extract_numbers(lines[i + 1])
+                        if numbers:
+                            totals.discount_amount = abs(numbers[-1])
 
             # Extract Gesamtbetrag / Total
             if "gesamtbetrag" in lower or "gesamt" in lower:
