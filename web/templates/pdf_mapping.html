@@ -12,6 +12,7 @@ let startDateInput;
 let endDateInput;
 let discountValueInput;
 let discountTypeSelect;
+const parsedTotal = {{if .parsedTotal}}{{printf "%.2f" .parsedTotal}}{{else}}null{{end}};
 const totalAmount = {{if .totalAmount}}{{printf "%.2f" .totalAmount}}{{else}}null{{end}};
 const discountAmount = {{if .discountAmount}}{{printf "%.2f" .discountAmount}}{{else}}null{{end}};
 const discountPercent = {{if .discountPercent}}{{printf "%.2f" .discountPercent}}{{else}}null{{end}};
@@ -267,7 +268,8 @@ function updateNetPreview() {
         return;
     }
     const payload = getDiscountPayload();
-    const baseTotal = typeof totalAmount === 'number' && !Number.isNaN(totalAmount) ? totalAmount : 0;
+    // Use parsedTotal (subtotal BEFORE discount) as base, not totalAmount (which is AFTER discount)
+    const baseTotal = typeof parsedTotal === 'number' && !Number.isNaN(parsedTotal) ? parsedTotal : (typeof totalAmount === 'number' ? totalAmount : 0);
     let preview = baseTotal;
     let displayDiscount = 0;
     if (payload.value && payload.value > 0) {
