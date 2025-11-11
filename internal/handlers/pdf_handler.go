@@ -598,7 +598,20 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 		startDate = &value
 	}
 
+	// Determine discount type and value from extraction
 	discountType := "amount"
+	discountValue := 0.0
+
+	// If discount_percent is present, use percent type
+	if extraction.DiscountPercent.Valid && extraction.DiscountPercent.Float64 > 0 {
+		discountType = "percent"
+		discountValue = extraction.DiscountPercent.Float64
+	} else if extraction.DiscountAmount.Valid && extraction.DiscountAmount.Float64 > 0 {
+		discountType = "amount"
+		discountValue = extraction.DiscountAmount.Float64
+	}
+
+	// Override with metadata if explicitly set
 	if extraction.Metadata.Valid {
 		var meta map[string]string
 		if err := json.Unmarshal([]byte(extraction.Metadata.String), &meta); err == nil {
