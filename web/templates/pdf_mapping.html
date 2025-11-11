@@ -623,6 +623,7 @@ async function selectCustomer(customerId, customerName, element) {
         selectedCustomerName = customerName;
         updateCustomerBadge();
         showStatusMessage('success', `${customerName} linked to this extraction.`);
+        refreshDuplicateCheck();
 
         if (element) {
             const container = element.parentElement;
@@ -752,6 +753,7 @@ function confirmMapping(itemId) {
     updateStats();
     applyItemFilter();
     showStatusMessage('success', 'Mapping confirmed.');
+    refreshDuplicateCheck();
 }
 
 function rejectMapping(itemId) {
