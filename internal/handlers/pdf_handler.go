@@ -75,6 +75,87 @@ func applySuggestionToNewItem(item *models.PDFExtractionItem, suggestion *models
 	}
 }
 
+func ensurePackageMappingSchema(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return err
+	}
+
+	if err := ensurePackageMappingColumn(sqlDB); err != nil {
+		return err
+	}
+	if err := ensurePackageMappingIndex(sqlDB); err != nil {
+		return err
+	}
+	return ensurePackageMappingFK(sqlDB)
+}
+
+func ensurePackageMappingColumn(db *sql.DB) error {
+	const query = `
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_schema = DATABASE()
+		  AND table_name = 'pdf_extraction_items'
+		  AND column_name = 'mapped_package_id'
+	`
+	var count int
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err := db.Exec(`ALTER TABLE pdf_extraction_items ADD COLUMN mapped_package_id INT NULL AFTER mapped_product_id`)
+	return err
+}
+
+func ensurePackageMappingIndex(db *sql.DB) error {
+	const query = `
+		SELECT COUNT(*)
+		FROM information_schema.statistics
+		WHERE table_schema = DATABASE()
+		  AND table_name = 'pdf_extraction_items'
+		  AND index_name = 'idx_pdf_items_package'
+	`
+	var count int
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err := db.Exec(`ALTER TABLE pdf_extraction_items ADD KEY idx_pdf_items_package (mapped_package_id)`)
+	return err
+}
+
+func ensurePackageMappingFK(db *sql.DB) error {
+	const query = `
+		SELECT COUNT(*)
+		FROM information_schema.table_constraints
+		WHERE table_schema = DATABASE()
+		  AND table_name = 'pdf_extraction_items'
+		  AND constraint_name = 'fk_pdf_items_package'
+	`
+	var count int
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	_, err := db.Exec(`
+		ALTER TABLE pdf_extraction_items
+		ADD CONSTRAINT fk_pdf_items_package
+			FOREIGN KEY (mapped_package_id)
+			REFERENCES product_packages(package_id)
+			ON DELETE SET NULL
+	`)
+	return err
+}
+
 func buildSuggestionUpdates(suggestion *models.ProductMappingSuggestion, status string) map[string]interface{} {
 	if suggestion == nil {
 		return nil
@@ -143,6 +224,10 @@ func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attach
 	attachmentDir := filepath.Join(uploadDir, "job_attachments")
 	if err := os.MkdirAll(attachmentDir, 0755); err != nil {
 		log.Printf("warning: failed to ensure attachment directory %s: %v", attachmentDir, err)
+	}
+
+	if err := ensurePackageMappingSchema(db); err != nil {
+		log.Printf("warning: failed to ensure PDF package mapping schema: %v", err)
 	}
 
 	return &PDFHandler{
