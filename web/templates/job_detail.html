@@ -205,6 +205,30 @@
                                 <span class="rc-text-accent">€{{printf "%.2f" .totalValue}}</span>
                             </div>
                         </div>
+
+                        <!-- Job History Section -->
+                        <div class="rc-mt-md rc-pt-md" style="border-top: 1px solid var(--border);">
+                            <div class="rc-flex rc-flex-between rc-mb-sm" style="align-items: center;">
+                                <h4 class="rc-text-sm rc-text-secondary" style="margin: 0;"><i class="bi bi-clock-history"></i> History</h4>
+                                <button class="rc-btn rc-btn-outline rc-btn-sm" onclick="showJobHistory()">
+                                    <i class="bi bi-list-ul"></i> View Full History
+                                </button>
+                            </div>
+                            <div class="rc-text-sm">
+                                {{if .job.CreatedAt}}
+                                <div class="rc-mb-xs">
+                                    <span class="rc-text-secondary">Created:</span>
+                                    <span id="created-info">{{.job.CreatedAt.Format "02.01.2006 15:04"}}</span>
+                                </div>
+                                {{end}}
+                                {{if .job.UpdatedAt}}
+                                <div>
+                                    <span class="rc-text-secondary">Last edited:</span>
+                                    <span id="updated-info">{{.job.UpdatedAt.Format "02.01.2006 15:04"}}</span>
+                                </div>
+                                {{end}}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -325,6 +349,30 @@
                 </div>
             </div>
         </div>
+
+        <!-- Job History Modal -->
+        <div id="historyModal" class="rc-modal" style="display: none;">
+            <div class="rc-modal-backdrop" onclick="hideJobHistory()"></div>
+            <div class="rc-modal-content" style="max-width: 900px;">
+                <div class="rc-modal-header">
+                    <h3 class="rc-modal-title"><i class="bi bi-clock-history"></i> Job History</h3>
+                    <button class="rc-modal-close" onclick="hideJobHistory()">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="rc-modal-body">
+                    <div id="history-content">
+                        <div class="rc-text-center rc-p-lg" id="loading-history">
+                            <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite; font-size: 2rem;"></i>
+                            <p class="rc-mt-md">Loading history...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="rc-modal-footer">
+                    <button class="rc-btn rc-btn-secondary" onclick="hideJobHistory()">Close</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script>
@@ -363,6 +411,187 @@
     function showDeviceDetails(deviceID) {
         // This function can be imported from the devices page if needed
         window.open('/devices/' + deviceID, '_blank');
+    }
+
+    // ===== JOB HISTORY FUNCTIONS =====
+
+    // Show job history modal
+    function showJobHistory() {
+        const modal = document.getElementById('historyModal');
+        modal.style.display = 'flex';
+        loadJobHistory();
+    }
+
+    // Hide job history modal
+    function hideJobHistory() {
+        const modal = document.getElementById('historyModal');
+        modal.style.display = 'none';
+    }
+
+    // Load job history from API
+    function loadJobHistory() {
+        const jobID = {{.job.JobID}};
+        const historyContent = document.getElementById('history-content');
+        const loadingIndicator = document.getElementById('loading-history');
+
+        loadingIndicator.style.display = 'block';
+
+        fetch(`/api/v1/jobs/${jobID}/history`)
+            .then(response => response.json())
+            .then(data => {
+                loadingIndicator.style.display = 'none';
+                if (data.success && data.history && data.history.length > 0) {
+                    displayJobHistory(data.history);
+                } else {
+                    historyContent.innerHTML = `
+                        <div class="rc-text-center rc-p-lg">
+                            <i class="bi bi-clock-history" style="font-size: 3rem; color: var(--text-muted);"></i>
+                            <h4 class="rc-text-muted rc-mt-md">No History Available</h4>
+                            <p class="rc-text-secondary">No changes have been recorded for this job yet.</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading job history:', error);
+                loadingIndicator.style.display = 'none';
+                historyContent.innerHTML = `
+                    <div class="rc-alert rc-alert-error">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Failed to load job history. Please try again.
+                    </div>
+                `;
+            });
+    }
+
+    // Display job history in timeline format
+    function displayJobHistory(history) {
+        const historyContent = document.getElementById('history-content');
+
+        let html = '<div class="history-timeline">';
+
+        history.forEach((entry, index) => {
+            const changeDate = new Date(entry.changed_at);
+            const formattedDate = changeDate.toLocaleDateString('de-DE', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const formattedTime = changeDate.toLocaleTimeString('de-DE', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            // Get icon and badge color based on change type
+            const typeInfo = getChangeTypeInfo(entry.change_type);
+
+            html += `
+                <div class="history-entry rc-mb-md rc-p-md" style="border-left: 3px solid ${typeInfo.color}; background: var(--background-elevated); border-radius: 6px;">
+                    <div class="rc-flex rc-flex-between rc-mb-sm">
+                        <div class="rc-flex rc-flex-gap-sm" style="align-items: center;">
+                            <i class="bi ${typeInfo.icon}" style="color: ${typeInfo.color}; font-size: 1.25rem;"></i>
+                            <span class="rc-badge ${typeInfo.badgeClass}">${typeInfo.label}</span>
+                        </div>
+                        <div class="rc-text-sm rc-text-secondary">
+                            ${formattedDate} ${formattedTime}
+                        </div>
+                    </div>
+                    <div class="rc-text-sm">
+                        <strong>${escapeHtml(entry.user_name || 'System')}</strong>
+                        ${entry.description ? `: ${escapeHtml(entry.description)}` : ''}
+                    </div>
+                    ${entry.field_name ? `
+                        <div class="rc-text-xs rc-text-secondary rc-mt-sm">
+                            <strong>Field:</strong> ${escapeHtml(formatFieldName(entry.field_name))}
+                        </div>
+                    ` : ''}
+                    ${entry.old_value || entry.new_value ? `
+                        <div class="rc-text-xs rc-mt-sm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                            ${entry.old_value ? `
+                                <div style="background: var(--background); padding: 0.5rem; border-radius: 4px;">
+                                    <strong class="rc-text-secondary">Old:</strong><br>
+                                    <code>${escapeHtml(entry.old_value)}</code>
+                                </div>
+                            ` : ''}
+                            ${entry.new_value ? `
+                                <div style="background: var(--background); padding: 0.5rem; border-radius: 4px;">
+                                    <strong class="rc-text-accent">New:</strong><br>
+                                    <code>${escapeHtml(entry.new_value)}</code>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        historyContent.innerHTML = html;
+    }
+
+    // Get change type styling information
+    function getChangeTypeInfo(changeType) {
+        const types = {
+            'created': {
+                icon: 'bi-plus-circle',
+                color: 'var(--success)',
+                badgeClass: 'rc-badge-success',
+                label: 'Created'
+            },
+            'updated': {
+                icon: 'bi-pencil',
+                color: 'var(--primary)',
+                badgeClass: 'rc-badge-info',
+                label: 'Updated'
+            },
+            'status_changed': {
+                icon: 'bi-arrow-right-circle',
+                color: 'var(--warning)',
+                badgeClass: 'rc-badge-warning',
+                label: 'Status Changed'
+            },
+            'device_added': {
+                icon: 'bi-plus-square',
+                color: 'var(--success)',
+                badgeClass: 'rc-badge-success',
+                label: 'Device Added'
+            },
+            'device_removed': {
+                icon: 'bi-dash-square',
+                color: 'var(--danger)',
+                badgeClass: 'rc-badge-danger',
+                label: 'Device Removed'
+            },
+            'deleted': {
+                icon: 'bi-trash',
+                color: 'var(--danger)',
+                badgeClass: 'rc-badge-danger',
+                label: 'Deleted'
+            }
+        };
+
+        return types[changeType] || {
+            icon: 'bi-info-circle',
+            color: 'var(--text-secondary)',
+            badgeClass: 'rc-badge-secondary',
+            label: changeType
+        };
+    }
+
+    // Format field names for display
+    function formatFieldName(fieldName) {
+        const fieldNames = {
+            'customerID': 'Customer',
+            'statusID': 'Status',
+            'jobcategoryID': 'Job Category',
+            'description': 'Description',
+            'discount': 'Discount',
+            'discount_type': 'Discount Type',
+            'startDate': 'Start Date',
+            'endDate': 'End Date'
+        };
+
+        return fieldNames[fieldName] || fieldName;
     }
 
     // ===== FILE ATTACHMENT FUNCTIONS =====
