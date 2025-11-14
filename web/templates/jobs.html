@@ -4807,7 +4807,7 @@ function showToast(message, type) {
             }
         }
 
-        function hideJobHistoryModal() {
+        function hideJobHistoryModalMain() {
             const modal = document.getElementById('jobHistoryModalMain');
             if (modal) {
                 modal.style.display = 'none';
@@ -4983,11 +4983,11 @@ function showToast(message, type) {
 
     <!-- Job History Modal -->
     <div id="jobHistoryModalMain" class="rc-modal" style="display: none;">
-        <div class="rc-modal-overlay" onclick="hideJobHistoryModal()"></div>
+        <div class="rc-modal-overlay" onclick="hideJobHistoryModalMain()"></div>
         <div class="rc-modal-content" style="max-width: 900px;">
             <div class="rc-modal-header">
                 <h3 class="rc-modal-title"><i class="bi bi-clock-history"></i> Job History</h3>
-                <button class="rc-modal-close" onclick="hideJobHistoryModal()">
+                <button class="rc-modal-close" onclick="hideJobHistoryModalMain()">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
@@ -5000,7 +5000,7 @@ function showToast(message, type) {
                 </div>
             </div>
             <div class="rc-modal-footer">
-                <button class="rc-btn rc-btn-secondary" onclick="hideJobHistoryModal()">Close</button>
+                <button class="rc-btn rc-btn-secondary" onclick="hideJobHistoryModalMain()">Close</button>
             </div>
         </div>
     </div>
