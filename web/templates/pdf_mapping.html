@@ -164,29 +164,60 @@ function getConfidenceClass(score) {
     return 'confidence-low';
 }
 
-function updateMappedSummary(itemId, product, confidence = 100) {
+function updateMappedSummary(itemId, mapping) {
     const summary = document.getElementById(`mappedSummary_${itemId}`);
     if (!summary) {
         return;
     }
-    if (!product) {
+    if (!mapping) {
         summary.innerHTML = '<div class="rc-text-sm rc-text-muted">No mapping selected yet.</div>';
         return;
     }
 
-    const name = product.name || product.Name || `Product #${product.productID || product.ProductID || ''}`;
-    const description = product.description || product.Description || '';
-    const confidenceBadge = Number.isFinite(confidence)
-        ? `<span class="confidence-badge ${getConfidenceClass(confidence)}">${Math.round(confidence)}%</span>`
-        : '';
+    const type = mapping.type || 'product';
+    const confidence = Number.isFinite(mapping.confidence) ? Math.round(mapping.confidence) : null;
+    let title = '';
+    let subtitle = '';
+    let details = '';
+    let badge = '';
+    let icon = 'bi bi-check-circle-fill';
+    let accent = 'var(--rc-success)';
 
+    if (type === 'package' && mapping.package) {
+        const pkg = mapping.package;
+        const packageName = pkg.name || pkg.Name || `Package #${pkg.package_id || pkg.PackageID || ''}`;
+        const packageCode = pkg.package_code || pkg.PackageCode || '';
+        title = `${packageName}${packageCode ? ` · ${packageCode}` : ''}`;
+        subtitle = pkg.description || pkg.Description || '';
+        icon = 'bi bi-box-seam';
+        accent = 'var(--rc-accent, #e0a800)';
+        badge = '<span class="suggestion-tag suggestion-tag-package">Package</span>';
+        if (pkg.price || pkg.Price) {
+            const price = pkg.price?.toFixed?.(2) ?? pkg.Price?.Float64;
+            if (price) {
+                details = `<div class="rc-text-xs rc-text-muted" style="margin-top: 4px;">Package price: €${Number(price).toFixed(2)}</div>`;
+            }
+        }
+    } else if (mapping.product) {
+        const product = mapping.product;
+        title = product.name || product.Name || `Product #${product.productID || product.ProductID || ''}`;
+        subtitle = product.description || product.Description || '';
+    }
+
+    const confidenceBadge = confidence !== null
+        ? `<span class="confidence-badge ${getConfidenceClass(confidence)}">${confidence}%</span>`
+        : '';
     summary.innerHTML = `
         <div class="mapped-summary-card">
-            <i class="bi bi-check-circle-fill" style="color: var(--rc-success); font-size: 20px;"></i>
+            <i class="${icon}" style="color: ${accent}; font-size: 20px;"></i>
             <div class="mapped-summary-text">
-                <div style="font-weight: 600; color: var(--rc-success);">Mapped to:</div>
-                <div style="color: var(--rc-text-primary); font-size: 15px; margin-top: 3px;">${name}</div>
-                ${description ? `<div class="rc-text-xs rc-text-muted" style="margin-top: 4px;">${description}</div>` : ''}
+                <div style="font-weight: 600; color: ${accent};">Mapped to:</div>
+                <div style="color: var(--rc-text-primary); font-size: 15px; margin-top: 3px; display:flex; align-items:center; gap:8px;">
+                    <span>${title}</span>
+                    ${badge}
+                </div>
+                ${subtitle ? `<div class="rc-text-xs rc-text-muted" style="margin-top: 4px;">${subtitle}</div>` : ''}
+                ${details}
             </div>
             ${confidenceBadge}
         </div>
@@ -390,6 +421,7 @@ async function selectMapping(arg1, arg2, arg3) {
     let element = null;
     let fallbackItemId = null;
     let fallbackProductId = null;
+    const fallbackPackageId = null;
 
     if (arg1 && typeof arg1.preventDefault === 'function') {
         arg1.preventDefault();
@@ -432,16 +464,36 @@ async function selectMapping(arg1, arg2, arg3) {
         10,
     );
 
-    if (!Number.isFinite(resolvedItemId) || resolvedItemId <= 0 ||
-        !Number.isFinite(resolvedProductId) || resolvedProductId <= 0) {
+    const resolvedPackageId = parseInt(
+        element?.dataset?.packageId ??
+        element?.getAttribute?.('data-package-id') ??
+        fallbackPackageId,
+        10,
+    );
+
+    if (!Number.isFinite(resolvedItemId) || resolvedItemId <= 0) {
+        showStatusMessage('error', 'Missing extraction item identifier');
+        return;
+    }
+
+    let payload = { item_type: element?.dataset?.mappingType || 'product' };
+    if (Number.isFinite(resolvedPackageId) && resolvedPackageId > 0) {
+        payload.package_id = resolvedPackageId;
+        payload.item_type = 'package';
+    } else if (Number.isFinite(resolvedProductId) && resolvedProductId > 0) {
+        payload.product_id = resolvedProductId;
+        payload.item_type = 'product';
+    } else {
         console.error('Mapping missing identifiers', {
             fallbackItemId,
             fallbackProductId,
+            fallbackPackageId,
             resolvedItemId,
             resolvedProductId,
+            resolvedPackageId,
             element,
         });
-        showStatusMessage('error', 'Missing item or product information for mapping');
+        showStatusMessage('error', 'Missing product or package information for mapping');
         return;
     }
 
@@ -457,7 +509,7 @@ async function selectMapping(arg1, arg2, arg3) {
         const response = await fetch(`/api/v1/pdf/manual-map/${resolvedItemId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: resolvedProductId, item_type: 'product' })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
@@ -472,22 +524,70 @@ async function selectMapping(arg1, arg2, arg3) {
             itemCard.setAttribute('data-confirmed', 'true');
         }
 
-        const product = result.product || { productID: resolvedProductId };
-        updateMappedSummary(resolvedItemId, product, 100);
+        const mappingPayload = result.package
+            ? { type: 'package', package: result.package, confidence: result.confidence || 100 }
+            : { type: 'product', product: result.product || { productID: resolvedProductId }, confidence: result.confidence || 100 };
+        updateMappedSummary(resolvedItemId, mappingPayload);
 
         const resultsDiv = document.getElementById(`searchResults_${resolvedItemId}`);
         if (resultsDiv) {
             resultsDiv.innerHTML = '';
         }
 
-        const productName = product.name || product.Name || `product #${product.productID || product.ProductID || resolvedProductId}`;
-        showStatusMessage('success', `${productName} mapped successfully. Future uploads will reuse this mapping.`);
+        const entityName = result.package
+            ? (result.package.name || result.package.Name || `package #${result.package.package_id || result.package.PackageID || ''}`)
+            : (mappingPayload.product?.name || mappingPayload.product?.Name || `product #${mappingPayload.product?.productID || mappingPayload.product?.ProductID || resolvedProductId}`);
+        showStatusMessage('success', `${entityName} mapped successfully.`);
         updateStats();
         applyItemFilter();
     } catch (error) {
         console.error('Mapping error:', error);
         showStatusMessage('error', error.message || 'Error saving mapping');
     }
+}
+
+function buildProductSuggestion(product, itemId) {
+    const pid = product.productID ?? product.product_id ?? product.ProductID ?? product.productId;
+    const pname = product.name || product.Name || `Product ${pid}`;
+    const desc = product.description || product.Description || `Product ID: ${pid}`;
+    return `
+        <button type="button"
+                class="suggestion-item"
+                data-item-id="${itemId}"
+                data-product-id="${pid}"
+                data-mapping-type="product"
+                onclick="selectMapping(event, ${itemId}, ${pid})">
+            <div class="suggestion-info">
+                <div class="suggestion-name">${pname}</div>
+                <div class="suggestion-details">${desc}</div>
+            </div>
+        </button>
+    `;
+}
+
+function buildPackageSuggestion(pkg, itemId) {
+    const packageId = pkg.package_id ?? pkg.PackageID ?? pkg.packageId;
+    const packageName = pkg.name || pkg.Name || `Package ${packageId}`;
+    const packageCode = pkg.package_code || pkg.PackageCode || '';
+    const desc = pkg.description || pkg.Description || '';
+    const priceValue = typeof pkg.price === 'number'
+        ? pkg.price
+        : (typeof pkg.Price === 'number' ? pkg.Price : null);
+    const priceDisplay = priceValue != null ? `Package price: €${Number(priceValue).toFixed(2)}` : '';
+    return `
+        <button type="button"
+                class="suggestion-item"
+                data-item-id="${itemId}"
+                data-package-id="${packageId}"
+                data-mapping-type="package"
+                onclick="selectMapping(event, ${itemId}, null)">
+            <div class="suggestion-info">
+                <div class="suggestion-name">${packageName}${packageCode ? ` · ${packageCode}` : ''}</div>
+                <div class="suggestion-details">${desc || priceDisplay || 'Package suggestion'}</div>
+            </div>
+            <span class="suggestion-tag suggestion-tag-package">Package</span>
+        </button>
+    `;
 }
 
 async function searchProducts(input, itemId) {
@@ -504,34 +604,34 @@ async function searchProducts(input, itemId) {
 
     productSearchTimeout = setTimeout(async () => {
         try {
-            const response = await fetch(`/api/v1/pdf/products/search?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
+            const [productsResponse, packagesResponse] = await Promise.all([
+                fetch(`/api/v1/pdf/products/search?q=${encodeURIComponent(query)}`),
+                fetch(`/api/v1/pdf/packages/search?q=${encodeURIComponent(query)}`)
+            ]);
+            const [productData, packageData] = await Promise.all([
+                productsResponse.json(),
+                packagesResponse.json()
+            ]);
 
             const resultsDiv = document.getElementById(`searchResults_${itemId}`);
             if (!resultsDiv) {
                 return;
             }
 
-            if (data.products && data.products.length > 0) {
-                resultsDiv.innerHTML = data.products.map(p => {
-                    const pid = p.productID ?? p.product_id ?? p.ProductID ?? p.productId;
-                    const pname = p.name || p.Name || `Product ${pid}`;
-                    const desc = p.description || p.Description || `Product ID: ${pid}`;
-                    return `
-                        <button type="button"
-                                class="suggestion-item"
-                                data-item-id="${itemId}"
-                                data-product-id="${pid}"
-                                onclick="selectMapping(event, ${itemId}, ${pid})">
-                            <div class="suggestion-info">
-                                <div class="suggestion-name">${pname}</div>
-                                <div class="suggestion-details">${desc}</div>
-                            </div>
-                        </button>
-                    `;
-                }).join('');
+            const sections = [];
+            if (packageData.packages && packageData.packages.length > 0) {
+                const packageList = packageData.packages.map(pkg => buildPackageSuggestion(pkg, itemId)).join('');
+                sections.push(`<div class="suggestion-section-label">Packages</div>${packageList}`);
+            }
+            if (productData.products && productData.products.length > 0) {
+                const productList = productData.products.map(p => buildProductSuggestion(p, itemId)).join('');
+                sections.push(`<div class="suggestion-section-label">Products</div>${productList}`);
+            }
+
+            if (sections.length === 0) {
+                resultsDiv.innerHTML = '<p style="color: var(--rc-text-secondary); text-align: center; padding: 15px;">No matching products or packages found</p>';
             } else {
-                resultsDiv.innerHTML = '<p style="color: var(--rc-text-secondary); text-align: center; padding: 15px;">No products found</p>';
+                resultsDiv.innerHTML = sections.join('');
             }
         } catch (error) {
             console.error('Search error:', error);
@@ -934,6 +1034,30 @@ document.addEventListener('DOMContentLoaded', () => {
             font-size: 12px;
             font-family: 'JetBrains Mono', monospace;
         }
+        .suggestion-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--rc-text-secondary);
+        }
+        .suggestion-tag-package {
+            border-color: rgba(255, 196, 77, 0.4);
+            color: #ffc44d;
+        }
+        .suggestion-section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: var(--rc-text-secondary);
+            margin: 8px 0 4px;
+            text-transform: uppercase;
+        }
         .customer-panel {
             border: 1px dashed rgba(255,255,255,0.15);
             border-radius: 16px;
@@ -1314,6 +1438,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         </span>
                         {{end}}
                     </div>
+                    {{else if .mappedPackage}}
+                    <div class="mapped-summary-card">
+                        <i class="bi bi-box-seam" style="color: #ffc44d; font-size: 20px;"></i>
+                        <div class="mapped-summary-text">
+                            <div style="font-weight: 600; color: #ffc44d;">Mapped to Package:</div>
+                            <div style="color: var(--rc-text-primary); font-size: 15px; margin-top: 3px;">
+                                {{.mappedPackage.Name}}
+                                {{if .mappedPackage.PackageCode}}
+                                <span class="suggestion-tag suggestion-tag-package">Pkg {{.mappedPackage.PackageCode}}</span>
+                                {{end}}
+                            </div>
+                            {{if .mappedPackage.Description.Valid}}
+                            <div class="rc-text-xs rc-text-muted" style="margin-top: 4px;">{{.mappedPackage.Description.String}}</div>
+                            {{end}}
+                        </div>
+                        {{if .item.MappingConfidence.Valid}}
+                        <span class="confidence-badge confidence-{{if ge .item.MappingConfidence.Float64 80.0}}high{{else if ge .item.MappingConfidence.Float64 60.0}}medium{{else}}low{{end}}">
+                            {{printf "%.0f" .item.MappingConfidence.Float64}}%
+                        </span>
+                        {{end}}
+                    </div>
                     {{else}}
                     <div class="rc-text-sm rc-text-muted">No mapping selected yet.</div>
                     {{end}}
@@ -1326,21 +1471,44 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="suggestions-list">
                         {{range .suggestions}}
-                        <button type="button"
-                                class="suggestion-item"
-                                data-item-id="{{$.item.ItemID}}"
-                                data-product-id="{{.SuggestedProduct.ProductID}}"
-                                onclick="selectMapping(event, {{$.item.ItemID}}, {{.SuggestedProduct.ProductID}})">
-                            <div class="suggestion-info">
-                                <div class="suggestion-name">{{.SuggestedProduct.Name}}</div>
-                                <div class="suggestion-details">
-                                    {{if .SuggestedProduct.Description}}{{.SuggestedProduct.Description}}{{else}}Product ID: {{.SuggestedProduct.ProductID}}{{end}}
+                            {{if .PackageID}}
+                            <button type="button"
+                                    class="suggestion-item"
+                                    data-item-id="{{$.item.ItemID}}"
+                                    data-package-id="{{.PackageID}}"
+                                    data-mapping-type="package"
+                                    onclick="selectMapping(event, {{$.item.ItemID}}, 0)">
+                                <div class="suggestion-info">
+                                    <div class="suggestion-name">
+                                        {{.PackageName}}
+                                        {{if .PackageCode}}<span class="suggestion-tag suggestion-tag-package">Pkg {{.PackageCode}}</span>{{end}}
+                                    </div>
+                                    <div class="suggestion-details">
+                                        Package recommendation{{if .PackagePrice}} • €{{printf "%.2f" .PackagePrice}}{{end}}
+                                    </div>
                                 </div>
-                            </div>
-                            <span class="confidence-badge confidence-{{if ge .Confidence 80.0}}high{{else if ge .Confidence 60.0}}medium{{else}}low{{end}}">
-                                {{printf "%.0f" .Confidence}}%
-                            </span>
-                        </button>
+                                <span class="confidence-badge confidence-{{if ge .Confidence 80.0}}high{{else if ge .Confidence 60.0}}medium{{else}}low{{end}}">
+                                    {{printf "%.0f" .Confidence}}%
+                                </span>
+                            </button>
+                            {{else if .SuggestedProduct}}
+                            <button type="button"
+                                    class="suggestion-item"
+                                    data-item-id="{{$.item.ItemID}}"
+                                    data-product-id="{{.SuggestedProduct.ProductID}}"
+                                    data-mapping-type="product"
+                                    onclick="selectMapping(event, {{$.item.ItemID}}, {{.SuggestedProduct.ProductID}})">
+                                <div class="suggestion-info">
+                                    <div class="suggestion-name">{{.SuggestedProduct.Name}}</div>
+                                    <div class="suggestion-details">
+                                        {{if .SuggestedProduct.Description}}{{.SuggestedProduct.Description}}{{else}}Product ID: {{.SuggestedProduct.ProductID}}{{end}}
+                                    </div>
+                                </div>
+                                <span class="confidence-badge confidence-{{if ge .Confidence 80.0}}high{{else if ge .Confidence 60.0}}medium{{else}}low{{end}}">
+                                    {{printf "%.0f" .Confidence}}%
+                                </span>
+                            </button>
+                            {{end}}
                         {{end}}
                     </div>
                 </div>

@@ -2048,6 +2048,7 @@ CREATE TABLE `pdf_extraction_items` (
   `unit_price` decimal(12,2) DEFAULT NULL COMMENT 'Extracted unit price',
   `line_total` decimal(12,2) DEFAULT NULL COMMENT 'Extracted line total',
   `mapped_product_id` int DEFAULT NULL COMMENT 'Linked product after mapping',
+  `mapped_package_id` int DEFAULT NULL COMMENT 'Linked package after mapping',
   `mapping_confidence` decimal(5,2) DEFAULT NULL COMMENT 'Mapping confidence 0-100',
   `mapping_status` enum('pending','auto_mapped','user_confirmed','user_rejected','needs_creation') COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
   `user_notes` text COLLATE utf8mb4_unicode_ci,
@@ -2056,6 +2057,7 @@ CREATE TABLE `pdf_extraction_items` (
   PRIMARY KEY (`item_id`),
   KEY `idx_pdf_items_extraction` (`extraction_id`),
   KEY `idx_pdf_items_product` (`mapped_product_id`),
+  KEY `idx_pdf_items_package` (`mapped_package_id`),
   KEY `idx_pdf_items_status` (`mapping_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Individual line items extracted from PDFs';
 
@@ -3698,7 +3700,8 @@ ALTER TABLE `pdf_extractions`
 --
 ALTER TABLE `pdf_extraction_items`
   ADD CONSTRAINT `fk_pdf_items_extraction` FOREIGN KEY (`extraction_id`) REFERENCES `pdf_extractions` (`extraction_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `fk_pdf_items_product` FOREIGN KEY (`mapped_product_id`) REFERENCES `products` (`productID`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_pdf_items_product` FOREIGN KEY (`mapped_product_id`) REFERENCES `products` (`productID`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_pdf_items_package` FOREIGN KEY (`mapped_package_id`) REFERENCES `product_packages` (`package_id`) ON DELETE SET NULL;
 
 --
 -- Constraints der Tabelle `pdf_product_mappings`

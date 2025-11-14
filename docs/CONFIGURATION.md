@@ -49,6 +49,12 @@ WAREHOUSECORE_DOMAIN=warehouse.example.com
 
 `WAREHOUSECORE_DOMAIN` must point to the public WarehouseCore host (without protocol). RentalCore uses it to populate navigation links and redirect users to WarehouseCore's product administration.
 
+```bash
+WAREHOUSECORE_ALIAS_MAP_URL=https://warehouse.example.com/api/v1/product-packages/alias-map
+```
+
+`WAREHOUSECORE_ALIAS_MAP_URL` (optional) lets RentalCore fetch the WarehouseCore package alias map from a custom URL. When omitted, the service automatically derives `https://<WAREHOUSECORE_DOMAIN>/api/v1/product-packages/alias-map`.
+
 ### Email Configuration (Optional)
 ```bash
 # SMTP Settings

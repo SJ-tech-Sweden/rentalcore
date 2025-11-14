@@ -49,8 +49,97 @@ type duplicateJobMatch struct {
 	JobsURL     string `json:"jobs_url"`
 }
 
+func applySuggestionToNewItem(item *models.PDFExtractionItem, suggestion *models.ProductMappingSuggestion) {
+	if item == nil || suggestion == nil {
+		return
+	}
+
+	if suggestion.PackageID != nil && *suggestion.PackageID > 0 {
+		item.MappedPackageID = sql.NullInt64{Int64: int64(*suggestion.PackageID), Valid: true}
+		item.MappedProductID = sql.NullInt64{}
+	} else if suggestion.SuggestedProduct != nil {
+		item.MappedProductID = sql.NullInt64{Int64: int64(suggestion.SuggestedProduct.ProductID), Valid: true}
+		item.MappedPackageID = sql.NullInt64{}
+	} else {
+		return
+	}
+
+	if suggestion.Confidence > 0 {
+		item.MappingConfidence = sql.NullFloat64{Float64: suggestion.Confidence, Valid: true}
+	}
+
+	if suggestion.Confidence >= 80 {
+		item.MappingStatus = "auto_mapped"
+	} else if item.MappingStatus == "" {
+		item.MappingStatus = "pending"
+	}
+}
+
+func buildSuggestionUpdates(suggestion *models.ProductMappingSuggestion, status string) map[string]interface{} {
+	if suggestion == nil {
+		return nil
+	}
+
+	updates := map[string]interface{}{
+		"mapping_status": status,
+	}
+
+	if suggestion.Confidence > 0 {
+		updates["mapping_confidence"] = suggestion.Confidence
+	}
+
+	if suggestion.PackageID != nil && *suggestion.PackageID > 0 {
+		updates["mapped_package_id"] = *suggestion.PackageID
+		updates["mapped_product_id"] = nil
+	} else if suggestion.SuggestedProduct != nil {
+		updates["mapped_product_id"] = suggestion.SuggestedProduct.ProductID
+		updates["mapped_package_id"] = nil
+	} else {
+		return nil
+	}
+
+	return updates
+}
+
+func getItemQuantity(item *models.PDFExtractionItem) int {
+	if item == nil {
+		return 0
+	}
+	if item.Quantity.Valid && item.Quantity.Int64 > 0 {
+		return int(item.Quantity.Int64)
+	}
+	return 1
+}
+
+type packageSummary struct {
+	PackageID   int      `json:"package_id"`
+	PackageCode string   `json:"package_code"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Price       *float64 `json:"price,omitempty"`
+}
+
+func sanitizePackage(pkg *models.ProductPackage) *packageSummary {
+	if pkg == nil {
+		return nil
+	}
+	summary := &packageSummary{
+		PackageID:   pkg.PackageID,
+		PackageCode: pkg.PackageCode,
+		Name:        pkg.Name,
+	}
+	if pkg.Description.Valid {
+		summary.Description = pkg.Description.String
+	}
+	if pkg.Price.Valid {
+		val := pkg.Price.Float64
+		summary.Price = &val
+	}
+	return summary
+}
+
 // NewPDFHandler creates a new PDF handler
-func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attachmentRepo *repository.JobAttachmentRepository) *PDFHandler {
+func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attachmentRepo *repository.JobAttachmentRepository, aliasCache *pdf.PackageAliasCache) *PDFHandler {
 	attachmentDir := filepath.Join(uploadDir, "job_attachments")
 	if err := os.MkdirAll(attachmentDir, 0755); err != nil {
 		log.Printf("warning: failed to ensure attachment directory %s: %v", attachmentDir, err)
@@ -59,7 +148,7 @@ func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attach
 	return &PDFHandler{
 		DB:             db,
 		Extractor:      pdf.NewPDFExtractor(uploadDir),
-		Mapper:         pdf.NewProductMapper(db),
+		Mapper:         pdf.NewProductMapper(db, aliasCache),
 		CustomerMapper: pdf.NewCustomerMapper(db),
 		JobHandler:     jobHandler,
 		AttachmentRepo: attachmentRepo,
@@ -223,12 +312,9 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 			MappingStatus:  "pending",
 		}
 
-		// Try to find product mapping
-		_, product, confidence, err := h.Mapper.FindBestMatch(item.ProductName)
-		if err == nil && product != nil && confidence >= 70 {
-			extractionItem.MappedProductID = sql.NullInt64{Int64: int64(product.ProductID), Valid: true}
-			extractionItem.MappingConfidence = sql.NullFloat64{Float64: confidence, Valid: true}
-			extractionItem.MappingStatus = "auto_mapped"
+		// Try to find product or package mapping
+		if suggestion, err := h.Mapper.FindBestMatch(item.ProductName); err == nil && suggestion != nil {
+			applySuggestionToNewItem(&extractionItem, suggestion)
 		}
 
 		h.DB.Create(&extractionItem)
@@ -369,12 +455,18 @@ func (h *PDFHandler) UpdateItemMapping(c *gin.Context) {
 	itemID := c.Param("item_id")
 
 	var req struct {
-		ProductID int    `json:"product_id" binding:"required"`
+		ProductID *int   `json:"product_id"`
+		PackageID *int   `json:"package_id"`
 		Status    string `json:"status"` // 'user_confirmed', 'user_rejected', etc.
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if (req.ProductID == nil || *req.ProductID <= 0) && (req.PackageID == nil || *req.PackageID <= 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Valid product_id or package_id is required"})
 		return
 	}
 
@@ -384,9 +476,16 @@ func (h *PDFHandler) UpdateItemMapping(c *gin.Context) {
 	}
 
 	updates := map[string]interface{}{
-		"mapped_product_id":  req.ProductID,
 		"mapping_status":     status,
-		"mapping_confidence": 100.0, // User confirmed = 100%
+		"mapping_confidence": 100.0,
+	}
+
+	if req.PackageID != nil && *req.PackageID > 0 {
+		updates["mapped_package_id"] = *req.PackageID
+		updates["mapped_product_id"] = nil
+	} else if req.ProductID != nil && *req.ProductID > 0 {
+		updates["mapped_product_id"] = *req.ProductID
+		updates["mapped_package_id"] = nil
 	}
 
 	if err := h.DB.Model(&models.PDFExtractionItem{}).Where("item_id = ?", itemID).Updates(updates).Error; err != nil {
@@ -547,10 +646,31 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 	var upload models.PDFUpload
 	h.DB.First(&upload, extraction.UploadID)
 
-	// Get extraction items with product mappings
+	// Get extraction items with product/package mappings
 	var items []models.PDFExtractionItem
 	h.DB.Where("extraction_id = ?", extractionID).Order("line_number").Find(&items)
-	productCounts, mappedProductItems, pendingProductItems := summarizeExtractionItems(items)
+	productCounts, mappedProductItems, pendingProductItems := h.summarizeExtractionItems(items)
+
+	packageLookup := make(map[int64]*models.ProductPackage)
+	packageIDs := make([]int64, 0)
+	seenPackages := make(map[int64]struct{})
+	for _, item := range items {
+		if item.MappedPackageID.Valid {
+			pkgID := item.MappedPackageID.Int64
+			if _, exists := seenPackages[pkgID]; !exists {
+				seenPackages[pkgID] = struct{}{}
+				packageIDs = append(packageIDs, pkgID)
+			}
+		}
+	}
+	if len(packageIDs) > 0 {
+		var packages []models.ProductPackage
+		if err := h.DB.Where("package_id IN ?", packageIDs).Find(&packages).Error; err == nil {
+			for idx := range packages {
+				packageLookup[int64(packages[idx].PackageID)] = &packages[idx]
+			}
+		}
+	}
 
 	// For each item, get mapping suggestions
 	itemsWithSuggestions := make([]gin.H, 0, len(items))
@@ -562,11 +682,15 @@ func (h *PDFHandler) ShowMappingScreen(c *gin.Context) {
 			"suggestions": suggestions,
 		}
 
-		// Add mapped product if exists
+		// Add mapped product/package if exists
 		if item.MappedProductID.Valid {
 			var product models.Product
 			if err := h.DB.First(&product, item.MappedProductID.Int64).Error; err == nil {
 				itemData["mappedProduct"] = product
+			}
+		} else if item.MappedPackageID.Valid {
+			if pkg := packageLookup[item.MappedPackageID.Int64]; pkg != nil {
+				itemData["mappedPackage"] = pkg
 			}
 		}
 
@@ -757,24 +881,29 @@ func (h *PDFHandler) RunAutoMapping(c *gin.Context) {
 
 	// Run auto-mapping for each item
 	for _, item := range items {
-		_, product, confidence, err := h.Mapper.FindBestMatch(item.RawProductText)
+		suggestion, err := h.Mapper.FindBestMatch(item.RawProductText)
+		if err != nil || suggestion == nil {
+			continue
+		}
 
-		if err == nil && product != nil {
-			updates := map[string]interface{}{
-				"mapped_product_id":  product.ProductID,
-				"mapping_confidence": confidence,
-			}
+		status := "pending"
+		if suggestion.Confidence >= 80.0 {
+			status = "auto_mapped"
+		}
 
-			// Auto-accept if confidence >= 80%
-			if confidence >= 80.0 {
-				updates["mapping_status"] = "auto_mapped"
-				autoMappedCount++
-			} else {
-				updates["mapping_status"] = "pending" // Keep pending for manual review
-				lowConfidenceCount++
-			}
+		updates := buildSuggestionUpdates(suggestion, status)
+		if updates == nil {
+			continue
+		}
 
-			h.DB.Model(&models.PDFExtractionItem{}).Where("item_id = ?", item.ItemID).Updates(updates)
+		if status == "auto_mapped" {
+			autoMappedCount++
+		} else {
+			lowConfidenceCount++
+		}
+
+		if err := h.DB.Model(&models.PDFExtractionItem{}).Where("item_id = ?", item.ItemID).Updates(updates).Error; err != nil {
+			log.Printf("warning: failed to update mapping for item %d: %v", item.ItemID, err)
 		}
 	}
 
@@ -806,6 +935,33 @@ func (h *PDFHandler) SearchProducts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"products": products})
+}
+
+// SearchPackages searches WarehouseCore packages for manual mapping
+func (h *PDFHandler) SearchPackages(c *gin.Context) {
+	query := strings.TrimSpace(c.Query("q"))
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query parameter required"})
+		return
+	}
+
+	searchPattern := "%" + query + "%"
+
+	var packages []models.ProductPackage
+	if err := h.DB.
+		Where("name LIKE ? OR package_code LIKE ? OR description LIKE ?", searchPattern, searchPattern, searchPattern).
+		Limit(20).
+		Find(&packages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed"})
+		return
+	}
+
+	results := make([]*packageSummary, 0, len(packages))
+	for i := range packages {
+		results = append(results, sanitizePackage(&packages[i]))
+	}
+
+	c.JSON(http.StatusOK, gin.H{"packages": results})
 }
 
 // SearchCustomers searches customers for manual mapping
@@ -860,7 +1016,7 @@ func (h *PDFHandler) GetDuplicateJobCandidates(c *gin.Context) {
 		return
 	}
 
-	productCounts, mappedItems, pendingItems := summarizeExtractionItems(items)
+	productCounts, mappedItems, pendingItems := h.summarizeExtractionItems(items)
 
 	customerID := uint(0)
 	if cid := strings.TrimSpace(c.Query("customer_id")); cid != "" {
@@ -912,8 +1068,9 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 	itemID := c.Param("item_id")
 
 	var req struct {
-		ProductID int    `json:"product_id" binding:"required"`
-		ItemType  string `json:"item_type"` // 'product', 'customer', 'discount', 'other'
+		ProductID *int   `json:"product_id"`
+		PackageID *int   `json:"package_id"`
+		ItemType  string `json:"item_type"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -921,18 +1078,46 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 		return
 	}
 
-	// Get the extraction item
+	targetPackage := req.PackageID != nil && *req.PackageID > 0
+	targetProduct := req.ProductID != nil && *req.ProductID > 0
+	if !targetPackage && !targetProduct {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "product_id or package_id is required"})
+		return
+	}
+
 	var item models.PDFExtractionItem
 	if err := h.DB.First(&item, itemID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
 		return
 	}
 
-	// Update the item
 	updates := map[string]interface{}{
-		"mapped_product_id":  req.ProductID,
 		"mapping_status":     "user_confirmed",
 		"mapping_confidence": 100.0,
+	}
+
+	var resultProduct *models.Product
+	var resultPackage *packageSummary
+
+	if targetPackage {
+		updates["mapped_package_id"] = *req.PackageID
+		updates["mapped_product_id"] = nil
+
+		var pkg models.ProductPackage
+		if err := h.DB.First(&pkg, *req.PackageID).Error; err == nil {
+			resultPackage = sanitizePackage(&pkg)
+		}
+	} else if targetProduct {
+		updates["mapped_product_id"] = *req.ProductID
+		updates["mapped_package_id"] = nil
+
+		var product models.Product
+		if err := h.DB.First(&product, *req.ProductID).Error; err == nil {
+			resultProduct = &product
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid mapping payload"})
+		return
 	}
 
 	if err := h.DB.Model(&models.PDFExtractionItem{}).Where("item_id = ?", itemID).Updates(updates).Error; err != nil {
@@ -940,12 +1125,6 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 		return
 	}
 
-	var product models.Product
-	if err := h.DB.First(&product, req.ProductID).Error; err != nil {
-		product = models.Product{}
-	}
-
-	// Save to learning table for future auto-mapping
 	userID := int64(1)
 	if uid, exists := c.Get("userID"); exists {
 		if id, ok := uid.(int64); ok {
@@ -953,18 +1132,33 @@ func (h *PDFHandler) SaveManualMapping(c *gin.Context) {
 		}
 	}
 
-	if err := h.Mapper.SaveMapping(item.RawProductText, req.ProductID, userID); err != nil {
-		log.Printf("warning: failed to persist manual mapping for item %d: %v", item.ItemID, err)
+	if targetProduct && req.ProductID != nil {
+		if err := h.Mapper.SaveMapping(item.RawProductText, *req.ProductID, userID); err != nil {
+			log.Printf("warning: failed to persist manual mapping for item %d: %v", item.ItemID, err)
+		}
+		h.recordMappingEvent(item.ExtractionID, item.ItemID, *req.ProductID, item.RawProductText, userID)
 	}
 
-	h.recordMappingEvent(item.ExtractionID, item.ItemID, req.ProductID, item.RawProductText, userID)
+	response := gin.H{
+		"success":    true,
+		"item_id":    item.ItemID,
+		"confidence": 100.0,
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Mapping saved and learned for future use",
-		"product": product,
-		"item_id": item.ItemID,
-	})
+	if resultProduct != nil {
+		response["product"] = resultProduct
+	}
+	if resultPackage != nil {
+		response["package"] = resultPackage
+	}
+
+	if targetPackage {
+		response["message"] = "Package mapping saved successfully"
+	} else {
+		response["message"] = "Mapping saved and learned for future use"
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // SaveCustomerMapping saves a manual customer mapping for the extraction
@@ -1358,32 +1552,45 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 
 	productCounts := make(map[uint]int)
 	pricingAggregates := make(map[uint]*productPricingAggregate)
+	packageQuantities := make(map[int]int)
+
 	for _, item := range items {
-		if !item.MappedProductID.Valid {
+		switch {
+		case item.MappedProductID.Valid:
+			pid := uint(item.MappedProductID.Int64)
+			qty := getItemQuantity(&item)
+			if qty <= 0 {
+				continue
+			}
+			productCounts[pid] += qty
+
+			lineTotal := 0.0
+			if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
+				lineTotal = item.LineTotal.Float64
+			} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
+				lineTotal = item.UnitPrice.Float64 * float64(qty)
+			}
+			if lineTotal > 0 {
+				agg := pricingAggregates[pid]
+				if agg == nil {
+					agg = &productPricingAggregate{}
+					pricingAggregates[pid] = agg
+				}
+				agg.totalAmount += lineTotal
+				agg.pricedQuantity += qty
+			}
+		case item.MappedPackageID.Valid:
+			qty := getItemQuantity(&item)
+			if qty > 0 {
+				packageQuantities[int(item.MappedPackageID.Int64)] += qty
+			}
+		default:
 			continue
 		}
-		pid := uint(item.MappedProductID.Int64)
-		qty := 1
-		if item.Quantity.Valid && item.Quantity.Int64 > 0 {
-			qty = int(item.Quantity.Int64)
-		}
-		productCounts[pid] += qty
+	}
 
-		lineTotal := 0.0
-		if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
-			lineTotal = item.LineTotal.Float64
-		} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
-			lineTotal = item.UnitPrice.Float64 * float64(qty)
-		}
-		if lineTotal > 0 && qty > 0 {
-			agg := pricingAggregates[pid]
-			if agg == nil {
-				agg = &productPricingAggregate{}
-				pricingAggregates[pid] = agg
-			}
-			agg.totalAmount += lineTotal
-			agg.pricedQuantity += qty
-		}
+	if len(packageQuantities) > 0 {
+		h.expandPackageProductCounts(packageQuantities, productCounts)
 	}
 
 	if len(productCounts) == 0 {
@@ -1853,23 +2060,31 @@ func (h *PDFHandler) applyCustomPriceOverrides(job *models.Job, overrides map[ui
 	return nil
 }
 
-func summarizeExtractionItems(items []models.PDFExtractionItem) (map[uint]int, int, int) {
+func (h *PDFHandler) summarizeExtractionItems(items []models.PDFExtractionItem) (map[uint]int, int, int) {
 	counts := make(map[uint]int)
 	mapped := 0
 	unmapped := 0
+	packageQuantities := make(map[int]int)
 
 	for _, item := range items {
-		if !item.MappedProductID.Valid {
+		switch {
+		case item.MappedProductID.Valid:
+			mapped++
+			qty := getItemQuantity(&item)
+			counts[uint(item.MappedProductID.Int64)] += qty
+		case item.MappedPackageID.Valid:
+			mapped++
+			qty := getItemQuantity(&item)
+			if qty > 0 {
+				packageQuantities[int(item.MappedPackageID.Int64)] += qty
+			}
+		default:
 			unmapped++
-			continue
 		}
-		mapped++
+	}
 
-		qty := 1
-		if item.Quantity.Valid && item.Quantity.Int64 > 0 {
-			qty = int(item.Quantity.Int64)
-		}
-		counts[uint(item.MappedProductID.Int64)] += qty
+	if len(packageQuantities) > 0 {
+		h.expandPackageProductCounts(packageQuantities, counts)
 	}
 
 	return counts, mapped, unmapped
@@ -1901,6 +2116,41 @@ func calculateExtractionItemDiscount(item *models.PDFExtractionItem) float64 {
 	}
 
 	return discount
+}
+
+func (h *PDFHandler) expandPackageProductCounts(packageQuantities map[int]int, counts map[uint]int) {
+	if len(packageQuantities) == 0 {
+		return
+	}
+
+	ids := make([]int, 0, len(packageQuantities))
+	for id := range packageQuantities {
+		ids = append(ids, id)
+	}
+
+	var packageItems []models.ProductPackageItem
+	if err := h.DB.Where("package_id IN ?", ids).Find(&packageItems).Error; err != nil {
+		log.Printf("warning: failed to fetch package items: %v", err)
+		return
+	}
+
+	itemsByPackage := make(map[int][]models.ProductPackageItem)
+	for _, pkgItem := range packageItems {
+		itemsByPackage[pkgItem.PackageID] = append(itemsByPackage[pkgItem.PackageID], pkgItem)
+	}
+
+	for packageID, packageQty := range packageQuantities {
+		if packageQty <= 0 {
+			continue
+		}
+		components := itemsByPackage[packageID]
+		for _, component := range components {
+			if component.ProductID <= 0 || component.Quantity <= 0 {
+				continue
+			}
+			counts[uint(component.ProductID)] += packageQty * component.Quantity
+		}
+	}
 }
 
 func (h *PDFHandler) detectDuplicateJobs(customerID uint, productCounts map[uint]int, excludeJobID uint) ([]duplicateJobMatch, error) {

@@ -2,6 +2,7 @@ package pdf
 
 import (
 	"database/sql"
+	"errors"
 	"strings"
 	"time"
 
@@ -11,44 +12,49 @@ import (
 
 // ProductMapper handles product mapping between PDF text and database products
 type ProductMapper struct {
-	DB *gorm.DB
+	DB         *gorm.DB
+	aliasCache *PackageAliasCache
 }
 
 // NewProductMapper creates a new product mapper instance
-func NewProductMapper(db *gorm.DB) *ProductMapper {
-	return &ProductMapper{DB: db}
+func NewProductMapper(db *gorm.DB, aliasCache *PackageAliasCache) *ProductMapper {
+	return &ProductMapper{
+		DB:         db,
+		aliasCache: aliasCache,
+	}
 }
 
-// FindBestMatch finds the best matching product for given text
-func (m *ProductMapper) FindBestMatch(productText string) (*models.PDFProductMapping, *models.Product, float64, error) {
-	// 1. Check for exact mapping in saved mappings
-	var existingMapping models.PDFProductMapping
-	err := m.DB.Where("pdf_product_text = ? AND is_active = ?", productText, true).
-		First(&existingMapping).Error
-
-	if err == nil {
-		return m.markMappingUsage(&existingMapping)
+// FindBestMatch finds the best matching suggestion (product or package)
+func (m *ProductMapper) FindBestMatch(productText string) (*models.ProductMappingSuggestion, error) {
+	text := strings.TrimSpace(productText)
+	if text == "" {
+		return nil, nil
 	}
 
-	// 1b. Check normalized mappings if no exact match
-	normalized := normalizeProductText(productText)
-	if normalized != "" {
-		if err := m.DB.Where("normalized_text = ? AND is_active = ?", normalized, true).
-			First(&existingMapping).Error; err == nil {
-			return m.markMappingUsage(&existingMapping)
+	if suggestion, err := m.lookupSavedMapping(text); err != nil {
+		return nil, err
+	} else if suggestion != nil {
+		return suggestion, nil
+	}
+
+	if m.aliasCache != nil {
+		if suggestion := m.aliasCache.FindBestMatch(text); suggestion != nil {
+			return suggestion, nil
 		}
 	}
 
-	// 2. Try fuzzy matching with all products
+	normalized := normalizeProductText(text)
+	if normalized == "" {
+		return nil, nil
+	}
 
 	var products []models.Product
 	if err := m.DB.Find(&products).Error; err != nil {
-		return nil, nil, 0, err
+		return nil, err
 	}
 
 	var bestMatch *models.Product
-	var bestScore float64 = 0
-
+	bestScore := 0.0
 	for i := range products {
 		score := calculateSimilarity(normalized, normalizeProductText(products[i].Name))
 		if score > bestScore {
@@ -57,12 +63,53 @@ func (m *ProductMapper) FindBestMatch(productText string) (*models.PDFProductMap
 		}
 	}
 
-	// Return best match if confidence is above threshold
-	if bestScore >= 70.0 && bestMatch != nil {
-		return nil, bestMatch, bestScore, nil
+	if bestMatch != nil && bestScore >= 70.0 {
+		return &models.ProductMappingSuggestion{
+			RawProductText:   text,
+			SuggestedProduct: bestMatch,
+			Confidence:       bestScore,
+			MappingType:      "fuzzy",
+		}, nil
 	}
 
-	return nil, nil, 0, nil
+	return nil, nil
+}
+
+func (m *ProductMapper) lookupSavedMapping(productText string) (*models.ProductMappingSuggestion, error) {
+	if m == nil {
+		return nil, nil
+	}
+	var existingMapping models.PDFProductMapping
+	err := m.DB.Where("pdf_product_text = ? AND is_active = ?", productText, true).
+		First(&existingMapping).Error
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		normalized := normalizeProductText(productText)
+		if normalized == "" {
+			return nil, nil
+		}
+		if err := m.DB.Where("normalized_text = ? AND is_active = ?", normalized, true).
+			First(&existingMapping).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, err
+			}
+			return nil, nil
+		}
+	}
+
+	mapping, product, _, err := m.markMappingUsage(&existingMapping)
+	if err != nil || mapping == nil || product == nil {
+		return nil, err
+	}
+
+	return &models.ProductMappingSuggestion{
+		RawProductText:   productText,
+		SuggestedProduct: product,
+		Confidence:       100,
+		MappingType:      mapping.MappingType,
+	}, nil
 }
 
 // SaveMapping saves a manual product mapping
@@ -254,42 +301,72 @@ func min3(a, b, c int) int {
 	return c
 }
 
-// FindSimilarProducts finds products similar to the given text
+// FindSimilarProducts finds products/packages similar to the given text
 func (m *ProductMapper) FindSimilarProducts(productText string, limit int) ([]models.ProductMappingSuggestion, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	suggestions := make([]models.ProductMappingSuggestion, 0, limit)
+	if m.aliasCache != nil {
+		if matches := m.aliasCache.FindMatches(productText, limit); len(matches) > 0 {
+			suggestions = append(suggestions, matches...)
+		}
+	}
+
+	if len(suggestions) >= limit {
+		return suggestions[:limit], nil
+	}
+
 	normalized := normalizeProductText(productText)
+	if normalized == "" {
+		return suggestions, nil
+	}
 
 	var products []models.Product
 	if err := m.DB.Limit(500).Find(&products).Error; err != nil {
 		return nil, err
 	}
 
-	var suggestions []models.ProductMappingSuggestion
+	type scored struct {
+		score      float64
+		suggestion models.ProductMappingSuggestion
+	}
+	candidates := make([]scored, 0, len(products))
 
 	for i := range products {
 		score := calculateSimilarity(normalized, normalizeProductText(products[i].Name))
-		if score >= 50.0 { // Minimum 50% similarity
-			suggestion := models.ProductMappingSuggestion{
+		if score < 50.0 {
+			continue
+		}
+		candidates = append(candidates, scored{
+			score: score,
+			suggestion: models.ProductMappingSuggestion{
 				RawProductText:   productText,
 				SuggestedProduct: &products[i],
 				Confidence:       score,
 				MappingType:      "fuzzy",
+			},
+		})
+	}
+
+	if len(candidates) == 0 {
+		return suggestions, nil
+	}
+
+	for i := 0; i < len(candidates)-1; i++ {
+		for j := i + 1; j < len(candidates); j++ {
+			if candidates[j].score > candidates[i].score {
+				candidates[i], candidates[j] = candidates[j], candidates[i]
 			}
-			suggestions = append(suggestions, suggestion)
 		}
 	}
 
-	// Sort by confidence (descending)
-	for i := 0; i < len(suggestions)-1; i++ {
-		for j := i + 1; j < len(suggestions); j++ {
-			if suggestions[j].Confidence > suggestions[i].Confidence {
-				suggestions[i], suggestions[j] = suggestions[j], suggestions[i]
-			}
+	for _, candidate := range candidates {
+		if len(suggestions) >= limit {
+			break
 		}
-	}
-
-	// Limit results
-	if len(suggestions) > limit {
-		suggestions = suggestions[:limit]
+		suggestions = append(suggestions, candidate.suggestion)
 	}
 
 	return suggestions, nil

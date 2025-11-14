@@ -23,6 +23,7 @@ import (
 	"go-barcode-webapp/internal/monitoring"
 	"go-barcode-webapp/internal/repository"
 	"go-barcode-webapp/internal/services"
+	pdfsvc "go-barcode-webapp/internal/services/pdf"
 
 	"github.com/gin-gonic/gin"
 )
@@ -69,6 +70,25 @@ func buildWarehouseProductsURL(r *http.Request) string {
 	}
 
 	return fmt.Sprintf("%s://%s/admin/products", scheme, host)
+}
+
+func resolvePackageAliasEndpoint() string {
+	aliasURL := strings.TrimSpace(os.Getenv("WAREHOUSECORE_ALIAS_MAP_URL"))
+	if aliasURL != "" {
+		return strings.TrimRight(aliasURL, "/")
+	}
+
+	domain := strings.TrimSpace(os.Getenv("WAREHOUSECORE_DOMAIN"))
+	if domain == "" {
+		return ""
+	}
+
+	base := strings.TrimRight(domain, "/")
+	if strings.HasPrefix(base, "http://") || strings.HasPrefix(base, "https://") {
+		return fmt.Sprintf("%s/api/v1/product-packages/alias-map", base)
+	}
+
+	return fmt.Sprintf("https://%s/api/v1/product-packages/alias-map", base)
 }
 
 func buildWarehouseDevicesURL(r *http.Request) string {
@@ -357,7 +377,16 @@ func main() {
 	companyHandler := handlers.NewCompanyHandler(db.DB, companyProvider)
 	monitoringHandler := handlers.NewMonitoringHandler(db.DB, monitoring.GlobalErrorTracker, perfMonitor, cacheManager)
 	jobAttachmentHandler := handlers.NewJobAttachmentHandler(jobAttachmentRepo, jobRepo)
-	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler, jobAttachmentRepo)
+	var packageAliasCache *pdfsvc.PackageAliasCache
+	if aliasEndpoint := resolvePackageAliasEndpoint(); aliasEndpoint != "" {
+		packageAliasCache = pdfsvc.NewPackageAliasCache(aliasEndpoint)
+		if packageAliasCache != nil {
+			go packageAliasCache.Warm()
+			log.Printf("WarehouseCore package alias cache enabled: %s", aliasEndpoint)
+		}
+	}
+
+	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler, jobAttachmentRepo, packageAliasCache)
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
@@ -1361,6 +1390,7 @@ func setupRoutes(r *gin.Engine,
 				apiPDF.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
 				apiPDF.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				apiPDF.GET("/products/search", pdfHandler.SearchProducts)
+				apiPDF.GET("/packages/search", pdfHandler.SearchPackages)
 				apiPDF.GET("/customers/search", pdfHandler.SearchCustomers)
 				apiPDF.GET("/extractions/:extraction_id/duplicates", pdfHandler.GetDuplicateJobCandidates)
 				apiPDF.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
@@ -1466,6 +1496,7 @@ func setupRoutes(r *gin.Engine,
 				pdfAPI.POST("/auto-map/:extraction_id", pdfHandler.RunAutoMapping)
 				pdfAPI.POST("/manual-map/:item_id", pdfHandler.SaveManualMapping)
 				pdfAPI.GET("/products/search", pdfHandler.SearchProducts)
+				pdfAPI.GET("/packages/search", pdfHandler.SearchPackages)
 				pdfAPI.GET("/customers/search", pdfHandler.SearchCustomers)
 				pdfAPI.GET("/extractions/:extraction_id/duplicates", pdfHandler.GetDuplicateJobCandidates)
 				pdfAPI.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)

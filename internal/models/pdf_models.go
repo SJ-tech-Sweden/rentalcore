@@ -65,6 +65,7 @@ type PDFExtractionItem struct {
 	UnitPrice         sql.NullFloat64 `gorm:"column:unit_price" json:"unit_price"`
 	LineTotal         sql.NullFloat64 `gorm:"column:line_total" json:"line_total"`
 	MappedProductID   sql.NullInt64   `gorm:"column:mapped_product_id;index:idx_pdf_items_product" json:"mapped_product_id"`
+	MappedPackageID   sql.NullInt64   `gorm:"column:mapped_package_id;index:idx_pdf_items_package" json:"mapped_package_id"`
 	MappingConfidence sql.NullFloat64 `gorm:"column:mapping_confidence" json:"mapping_confidence"`
 	MappingStatus     string          `gorm:"column:mapping_status;type:enum('pending','auto_mapped','user_confirmed','user_rejected','needs_creation');default:'pending';index:idx_pdf_items_status" json:"mapping_status"`
 	UserNotes         sql.NullString  `gorm:"column:user_notes;type:text" json:"user_notes"`
@@ -143,7 +144,11 @@ type ProductMappingSuggestion struct {
 	RawProductText   string   `json:"raw_product_text"`
 	SuggestedProduct *Product `json:"suggested_product,omitempty"`
 	Confidence       float64  `json:"confidence"`
-	MappingType      string   `json:"mapping_type"` // 'exact', 'fuzzy', 'previous'
+	MappingType      string   `json:"mapping_type"` // 'exact', 'fuzzy', 'previous', 'package'
+	PackageID        *int     `json:"package_id,omitempty"`
+	PackageCode      string   `json:"package_code,omitempty"`
+	PackageName      string   `json:"package_name,omitempty"`
+	PackagePrice     *float64 `json:"package_price,omitempty"`
 }
 
 // PDFMappingEvent represents a single mapping action (manual or persisted)

@@ -49,6 +49,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **🧠 Intelligent Parsing**: Smart detection of customer info, document numbers, dates, line items, prices
 - **📊 Extraction Review**: Visual review screen showing all extracted data with confidence scores
 - **🔗 Auto-Mapping**: Fuzzy matching algorithm automatically maps PDF products to database products
+- **📦 Package Suggestions**: WarehouseCore package alias map powers bundle-level recommendations (configure `WAREHOUSECORE_ALIAS_MAP_URL` or reuse `WAREHOUSECORE_DOMAIN`)
 - **💡 Smart Suggestions**: AI-powered product suggestions with confidence scoring (>80% auto-accept)
 - **🎯 Manual Mapping**: Searchable product database for manual mapping when needed
 - **📚 Learning System**: Saves user mappings to improve future auto-mapping accuracy
@@ -453,7 +454,14 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.37** (Latest) - Split-Line Discount Support
+### **v3.60** (Latest) - Warehouse Package OCR (Issue #19)
+- 📦 **Package Suggestions**: RentalCore now pulls WarehouseCore’s alias map to recognize product bundles directly in the PDF mapping flow.
+- 🔁 **Auto-Mapping Upgrade**: Alias hits preempt product fuzzies, so matching “Audio (XLR 3P - XLR 3P)” immediately offers the cable package instead of 37 duplicate rows.
+- 🧮 **Job Assignment Expansion**: When a PDF item maps to a package, the assigner now unfolds it into the correct per-product counts before reserving inventory or pricing overrides.
+- 🖥️ **UI Enhancements**: Mapping cards highlight package matches with dedicated chips, show the gender/connector metadata, and allow manual searches across both products and packages in a single panel.
+- ⚙️ **Config Surface**: Set `WAREHOUSECORE_ALIAS_MAP_URL` (or rely on `WAREHOUSECORE_DOMAIN`) so RentalCore can refresh the alias cache periodically without restarts.
+
+### **v3.37** - Split-Line Discount Support
 - ✅ **Descriptor Pairing**: OCR now links multi-line item descriptions with their numeric rows, so products that list text on one line and the `Menge/Einzel/Rabatt/Gesamt` block on the next keep their discounts intact.
 - 🛠️ **Fallback Parsing**: When the PDF jams quantity + unit together (e.g., `1Stück250,00`), the parser still splits out the percentage column before computing the discounted line total.
 
