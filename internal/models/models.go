@@ -64,6 +64,10 @@ type Job struct {
 	Status        Status       `json:"status,omitempty" gorm:"foreignKey:StatusID"`
 	JobCategoryID *uint        `json:"jobcategoryID" gorm:"column:jobcategoryID"`
 	JobCategory   *JobCategory `json:"job_category,omitempty" gorm:"foreignKey:JobCategoryID"`
+	CreatedBy     *uint        `json:"created_by" gorm:"column:created_by;index"`
+	CreatedAt     *time.Time   `json:"created_at" gorm:"column:created_at;default:CURRENT_TIMESTAMP;index"`
+	UpdatedBy     *uint        `json:"updated_by" gorm:"column:updated_by;index"`
+	UpdatedAt     *time.Time   `json:"updated_at" gorm:"column:updated_at;default:CURRENT_TIMESTAMP;index"`
 	Description   *string      `json:"description" gorm:"column:description"`
 	Discount      float64      `json:"discount" gorm:"column:discount;default:0"`
 	DiscountType  string       `json:"discount_type" gorm:"column:discount_type;default:amount"`
@@ -341,6 +345,19 @@ type User struct {
 
 func (User) TableName() string {
 	return "users"
+}
+
+func (u User) GetDisplayName() string {
+	if u.FirstName != "" && u.LastName != "" {
+		return u.FirstName + " " + u.LastName
+	}
+	if u.LastName != "" {
+		return u.LastName
+	}
+	if u.FirstName != "" {
+		return u.FirstName
+	}
+	return u.Username
 }
 
 // Session represents a user session

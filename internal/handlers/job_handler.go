@@ -11,6 +11,7 @@ import (
 
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/repository"
+	"go-barcode-webapp/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -116,6 +117,7 @@ type JobHandler struct {
 	statusRepo         *repository.StatusRepository
 	jobCategoryRepo    *repository.JobCategoryRepository
 	jobEditSessionRepo *repository.JobEditSessionRepository
+	jobHistoryService  *services.JobHistoryService
 }
 
 type JobProductSelection struct {
@@ -143,7 +145,7 @@ func formatUserDisplayName(user *models.User) string {
 	}
 }
 
-func NewJobHandler(jobRepo *repository.JobRepository, deviceRepo *repository.DeviceRepository, customerRepo *repository.CustomerRepository, statusRepo *repository.StatusRepository, jobCategoryRepo *repository.JobCategoryRepository, jobEditSessionRepo *repository.JobEditSessionRepository) *JobHandler {
+func NewJobHandler(jobRepo *repository.JobRepository, deviceRepo *repository.DeviceRepository, customerRepo *repository.CustomerRepository, statusRepo *repository.StatusRepository, jobCategoryRepo *repository.JobCategoryRepository, jobEditSessionRepo *repository.JobEditSessionRepository, jobHistoryService *services.JobHistoryService) *JobHandler {
 	return &JobHandler{
 		jobRepo:            jobRepo,
 		deviceRepo:         deviceRepo,
@@ -151,6 +153,7 @@ func NewJobHandler(jobRepo *repository.JobRepository, deviceRepo *repository.Dev
 		statusRepo:         statusRepo,
 		jobCategoryRepo:    jobCategoryRepo,
 		jobEditSessionRepo: jobEditSessionRepo,
+		jobHistoryService:  jobHistoryService,
 	}
 }
 
@@ -392,6 +395,21 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
+	// Log job creation to history
+	if h.jobHistoryService != nil {
+		user, _ := GetCurrentUser(c)
+		var userID *uint
+		if user != nil {
+			userID = &user.UserID
+		}
+		ipAddress := c.ClientIP()
+		userAgent := c.Request.UserAgent()
+		if err := h.jobHistoryService.LogJobCreation(job.JobID, userID, ipAddress, userAgent); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Warning: Failed to log job creation: %v\n", err)
+		}
+	}
+
 	if selectionsStr := c.PostForm("selected_products"); selectionsStr != "" {
 		selections, err := parseProductSelectionsFromString(selectionsStr)
 		if err != nil {
@@ -442,6 +460,9 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "Job not found", "user": user})
 		return
 	}
+
+	// Store old job state for history logging
+	oldJob := *job
 
 	// Update fields from form
 	customerID, _ := strconv.ParseUint(c.PostForm("customer_id"), 10, 32)
@@ -566,6 +587,20 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 			"user":          user,
 		})
 		return
+	}
+
+	// Log job update to history
+	if h.jobHistoryService != nil {
+		var userID *uint
+		if user != nil {
+			userID = &user.UserID
+		}
+		ipAddress := c.ClientIP()
+		userAgent := c.Request.UserAgent()
+		if err := h.jobHistoryService.LogJobUpdate(&oldJob, job, userID, ipAddress, userAgent); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Warning: Failed to log job update: %v\n", err)
+		}
 	}
 
 	if selectionsStr := c.PostForm("selected_products"); selectionsStr != "" {
@@ -980,6 +1015,21 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 		return
 	}
 
+	// Log job creation to history
+	if h.jobHistoryService != nil {
+		user, _ := GetCurrentUser(c)
+		var userID *uint
+		if user != nil {
+			userID = &user.UserID
+		}
+		ipAddress := c.ClientIP()
+		userAgent := c.Request.UserAgent()
+		if err := h.jobHistoryService.LogJobCreation(job.JobID, userID, ipAddress, userAgent); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Warning: Failed to log job creation: %v\n", err)
+		}
+	}
+
 	if selectionsValue, exists := requestData["selected_products"]; exists {
 		selections, err := parseProductSelectionsFromInterface(selectionsValue)
 		if err != nil {
@@ -1043,6 +1093,9 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 		return
 	}
+
+	// Store old job state for history logging
+	oldJob := *existingJob
 
 	// Create a clean job object without associations to prevent GORM from saving them
 	job := models.Job{
@@ -1113,6 +1166,21 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 	if err := h.jobRepo.Update(&job); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Log job update to history
+	if h.jobHistoryService != nil {
+		user, _ := GetCurrentUser(c)
+		var userID *uint
+		if user != nil {
+			userID = &user.UserID
+		}
+		ipAddress := c.ClientIP()
+		userAgent := c.Request.UserAgent()
+		if err := h.jobHistoryService.LogJobUpdate(&oldJob, &job, userID, ipAddress, userAgent); err != nil {
+			// Log error but don't fail the request
+			fmt.Printf("Warning: Failed to log job update: %v\n", err)
+		}
 	}
 
 	if selectionsValue, exists := requestData["selected_products"]; exists {

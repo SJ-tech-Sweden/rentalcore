@@ -318,12 +318,14 @@ func main() {
 
 	// Initialize services
 	barcodeService := services.NewBarcodeService()
+	jobHistoryService := services.NewJobHistoryService(db.DB)
 
 	// Auto-migration disabled - database schema managed manually
 	log.Printf("Database auto-migration disabled - using manual schema management")
 
 	// Initialize handlers
-	jobHandler := handlers.NewJobHandler(jobRepo, deviceRepo, customerRepo, statusRepo, jobCategoryRepo, jobEditSessionRepo)
+	jobHandler := handlers.NewJobHandler(jobRepo, deviceRepo, customerRepo, statusRepo, jobCategoryRepo, jobEditSessionRepo, jobHistoryService)
+	jobHistoryHandler := handlers.NewJobHistoryHandler(db.DB)
 	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo)
 	customerHandler := handlers.NewCustomerHandler(customerRepo)
 	statusHandler := handlers.NewStatusHandler(statusRepo)
@@ -653,7 +655,7 @@ func main() {
 	}
 
 	// Routes
-	setupRoutes(r, cfg, jobHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, rbacMiddleware, complianceMiddleware)
+	setupRoutes(r, cfg, jobHandler, jobHistoryHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, rbacMiddleware, complianceMiddleware)
 
 	// Add dedicated error route
 	r.GET("/error", func(c *gin.Context) {
@@ -710,6 +712,7 @@ func main() {
 func setupRoutes(r *gin.Engine,
 	cfg *config.Config,
 	jobHandler *handlers.JobHandler,
+	jobHistoryHandler *handlers.JobHistoryHandler,
 	deviceHandler *handlers.DeviceHandler,
 	customerHandler *handlers.CustomerHandler,
 	statusHandler *handlers.StatusHandler,
@@ -1230,6 +1233,7 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.POST("/:id/editing", jobHandler.StartJobEditingSession)
 				apiJobs.DELETE("/:id/editing", jobHandler.StopJobEditingSession)
 				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
+				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
 			}
 
 			// Device API
