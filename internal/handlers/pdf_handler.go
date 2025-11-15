@@ -977,7 +977,7 @@ func (h *PDFHandler) RunAutoMapping(c *gin.Context) {
 		// First check for saved package mapping
 		var packageMatch *models.ProductPackage
 		if h.PackageMapper != nil {
-			packageMatch, _ = h.PackageMapper.lookupSavedMapping(item.RawProductText)
+			packageMatch, _ = h.PackageMapper.LookupSavedMapping(item.RawProductText)
 		}
 
 		// If package found, use it

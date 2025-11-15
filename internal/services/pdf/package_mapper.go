@@ -72,8 +72,8 @@ func (m *PackageMapper) DeleteMapping(mappingID uint64) error {
 		Update("is_active", false).Error
 }
 
-// lookupSavedMapping finds an existing saved mapping for the given text
-func (m *PackageMapper) lookupSavedMapping(packageText string) (*models.ProductPackage, error) {
+// LookupSavedMapping finds an existing saved mapping for the given text
+func (m *PackageMapper) LookupSavedMapping(packageText string) (*models.ProductPackage, error) {
 	if m == nil {
 		return nil, nil
 	}
