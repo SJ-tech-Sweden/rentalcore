@@ -29,14 +29,15 @@ import (
 
 // PDFHandler handles PDF upload and processing requests
 type PDFHandler struct {
-	DB             *gorm.DB
-	Extractor      *pdf.PDFExtractor
-	Mapper         *pdf.ProductMapper
-	PackageMapper  *pdf.PackageMapper
-	CustomerMapper *pdf.CustomerMapper
-	JobHandler     *JobHandler
-	AttachmentRepo *repository.JobAttachmentRepository
-	attachmentDir  string
+	DB                *gorm.DB
+	Extractor         *pdf.PDFExtractor
+	Mapper            *pdf.ProductMapper
+	PackageMapper     *pdf.PackageMapper
+	CustomerMapper    *pdf.CustomerMapper
+	JobHandler        *JobHandler
+	AttachmentRepo    *repository.JobAttachmentRepository
+	JobPackageRepo    *repository.JobPackageRepository
+	attachmentDir     string
 }
 
 type duplicateJobMatch struct {
@@ -231,6 +232,10 @@ func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attach
 		log.Printf("warning: failed to ensure PDF package mapping schema: %v", err)
 	}
 
+	// Initialize repositories
+	dbWrapper := &repository.Database{DB: db}
+	jobPackageRepo := repository.NewJobPackageRepository(dbWrapper)
+
 	return &PDFHandler{
 		DB:             db,
 		Extractor:      pdf.NewPDFExtractor(uploadDir),
@@ -239,6 +244,7 @@ func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attach
 		CustomerMapper: pdf.NewCustomerMapper(db),
 		JobHandler:     jobHandler,
 		AttachmentRepo: attachmentRepo,
+		JobPackageRepo: jobPackageRepo,
 		attachmentDir:  attachmentDir,
 	}
 }
@@ -1644,11 +1650,20 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 
 	productCounts := make(map[uint]int)
 	pricingAggregates := make(map[uint]*productPricingAggregate)
-	packageQuantities := make(map[int]int)
 
+	// Separate package handling: map[packageID] -> aggregate info
+	type packageAggregate struct {
+		quantity    int
+		totalAmount float64
+		itemCount   int
+	}
+	packageAggregates := make(map[int]*packageAggregate)
+
+	// Categorize items: products vs packages
 	for _, item := range items {
 		switch {
 		case item.MappedProductID.Valid:
+			// Handle product items
 			pid := uint(item.MappedProductID.Int64)
 			qty := getItemQuantity(&item)
 			if qty <= 0 {
@@ -1671,54 +1686,108 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 				agg.totalAmount += lineTotal
 				agg.pricedQuantity += qty
 			}
+
 		case item.MappedPackageID.Valid:
+			// Handle package items - keep as packages, don't expand
+			pkgID := int(item.MappedPackageID.Int64)
 			qty := getItemQuantity(&item)
-			if qty > 0 {
-				packageQuantities[int(item.MappedPackageID.Int64)] += qty
+			if qty <= 0 {
+				continue
 			}
+
+			agg := packageAggregates[pkgID]
+			if agg == nil {
+				agg = &packageAggregate{}
+				packageAggregates[pkgID] = agg
+			}
+			agg.quantity += qty
+			agg.itemCount++
+
+			// Extract pricing
+			lineTotal := 0.0
+			if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
+				lineTotal = item.LineTotal.Float64
+			} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
+				lineTotal = item.UnitPrice.Float64 * float64(qty)
+			}
+			agg.totalAmount += lineTotal
+
 		default:
 			continue
 		}
 	}
 
-	if len(packageQuantities) > 0 {
-		h.expandPackageProductCounts(packageQuantities, productCounts)
-	}
+	var warnings []string
 
-	if len(productCounts) == 0 {
-		return "", nil
-	}
-
-	priceOverrides, err := h.computePriceOverrides(pricingAggregates)
-	if err != nil {
-		return "", err
-	}
-
-	selections := make([]JobProductSelection, 0, len(productCounts))
-	for pid, qty := range productCounts {
-		if qty <= 0 {
-			continue
+	// Step 1: Assign packages as packages (not expanded)
+	if len(packageAggregates) > 0 && h.JobPackageRepo != nil {
+		userID := uint(1) // Default user, could be extracted from context
+		if job.CreatedBy != nil {
+			userID = *job.CreatedBy
 		}
-		selections = append(selections, JobProductSelection{
-			ProductID: pid,
-			Quantity:  qty,
-		})
-	}
 
-	if len(selections) == 0 {
-		return "", nil
-	}
+		for pkgID, agg := range packageAggregates {
+			var customPrice *float64
+			if agg.totalAmount > 0 && agg.quantity > 0 {
+				// Calculate average price per package unit
+				avgPrice := agg.totalAmount / float64(agg.quantity)
+				customPrice = &avgPrice
+			}
 
-	if err := h.JobHandler.ApplyProductSelections(job, selections); err != nil {
-		lower := strings.ToLower(err.Error())
-		if strings.Contains(lower, "not enough available devices") {
-			return err.Error(), nil
+			_, err := h.JobPackageRepo.AssignPackageToJob(
+				int(job.JobID),
+				pkgID,
+				uint(agg.quantity),
+				customPrice,
+				userID,
+			)
+			if err != nil {
+				// Log warning but continue with other packages
+				log.Printf("Warning: failed to assign package %d to job %d: %v", pkgID, job.JobID, err)
+				warnings = append(warnings, fmt.Sprintf("Package %d: %v", pkgID, err))
+			} else {
+				log.Printf("Successfully assigned package %d (qty: %d) to job %d", pkgID, agg.quantity, job.JobID)
+			}
 		}
-		return fmt.Sprintf("Could not auto-assign devices: %s", err.Error()), nil
 	}
 
-	if err := h.applyCustomPriceOverrides(job, priceOverrides); err != nil {
-		return "", err
+	// Step 2: Assign individual products (if any)
+	if len(productCounts) > 0 {
+		priceOverrides, err := h.computePriceOverrides(pricingAggregates)
+		if err != nil {
+			return "", err
+		}
+
+		selections := make([]JobProductSelection, 0, len(productCounts))
+		for pid, qty := range productCounts {
+			if qty <= 0 {
+				continue
+			}
+			selections = append(selections, JobProductSelection{
+				ProductID: pid,
+				Quantity:  qty,
+			})
+		}
+
+		if len(selections) > 0 {
+			if err := h.JobHandler.ApplyProductSelections(job, selections); err != nil {
+				lower := strings.ToLower(err.Error())
+				if strings.Contains(lower, "not enough available devices") {
+					warnings = append(warnings, err.Error())
+				} else {
+					warnings = append(warnings, fmt.Sprintf("Could not auto-assign devices: %s", err.Error()))
+				}
+			}
+
+			if err := h.applyCustomPriceOverrides(job, priceOverrides); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	// Return combined warnings if any
+	if len(warnings) > 0 {
+		return strings.Join(warnings, "; "), nil
 	}
 
 	return "", nil
