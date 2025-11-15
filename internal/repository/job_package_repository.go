@@ -163,8 +163,8 @@ func (r *JobPackageRepository) countAvailableDevicesByProduct(tx *Database, prod
 		AND (
 			EXISTS (
 				SELECT 1 FROM jobdevices jd
-				JOIN jobs j ON jd.jobID = j.jobID
-				WHERE jd.deviceID = d.deviceID
+				JOIN jobs j ON jd.jobID COLLATE utf8mb4_unicode_ci = j.jobID COLLATE utf8mb4_unicode_ci
+				WHERE jd.deviceID COLLATE utf8mb4_unicode_ci = d.deviceID COLLATE utf8mb4_unicode_ci
 				AND j.jobID != ?
 				AND j.startDate IS NOT NULL
 				AND j.endDate IS NOT NULL
@@ -175,7 +175,7 @@ func (r *JobPackageRepository) countAvailableDevicesByProduct(tx *Database, prod
 				SELECT 1 FROM job_package_reservations jpr
 				JOIN job_packages jp ON jpr.job_package_id = jp.job_package_id
 				JOIN jobs j ON jp.job_id = j.jobID
-				WHERE jpr.device_id = d.deviceID
+				WHERE jpr.device_id COLLATE utf8mb4_unicode_ci = d.deviceID COLLATE utf8mb4_unicode_ci
 				AND jpr.reservation_status = 'reserved'
 				AND j.jobID != ?
 				AND j.startDate IS NOT NULL
@@ -207,8 +207,8 @@ func (r *JobPackageRepository) findAvailableDevicesByProduct(tx *Database, produ
 		WHERE d.productID = ?
 		AND NOT EXISTS (
 			SELECT 1 FROM jobdevices jd
-			JOIN jobs j ON jd.jobID = j.jobID
-			WHERE jd.deviceID = d.deviceID
+			JOIN jobs j ON jd.jobID COLLATE utf8mb4_unicode_ci = j.jobID COLLATE utf8mb4_unicode_ci
+			WHERE jd.deviceID COLLATE utf8mb4_unicode_ci = d.deviceID COLLATE utf8mb4_unicode_ci
 			AND j.jobID != ?
 			AND j.startDate IS NOT NULL
 			AND j.endDate IS NOT NULL
@@ -219,7 +219,7 @@ func (r *JobPackageRepository) findAvailableDevicesByProduct(tx *Database, produ
 			SELECT 1 FROM job_package_reservations jpr
 			JOIN job_packages jp ON jpr.job_package_id = jp.job_package_id
 			JOIN jobs j ON jp.job_id = j.jobID
-			WHERE jpr.device_id = d.deviceID
+			WHERE jpr.device_id COLLATE utf8mb4_unicode_ci = d.deviceID COLLATE utf8mb4_unicode_ci
 			AND jpr.reservation_status = 'reserved'
 			AND j.jobID != ?
 			AND j.startDate IS NOT NULL
