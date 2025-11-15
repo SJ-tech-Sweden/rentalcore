@@ -210,10 +210,10 @@ func (r *JobPackageRepository) findAvailableDevicesByProduct(tx *Database, produ
 			JOIN jobs j ON jd.jobID = j.jobID
 			WHERE jd.deviceID = d.deviceID
 			AND j.jobID != ?
-			AND j.start_date IS NOT NULL
-			AND j.end_date IS NOT NULL
-			AND j.start_date <= ?
-			AND j.end_date >= ?
+			AND j.startDate IS NOT NULL
+			AND j.endDate IS NOT NULL
+			AND j.startDate <= ?
+			AND j.endDate >= ?
 		)
 		AND NOT EXISTS (
 			SELECT 1 FROM job_package_reservations jpr
@@ -222,10 +222,10 @@ func (r *JobPackageRepository) findAvailableDevicesByProduct(tx *Database, produ
 			WHERE jpr.device_id = d.deviceID
 			AND jpr.reservation_status = 'reserved'
 			AND j.jobID != ?
-			AND j.start_date IS NOT NULL
-			AND j.end_date IS NOT NULL
-			AND j.start_date <= ?
-			AND j.end_date >= ?
+			AND j.startDate IS NOT NULL
+			AND j.endDate IS NOT NULL
+			AND j.startDate <= ?
+			AND j.endDate >= ?
 		)
 		LIMIT ?
 	`
