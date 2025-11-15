@@ -974,6 +974,29 @@ func (h *PDFHandler) RunAutoMapping(c *gin.Context) {
 
 	// Run auto-mapping for each item
 	for _, item := range items {
+		// First check for saved package mapping
+		var packageMatch *models.ProductPackage
+		if h.PackageMapper != nil {
+			packageMatch, _ = h.PackageMapper.lookupSavedMapping(item.RawProductText)
+		}
+
+		// If package found, use it
+		if packageMatch != nil {
+			updates := map[string]interface{}{
+				"mapped_package_id":  packageMatch.PackageID,
+				"mapped_product_id":  nil,
+				"mapping_status":     "auto_mapped",
+				"mapping_confidence": 100.0,
+			}
+			if err := h.DB.Model(&models.PDFExtractionItem{}).Where("item_id = ?", item.ItemID).Updates(updates).Error; err != nil {
+				log.Printf("warning: failed to update package mapping for item %d: %v", item.ItemID, err)
+			} else {
+				autoMappedCount++
+			}
+			continue
+		}
+
+		// Otherwise check for product mapping
 		suggestion, err := h.Mapper.FindBestMatch(item.RawProductText)
 		if err != nil || suggestion == nil {
 			continue
