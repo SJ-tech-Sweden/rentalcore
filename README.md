@@ -56,7 +56,9 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **📚 Learning System**: Saves both product and package mappings to improve future auto-mapping accuracy
 - **🔄 Package Mapping**: Package mappings persist to database and are suggested in future PDFs
 - **🎯 Alias Support**: Multiple different PDF texts can map to the same product/package (one-to-many)
-- **🔄 Workflow Integration**: Complete workflow from upload → review → mapping → job creation
+- **✅ Package Preservation**: Items mapped to packages are added as packages (not expanded to products)
+- **💰 Price Extraction**: Line totals and unit prices from PDFs applied as custom pricing
+- **🔄 Workflow Integration**: Complete workflow from upload → review → mapping → job creation with mixed product/package support
 
 ### 👥 **Customer & Job Management**
 - **Customer Database**: Comprehensive customer information with rental history
@@ -457,7 +459,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.64** (Latest) - PDF Package Mapping Persistence & One-to-Many Support
+### **v3.65** (Latest) - PDF Package Assignment Fix
+- 📦 **Package Preservation**: PDF items mapped to packages now stay as packages instead of expanding to individual products
+- 🔄 **Smart Assignment**: Packages are added to `job_packages` table with automatic device reservations
+- 💰 **Custom Pricing**: PDF line totals and unit prices are extracted and applied as custom package prices
+- 🔧 **Mixed Support**: Single PDF can contain both products (assigned individually) and packages (assigned as bundles)
+- ⚡ **Improved Workflow**: assignProductsToJob() now separates package handling from product handling
+- 🎯 **Price Aggregation**: Multiple PDF items mapping to same package have quantities summed and prices averaged
+- ✅ **Graceful Degradation**: Package assignment failures logged as warnings but don't block job creation
+- 🛠️ **Repository Integration**: PDFHandler now uses JobPackageRepository for direct package assignment
+
+### **v3.64** - PDF Package Mapping Persistence & One-to-Many Support
 - 📦 **Package Mapping Persistence**: Package mappings from PDF extraction are now saved to `pdf_package_mappings` table
 - 🔄 **Package Learning System**: User-confirmed package mappings are automatically saved for future auto-suggestions
 - 🗄️ **New Database Table**: Added `pdf_package_mappings` table with same structure as product mappings
