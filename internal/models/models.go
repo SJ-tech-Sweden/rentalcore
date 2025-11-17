@@ -185,13 +185,15 @@ func (Subbiercategory) TableName() string {
 }
 
 type JobDevice struct {
-	JobID       uint       `json:"jobID" gorm:"primaryKey;column:jobID"`
-	DeviceID    string     `json:"deviceID" gorm:"primaryKey;column:deviceID"`
-	Job         Job        `json:"job,omitempty" gorm:"foreignKey:JobID"`
-	Device      Device     `json:"device,omitempty" gorm:"foreignKey:DeviceID"`
-	CustomPrice *float64   `json:"custom_price" gorm:"column:custom_price"`
-	PackStatus  string     `json:"pack_status" gorm:"column:pack_status;default:pending"`
-	PackTs      *time.Time `json:"pack_ts" gorm:"column:pack_ts"`
+	JobID          uint       `json:"jobID" gorm:"primaryKey;column:jobID"`
+	DeviceID       string     `json:"deviceID" gorm:"primaryKey;column:deviceID"`
+	Job            Job        `json:"job,omitempty" gorm:"foreignKey:JobID"`
+	Device         Device     `json:"device,omitempty" gorm:"foreignKey:DeviceID"`
+	CustomPrice    *float64   `json:"custom_price" gorm:"column:custom_price"`
+	PackageID      *int       `json:"package_id" gorm:"column:package_id"`
+	IsPackageItem  bool       `json:"is_package_item" gorm:"column:is_package_item;default:false"`
+	PackStatus     string     `json:"pack_status" gorm:"column:pack_status;default:pending"`
+	PackTs         *time.Time `json:"pack_ts" gorm:"column:pack_ts"`
 }
 
 func (JobDevice) TableName() string {

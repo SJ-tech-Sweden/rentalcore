@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"go-barcode-webapp/internal/models"
-	"log"
 	"strings"
 	"time"
 )
@@ -141,56 +140,62 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		}
 	}
 
-	// Create virtual JobDevice entries for each package quantity for UI display and revenue calculation
-	// This makes packages appear as line items in the job, while real devices are tracked via job_package_reservations
-	for i := uint(0); i < quantity; i++ {
-		// Use JobPackageID as base for device ID - it's unique and simpler
-		virtualDeviceID := fmt.Sprintf("PKG_%d", jobPackage.JobPackageID)
-		if quantity > 1 {
-			virtualDeviceID = fmt.Sprintf("PKG_%d_%d", jobPackage.JobPackageID, i+1)
+	// Create ONE virtual device for the package (to show in product list)
+	virtualDeviceID := fmt.Sprintf("PKG_%d", jobPackage.JobPackageID)
+	var existingDevice models.Device
+	if err := tx.Where("deviceID = ?", virtualDeviceID).First(&existingDevice).Error; err != nil {
+		// Device doesn't exist, create it
+		notes := fmt.Sprintf("Package: %s (ID: %d, Quantity: %d)", pkg.Name, packageID, quantity)
+		virtualDevice := models.Device{
+			DeviceID:  virtualDeviceID,
+			ProductID: &virtualProductID,
+			Status:    "package_virtual",
+			Notes:     &notes,
 		}
-
-		log.Printf("DEBUG: Creating virtual device with ID: '%s' (JobPackageID: %d, PackageID: %d, Quantity: %d, Instance: %d)",
-			virtualDeviceID, jobPackage.JobPackageID, packageID, quantity, i)
-
-		// Calculate price per unit if custom price is provided
-		var unitPrice *float64
-		if customPrice != nil && quantity > 0 {
-			pricePerUnit := *customPrice / float64(quantity)
-			unitPrice = &pricePerUnit
-		}
-
-		// Create a virtual device entry if it doesn't exist (for display purposes)
-		var existingDevice models.Device
-		if err := tx.Where("deviceID = ?", virtualDeviceID).First(&existingDevice).Error; err != nil {
-			// Device doesn't exist, create it
-			notes := fmt.Sprintf("Package: %s (ID: %d)", pkg.Name, packageID)
-			virtualDevice := models.Device{
-				DeviceID:  virtualDeviceID,
-				ProductID: &virtualProductID,
-				Status:    "package_virtual",
-				Notes:     &notes,
-			}
-			log.Printf("DEBUG: About to create device - DeviceID: '%s', ProductID: %d, Status: '%s'",
-				virtualDevice.DeviceID, *virtualDevice.ProductID, virtualDevice.Status)
-			if err := tx.Create(&virtualDevice).Error; err != nil {
-				// If error is duplicate key, just continue (race condition)
-				if !strings.Contains(err.Error(), "Duplicate entry") {
-					tx.Rollback()
-					return nil, fmt.Errorf("failed to create virtual device entry: %w", err)
-				}
+		if err := tx.Create(&virtualDevice).Error; err != nil {
+			if !strings.Contains(err.Error(), "Duplicate entry") {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to create virtual device entry: %w", err)
 			}
 		}
+	}
 
-		jobDevice := models.JobDevice{
-			JobID:       uint(jobID),
-			DeviceID:    virtualDeviceID,
-			CustomPrice: unitPrice,
+	// Add the virtual package device to JobDevices (this makes package appear in product list)
+	jobDevice := models.JobDevice{
+		JobID:       uint(jobID),
+		DeviceID:    virtualDeviceID,
+		CustomPrice: customPrice, // Full package price (counts in revenue)
+	}
+	if err := tx.Create(&jobDevice).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create virtual job device for package: %w", err)
+	}
+
+	// Now add all REAL devices from the package to JobDevices
+	// These will show in the device tree for warehouse scans, but won't count in revenue
+	var reservations []models.JobPackageReservation
+	if err := tx.Where("job_package_id = ?", jobPackage.JobPackageID).Find(&reservations).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to load package reservations: %w", err)
+	}
+
+	packageIDInt := packageID
+	zeroPrice := 0.0
+	for _, reservation := range reservations {
+		// Add real device to JobDevices with price=0 and marked as package item
+		realJobDevice := models.JobDevice{
+			JobID:         uint(jobID),
+			DeviceID:      reservation.DeviceID,
+			CustomPrice:   &zeroPrice,        // Price = 0 (doesn't count in revenue)
+			PackageID:     &packageIDInt,     // Mark which package it belongs to
+			IsPackageItem: true,              // Mark as package item for UI
 		}
-
-		if err := tx.Create(&jobDevice).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to create virtual job device for package: %w", err)
+		if err := tx.Create(&realJobDevice).Error; err != nil {
+			// Skip if device is already in job (duplicate)
+			if !strings.Contains(err.Error(), "Duplicate entry") {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to add package device %s to job: %w", reservation.DeviceID, err)
+			}
 		}
 	}
 

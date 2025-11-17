@@ -1019,8 +1019,11 @@ CREATE TABLE `jobdevices` (
   `jobID` int NOT NULL,
   `deviceID` varchar(50) NOT NULL,
   `custom_price` decimal(10,2) DEFAULT NULL,
+  `package_id` int DEFAULT NULL COMMENT 'If set, this device comes from a package and should not count in revenue',
+  `is_package_item` tinyint(1) DEFAULT '0' COMMENT 'TRUE if this device is from a package (for UI display)',
   `pack_status` enum('pending','packed','issued','returned') NOT NULL DEFAULT 'pending',
-  `pack_ts` datetime DEFAULT NULL
+  `pack_ts` datetime DEFAULT NULL,
+  KEY `idx_package_id` (`package_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
