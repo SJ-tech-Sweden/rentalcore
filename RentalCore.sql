@@ -3607,8 +3607,8 @@ ALTER TABLE `jobdevices`
 -- Constraints der Tabelle `job_packages`
 --
 ALTER TABLE `job_packages`
-  ADD CONSTRAINT `job_packages_ibfk_1` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`jobID`) ON DELETE CASCADE,
-  ADD CONSTRAINT `job_packages_ibfk_2` FOREIGN KEY (`package_id`) REFERENCES `equipment_packages` (`packageID`) ON DELETE RESTRICT,
+  ADD CONSTRAINT `fk_job_packages_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`jobID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_job_packages_package` FOREIGN KEY (`package_id`) REFERENCES `product_packages` (`package_id`) ON DELETE RESTRICT,
   ADD CONSTRAINT `job_packages_ibfk_3` FOREIGN KEY (`added_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
 
 --
