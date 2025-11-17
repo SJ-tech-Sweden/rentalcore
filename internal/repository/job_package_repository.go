@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"go-barcode-webapp/internal/models"
+	"log"
 	"strings"
 	"time"
 )
