@@ -19,13 +19,30 @@ func NewJobPackageRepository(db *Database) *JobPackageRepository {
 
 // AssignPackageToJob assigns a package to a job and creates device reservations
 func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quantity uint, customPrice *float64, userID uint) (*models.JobPackage, error) {
-	// Check if package is already assigned to this job (idempotent)
+	// Check if package is already assigned to this job
 	var existingJobPackage models.JobPackage
-	if err := r.db.Where("job_id = ? AND package_id = ?", jobID, packageID).First(&existingJobPackage).Error; err == nil {
-		// Package already assigned - return existing entry (idempotent behavior)
-		log.Printf("Package %d already assigned to job %d (job_package_id: %d), skipping duplicate assignment",
-			packageID, jobID, existingJobPackage.JobPackageID)
-		return &existingJobPackage, nil
+	packageAlreadyExists := r.db.Where("job_id = ? AND package_id = ?", jobID, packageID).First(&existingJobPackage).Error == nil
+
+	if packageAlreadyExists {
+		// Check if JobDevices entries exist for this package
+		virtualDeviceID := fmt.Sprintf("PKG_%d", existingJobPackage.JobPackageID)
+		var existingJobDevice models.JobDevice
+		jobDevicesExist := r.db.Where("jobID = ? AND deviceID = ?", jobID, virtualDeviceID).First(&existingJobDevice).Error == nil
+
+		if jobDevicesExist {
+			// Everything already exists - return existing entry (fully idempotent)
+			log.Printf("Package %d fully assigned to job %d (job_package_id: %d), skipping",
+				packageID, jobID, existingJobPackage.JobPackageID)
+			return &existingJobPackage, nil
+		}
+
+		// Package exists but JobDevices don't - we need to create them
+		// This can happen if a previous run was interrupted
+		log.Printf("Package %d exists for job %d but JobDevices missing, creating them now",
+			packageID, jobID)
+
+		// We'll use the existing jobPackage and create the missing JobDevices below
+		// Skip the job_package creation but continue with device assignment
 	}
 
 	// Start transaction
@@ -76,51 +93,65 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		return nil, fmt.Errorf("device availability issues: %v", availabilityIssues)
 	}
 
-	// Create job package entry
-	var priceValue sql.NullFloat64
-	if customPrice != nil {
-		priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
-	}
+	// Create or use existing job package entry
+	var jobPackage *models.JobPackage
 
-	jobPackage := &models.JobPackage{
-		JobID:       jobID,
-		PackageID:   packageID,
-		Quantity:    quantity,
-		CustomPrice: priceValue,
-		AddedAt:     time.Now(),
-		AddedBy:     &userID,
-	}
+	if packageAlreadyExists {
+		// Use the existing job_package entry
+		jobPackage = &existingJobPackage
+		log.Printf("Using existing job_package_id: %d", jobPackage.JobPackageID)
+	} else {
+		// Create new job package entry
+		var priceValue sql.NullFloat64
+		if customPrice != nil {
+			priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
+		}
 
-	if err := tx.Create(jobPackage).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to create job package: %w", err)
-	}
+		jobPackage = &models.JobPackage{
+			JobID:       jobID,
+			PackageID:   packageID,
+			Quantity:    quantity,
+			CustomPrice: priceValue,
+			AddedAt:     time.Now(),
+			AddedBy:     &userID,
+		}
 
-	// Create device reservations for each package item (by product)
-	for _, pkgItem := range packageItems {
-		totalQuantity := uint(pkgItem.Quantity) * quantity
-
-		// Find available devices of this product type
-		availableDevices, err := r.findAvailableDevicesByProduct(r.db, pkgItem.ProductID, totalQuantity, startDate, endDate, jobID)
-		if err != nil {
+		if err := tx.Create(jobPackage).Error; err != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("failed to find available devices for product %d: %w", pkgItem.ProductID, err)
+			return nil, fmt.Errorf("failed to create job package: %w", err)
 		}
+		log.Printf("Created new job_package_id: %d", jobPackage.JobPackageID)
+	}
 
-		// Create reservations
-		for _, deviceID := range availableDevices {
-			reservation := models.JobPackageReservation{
-				JobPackageID:      jobPackage.JobPackageID,
-				DeviceID:          deviceID,
-				Quantity:          1,
-				ReservationStatus: "reserved",
-				ReservedAt:        time.Now(),
-			}
-			if err := tx.Create(&reservation).Error; err != nil {
+	// Create device reservations only if this is a new package assignment
+	if !packageAlreadyExists {
+		for _, pkgItem := range packageItems {
+			totalQuantity := uint(pkgItem.Quantity) * quantity
+
+			// Find available devices of this product type
+			availableDevices, err := r.findAvailableDevicesByProduct(r.db, pkgItem.ProductID, totalQuantity, startDate, endDate, jobID)
+			if err != nil {
 				tx.Rollback()
-				return nil, fmt.Errorf("failed to create reservation: %w", err)
+				return nil, fmt.Errorf("failed to find available devices for product %d: %w", pkgItem.ProductID, err)
+			}
+
+			// Create reservations
+			for _, deviceID := range availableDevices {
+				reservation := models.JobPackageReservation{
+					JobPackageID:      jobPackage.JobPackageID,
+					DeviceID:          deviceID,
+					Quantity:          1,
+					ReservationStatus: "reserved",
+					ReservedAt:        time.Now(),
+				}
+				if err := tx.Create(&reservation).Error; err != nil {
+					tx.Rollback()
+					return nil, fmt.Errorf("failed to create reservation: %w", err)
+				}
 			}
 		}
+	} else {
+		log.Printf("Skipping reservation creation - already exist for job_package_id: %d", jobPackage.JobPackageID)
 	}
 
 	// Create a virtual product for this package if it doesn't exist
