@@ -76,6 +76,7 @@ type Job struct {
 	StartDate     *time.Time   `json:"startDate" gorm:"column:startDate;type:date"`
 	EndDate       *time.Time   `json:"endDate" gorm:"column:endDate;type:date"`
 	JobDevices    []JobDevice  `json:"job_devices,omitempty" gorm:"foreignKey:JobID"`
+	JobPackages   []JobPackage `json:"job_packages,omitempty" gorm:"foreignKey:JobID;references:JobID"`
 	DeviceCount   int          `json:"device_count" gorm:"-:all"`
 }
 

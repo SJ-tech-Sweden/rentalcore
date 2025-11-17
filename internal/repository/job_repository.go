@@ -103,7 +103,10 @@ func (r *JobRepository) Create(job *models.Job) error {
 
 func (r *JobRepository) GetByID(id uint) (*models.Job, error) {
 	var job models.Job
-	err := r.db.Preload("JobDevices.Device").First(&job, id).Error
+	err := r.db.
+		Preload("JobDevices.Device").
+		Preload("JobPackages.Package").
+		First(&job, id).Error
 	if err != nil {
 		jobRepoDebugLog("🔧 DEBUG JobRepo.GetByID: Error loading job %d: %v\n", id, err)
 		return nil, err
