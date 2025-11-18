@@ -379,7 +379,7 @@ func (r *JobRepository) AssignDevice(jobID uint, deviceID string, price float64)
 		if device.Product != nil {
 			// Check if this product is a package (exists in product_packages table)
 			var pkg models.ProductPackage
-			if err := r.db.Where("package_id = ?", device.Product.ProductID).First(&pkg).Error; err == nil {
+			if err := r.db.Where("product_id = ?", device.Product.ProductID).First(&pkg).Error; err == nil {
 				log.Printf("[PACKAGE] Device %s is a package device (product %d), triggering package assignment logic", deviceID, device.Product.ProductID)
 				return r.handlePackageDeviceAssignment(jobID, deviceID, &job, price, &pkg)
 			}
