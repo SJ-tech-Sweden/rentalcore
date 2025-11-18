@@ -373,6 +373,19 @@ func (r *JobRepository) AssignDevice(jobID uint, deviceID string, price float64)
 
 	jobRepoDebugLog("🚨 DEBUG: Job %d dates: %v to %v\n", jobID, job.StartDate, job.EndDate)
 
+	// Check if this is a package device
+	var device models.Device
+	if err := r.db.Preload("Product").Where("deviceID = ?", deviceID).First(&device).Error; err == nil {
+		if device.Product != nil {
+			// Check if this product is a package (exists in product_packages table)
+			var pkg models.ProductPackage
+			if err := r.db.Where("package_id = ?", device.Product.ProductID).First(&pkg).Error; err == nil {
+				log.Printf("[PACKAGE] Device %s is a package device (product %d), triggering package assignment logic", deviceID, device.Product.ProductID)
+				return r.handlePackageDeviceAssignment(jobID, deviceID, &job, price, &pkg)
+			}
+		}
+	}
+
 	// Check if device is available for this job's date range
 	// Implement the date-based availability check directly
 
@@ -614,6 +627,12 @@ func (r *JobRepository) CalculateAndUpdateRevenue(jobID uint) error {
 	r.loadProductsForJobDevices(jobDevices)
 
 	for _, jd := range jobDevices {
+		// Skip package items - they don't count towards revenue
+		// Only the package device itself (is_package_item=false) counts
+		if jd.IsPackageItem {
+			continue
+		}
+
 		if jd.CustomPrice != nil && *jd.CustomPrice > 0 {
 			// Use custom price as-is (flat rate, not per day)
 			totalRevenue += *jd.CustomPrice
@@ -779,4 +798,157 @@ func (r *JobRepository) GetJobDevicesPaginated(jobID uint, productName string, p
 	r.loadProductsForJobDevices(jobDevices)
 
 	return jobDevices, nil
+}
+
+// handlePackageDeviceAssignment handles the assignment of a package device to a job
+// It calculates discounts, adds the package device, and reserves all real devices
+func (r *JobRepository) handlePackageDeviceAssignment(jobID uint, packageDeviceID string, job *models.Job, price float64, pkg *models.ProductPackage) error {
+	log.Printf("[PACKAGE] Starting package assignment: jobID=%d, packageDeviceID=%s, packageID=%d", jobID, packageDeviceID, pkg.PackageID)
+
+	// Load all items in this package
+	var packageItems []models.ProductPackageItem
+	if err := r.db.Where("package_id = ?", pkg.PackageID).Find(&packageItems).Error; err != nil {
+		return fmt.Errorf("failed to load package items: %w", err)
+	}
+
+	log.Printf("[PACKAGE] Found %d items in package %d", len(packageItems), pkg.PackageID)
+
+	// Calculate total regular price of all items
+	var regularTotal float64
+	for _, item := range packageItems {
+		var product models.Product
+		if err := r.db.First(&product, item.ProductID).Error; err != nil {
+			log.Printf("[PACKAGE] Warning: Could not load product %d: %v", item.ProductID, err)
+			continue
+		}
+
+		if product.ItemCostPerDay != nil {
+			itemPrice := *product.ItemCostPerDay * float64(item.Quantity)
+			regularTotal += itemPrice
+			log.Printf("[PACKAGE] Product %d (%s): %.2f x %d = %.2f", product.ProductID, product.Name, *product.ItemCostPerDay, item.Quantity, itemPrice)
+		}
+	}
+
+	// Determine package price (use provided price, or fall back to package.Price)
+	packagePrice := price
+	if packagePrice == 0 && pkg.Price.Valid {
+		packagePrice = pkg.Price.Float64
+	}
+
+	// Calculate discount percentage
+	var discountPercent float64
+	if regularTotal > 0 {
+		discountPercent = (regularTotal - packagePrice) / regularTotal
+	}
+
+	log.Printf("[PACKAGE] Regular total: %.2f, Package price: %.2f, Discount: %.2f%%", regularTotal, packagePrice, discountPercent*100)
+
+	// Start transaction
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+
+	// 1. Add the package device itself to jobdevices
+	packageJobDevice := models.JobDevice{
+		JobID:       int(jobID),
+		DeviceID:    packageDeviceID,
+		CustomPrice: &packagePrice,
+		// is_package_item stays false for the package device itself
+	}
+
+	if err := tx.Create(&packageJobDevice).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to add package device to job: %w", err)
+	}
+
+	log.Printf("[PACKAGE] ✓ Added package device %s with price %.2f", packageDeviceID, packagePrice)
+
+	// 2. Reserve real devices for each package item
+	for _, item := range packageItems {
+		var product models.Product
+		if err := tx.First(&product, item.ProductID).Error; err != nil {
+			log.Printf("[PACKAGE] Warning: Could not load product %d: %v", item.ProductID, err)
+			continue
+		}
+
+		// Find available devices for this product
+		availableDevices, err := r.findAvailableDevicesForProduct(tx, uint(item.ProductID), item.Quantity, job)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to find available devices for product %d: %w", item.ProductID, err)
+		}
+
+		if len(availableDevices) < item.Quantity {
+			tx.Rollback()
+			return fmt.Errorf("not enough available devices for product %d (%s): need %d, found %d",
+				item.ProductID, product.Name, item.Quantity, len(availableDevices))
+		}
+
+		// Add the found devices to jobdevices with discount applied
+		for i := 0; i < item.Quantity; i++ {
+			device := availableDevices[i]
+
+			// Calculate discounted price
+			var discountedPrice *float64
+			if product.ItemCostPerDay != nil {
+				price := *product.ItemCostPerDay * (1 - discountPercent)
+				discountedPrice = &price
+			}
+
+			packageIDInt := pkg.PackageID
+			jobDevice := models.JobDevice{
+				JobID:         int(jobID),
+				DeviceID:      device.DeviceID,
+				CustomPrice:   discountedPrice,
+				IsPackageItem: true,
+				PackageID:     &packageIDInt,
+			}
+
+			if err := tx.Create(&jobDevice).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to add device %s to job: %w", device.DeviceID, err)
+			}
+
+			log.Printf("[PACKAGE] ✓ Added device %s (product: %s) with discounted price %.2f (is_package_item=true)",
+				device.DeviceID, product.Name, *discountedPrice)
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit package assignment: %w", err)
+	}
+
+	log.Printf("[PACKAGE] ✓ Successfully assigned package %s to job %d", packageDeviceID, jobID)
+
+	// Update revenue calculation
+	return r.CalculateAndUpdateRevenue(jobID)
+}
+
+// findAvailableDevicesForProduct finds available devices for a given product within a job's date range
+func (r *JobRepository) findAvailableDevicesForProduct(tx *gorm.DB, productID uint, quantity int, job *models.Job) ([]models.Device, error) {
+	var devices []models.Device
+
+	// Find all devices for this product
+	query := tx.Model(&models.Device{}).Where("productID = ?", productID)
+
+	// Exclude devices that are assigned to other jobs with overlapping dates
+	if job.StartDate != nil && job.EndDate != nil {
+		query = query.Where(`deviceID NOT IN (
+			SELECT jd.deviceID
+			FROM jobdevices jd
+			JOIN jobs j ON jd.jobID = j.jobID
+			WHERE j.startDate <= ?
+			  AND j.endDate >= ?
+			  AND j.statusID IN (
+			    SELECT statusID FROM status WHERE status IN ('open', 'in_progress')
+			  )
+		)`, job.EndDate, job.StartDate)
+	}
+
+	query = query.Order("serialnumber ASC").Limit(quantity)
+
+	err := query.Find(&devices).Error
+	return devices, err
 }

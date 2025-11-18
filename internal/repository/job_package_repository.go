@@ -17,297 +17,206 @@ func NewJobPackageRepository(db *Database) *JobPackageRepository {
 	return &JobPackageRepository{db: db}
 }
 
-// AssignPackageToJob assigns a package to a job and creates device reservations
+// AssignPackageToJob assigns package devices to a job
+// v4.0 SIMPLIFIED: Works with manually created package devices (e.g., PKG_SOUNDM_001)
+// This is a compatibility layer for OCR - packages are now treated like regular devices
 func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quantity uint, customPrice *float64, userID uint) (*models.JobPackage, error) {
-	log.Printf("=== AssignPackageToJob START: jobID=%d, packageID=%d, quantity=%d ===", jobID, packageID, quantity)
+	log.Printf("=== AssignPackageToJob v4.0 START: jobID=%d, packageID=%d, qty=%d ===", jobID, packageID, quantity)
 
-	// Check if package is already assigned to this job
-	var existingJobPackage models.JobPackage
-	packageAlreadyExists := r.db.Where("job_id = ? AND package_id = ?", jobID, packageID).First(&existingJobPackage).Error == nil
-	log.Printf("[IDEMPOTENCY] packageAlreadyExists=%v", packageAlreadyExists)
+	// Verify package exists
+	var pkg models.ProductPackage
+	if err := r.db.Where("package_id = ?", packageID).First(&pkg).Error; err != nil {
+		return nil, fmt.Errorf("package %d not found: %w", packageID, err)
+	}
+	log.Printf("[v4.0] Package found: %s", pkg.Name)
 
-	if packageAlreadyExists {
-		// Check if JobDevices entries exist for this package
-		virtualDeviceID := fmt.Sprintf("PKG_%d", existingJobPackage.JobPackageID)
-		log.Printf("[IDEMPOTENCY] Checking for virtual device: %s", virtualDeviceID)
+	// Get job for date range
+	var job models.Job
+	if err := r.db.First(&job, jobID).Error; err != nil {
+		return nil, fmt.Errorf("job %d not found: %w", jobID, err)
+	}
 
-		var existingJobDevice models.JobDevice
-		jobDevicesExist := r.db.Where("jobID = ? AND deviceID = ?", jobID, virtualDeviceID).First(&existingJobDevice).Error == nil
-		log.Printf("[IDEMPOTENCY] jobDevicesExist=%v", jobDevicesExist)
+	// Find available package devices (devices whose productID = packageID)
+	// Package devices are regular devices, but their product is a package
+	var availablePackageDevices []models.Device
+	query := r.db.Model(&models.Device{}).Where("productID = ?", packageID)
 
-		if jobDevicesExist {
-			// Everything already exists - return existing entry (fully idempotent)
-			log.Printf("[IDEMPOTENCY] Package %d fully assigned to job %d (job_package_id: %d), RETURNING EARLY",
-				packageID, jobID, existingJobPackage.JobPackageID)
-			return &existingJobPackage, nil
-		}
+	// Exclude devices assigned to other jobs with overlapping dates
+	if job.StartDate != nil && job.EndDate != nil {
+		query = query.Where(`deviceID NOT IN (
+			SELECT jd.deviceID FROM jobdevices jd
+			JOIN jobs j ON jd.jobID = j.jobID
+			WHERE j.startDate <= ? AND j.endDate >= ?
+			AND j.statusID IN (SELECT statusID FROM status WHERE status IN ('open', 'in_progress'))
+		)`, job.EndDate, job.StartDate)
+	}
 
-		// Package exists but JobDevices don't - we need to create them
-		// This can happen if a previous run was interrupted
-		log.Printf("[RECOVERY MODE] Package %d exists for job %d but JobDevices missing, will create them now",
-			packageID, jobID)
+	query = query.Order("deviceID ASC").Limit(int(quantity))
 
-		// We'll use the existing jobPackage and create the missing JobDevices below
-		// Skip the job_package creation but continue with device assignment
+	if err := query.Find(&availablePackageDevices).Error; err != nil {
+		return nil, fmt.Errorf("failed to find package devices: %w", err)
+	}
+
+	if len(availablePackageDevices) < int(quantity) {
+		return nil, fmt.Errorf("not enough available package devices: need %d, found %d", quantity, len(availablePackageDevices))
+	}
+
+	log.Printf("[v4.0] Found %d available package devices", len(availablePackageDevices))
+
+	// Calculate price per package device
+	var pricePerDevice *float64
+	if customPrice != nil && *customPrice > 0 && quantity > 0 {
+		price := *customPrice / float64(quantity)
+		pricePerDevice = &price
 	}
 
 	// Start transaction
-	log.Printf("[TX] Starting transaction...")
 	tx := r.db.Begin()
 	if tx.Error != nil {
-		log.Printf("[TX ERROR] Failed to start transaction: %v", tx.Error)
 		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
 	}
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("[TX PANIC] Transaction panic, rolling back: %v", r)
+
+	// Add each package device to jobdevices
+	// Then manually trigger package assignment logic (adding real devices with discounts)
+	for i, device := range availablePackageDevices {
+		price := float64(0)
+		if pricePerDevice != nil {
+			price = *pricePerDevice
+		}
+
+		// Load package items
+		var packageItems []models.ProductPackageItem
+		if err := tx.Where("package_id = ?", packageID).Find(&packageItems).Error; err != nil {
 			tx.Rollback()
-		}
-	}()
-	log.Printf("[TX] Transaction started successfully")
-
-	// Verify package exists (from WarehouseCore product_packages)
-	log.Printf("[VERIFY] Loading package %d from product_packages...", packageID)
-	var pkg models.ProductPackage
-	if err := tx.Where("package_id = ?", packageID).First(&pkg).Error; err != nil {
-		log.Printf("[VERIFY ERROR] Package %d not found: %v", packageID, err)
-		tx.Rollback()
-		return nil, fmt.Errorf("package not found: %w", err)
-	}
-	log.Printf("[VERIFY] Package loaded: %s (price: %.2f)", pkg.Name, pkg.Price.Float64)
-
-	// Get package items (from WarehouseCore product_package_items)
-	var packageItems []models.ProductPackageItem
-	if err := tx.Where("package_id = ?", packageID).Find(&packageItems).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to load package items: %w", err)
-	}
-
-	// Get job dates for availability check
-	var job models.Job
-	if err := tx.Where("jobID = ?", jobID).First(&job).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("job not found: %w", err)
-	}
-
-	// Convert time pointers to sql.NullTime
-	var startDate, endDate sql.NullTime
-	if job.StartDate != nil {
-		startDate = sql.NullTime{Time: *job.StartDate, Valid: true}
-	}
-	if job.EndDate != nil {
-		endDate = sql.NullTime{Time: *job.EndDate, Valid: true}
-	}
-
-	// Check device availability (using product-based items)
-	availabilityIssues := r.checkPackageItemAvailability(r.db, packageItems, quantity, startDate, endDate, jobID)
-	if len(availabilityIssues) > 0 {
-		tx.Rollback()
-		return nil, fmt.Errorf("device availability issues: %v", availabilityIssues)
-	}
-
-	// Create or use existing job package entry
-	log.Printf("[JOB_PACKAGE] Determining job_package entry...")
-	var jobPackage *models.JobPackage
-
-	if packageAlreadyExists {
-		// Use the existing job_package entry
-		jobPackage = &existingJobPackage
-		log.Printf("[JOB_PACKAGE] Using existing job_package_id: %d", jobPackage.JobPackageID)
-	} else {
-		// Create new job package entry
-		log.Printf("[JOB_PACKAGE] Creating new job_package entry...")
-		var priceValue sql.NullFloat64
-		if customPrice != nil {
-			priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
+			return nil, fmt.Errorf("failed to load package items: %w", err)
 		}
 
-		jobPackage = &models.JobPackage{
+		// Calculate total regular price
+		var regularTotal float64
+		for _, item := range packageItems {
+			var product models.Product
+			if err := tx.First(&product, item.ProductID).Error; err != nil {
+				continue
+			}
+			if product.ItemCostPerDay != nil {
+				regularTotal += *product.ItemCostPerDay * float64(item.Quantity)
+			}
+		}
+
+		// Calculate discount percentage
+		packagePrice := price
+		if packagePrice == 0 && pkg.Price.Valid {
+			packagePrice = pkg.Price.Float64
+		}
+		var discountPercent float64
+		if regularTotal > 0 {
+			discountPercent = (regularTotal - packagePrice) / regularTotal
+		}
+
+		// Add package device itself
+		packageJobDevice := models.JobDevice{
 			JobID:       jobID,
-			PackageID:   packageID,
-			Quantity:    quantity,
-			CustomPrice: priceValue,
-			AddedAt:     time.Now(),
-			AddedBy:     &userID,
+			DeviceID:    device.DeviceID,
+			CustomPrice: &price,
 		}
-
-		if err := tx.Create(jobPackage).Error; err != nil {
-			log.Printf("[JOB_PACKAGE ERROR] Failed to create: %v", err)
+		if err := tx.Create(&packageJobDevice).Error; err != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("failed to create job package: %w", err)
+			return nil, fmt.Errorf("failed to assign package device %s: %w", device.DeviceID, err)
 		}
-		log.Printf("[JOB_PACKAGE] Created new job_package_id: %d", jobPackage.JobPackageID)
-	}
 
-	// Create device reservations only if this is a new package assignment
-	if !packageAlreadyExists {
-		log.Printf("[RESERVATIONS] Creating device reservations for %d package items...", len(packageItems))
-		for _, pkgItem := range packageItems {
-			totalQuantity := uint(pkgItem.Quantity) * quantity
-			log.Printf("[RESERVATIONS] Processing product %d: need %d devices", pkgItem.ProductID, totalQuantity)
+		log.Printf("[v4.0] ✓ Assigned package device %d/%d: %s (price: %.2f, discount: %.1f%%)",
+			i+1, quantity, device.DeviceID, price, discountPercent*100)
 
-			// Find available devices of this product type
-			availableDevices, err := r.findAvailableDevicesByProduct(r.db, pkgItem.ProductID, totalQuantity, startDate, endDate, jobID)
-			if err != nil {
-				log.Printf("[RESERVATIONS ERROR] Failed to find devices for product %d: %v", pkgItem.ProductID, err)
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to find available devices for product %d: %w", pkgItem.ProductID, err)
+		// Add real devices from the package with discounted prices
+		for _, item := range packageItems {
+			var product models.Product
+			if err := tx.First(&product, item.ProductID).Error; err != nil {
+				continue
 			}
-			log.Printf("[RESERVATIONS] Found %d available devices for product %d", len(availableDevices), pkgItem.ProductID)
 
-			// Create reservations
-			for _, deviceID := range availableDevices {
-				reservation := models.JobPackageReservation{
-					JobPackageID:      jobPackage.JobPackageID,
-					DeviceID:          deviceID,
-					Quantity:          1,
-					ReservationStatus: "reserved",
-					ReservedAt:        time.Now(),
+			// Find available devices for this product
+			var availableDevices []models.Device
+			deviceQuery := tx.Model(&models.Device{}).Where("productID = ?", item.ProductID)
+			if job.StartDate != nil && job.EndDate != nil {
+				deviceQuery = deviceQuery.Where(`deviceID NOT IN (
+					SELECT jd.deviceID FROM jobdevices jd
+					JOIN jobs j ON jd.jobID = j.jobID
+					WHERE j.startDate <= ? AND j.endDate >= ?
+					AND j.statusID IN (SELECT statusID FROM status WHERE status IN ('open', 'in_progress'))
+				)`, job.EndDate, job.StartDate)
+			}
+			deviceQuery = deviceQuery.Order("serialnumber ASC").Limit(item.Quantity)
+
+			if err := deviceQuery.Find(&availableDevices).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("failed to find devices for product %d: %w", item.ProductID, err)
+			}
+
+			if len(availableDevices) < item.Quantity {
+				tx.Rollback()
+				return nil, fmt.Errorf("not enough devices for product %d (%s): need %d, found %d",
+					item.ProductID, product.Name, item.Quantity, len(availableDevices))
+			}
+
+			// Add devices with discount
+			for _, realDevice := range availableDevices {
+				var discountedPrice *float64
+				if product.ItemCostPerDay != nil {
+					dp := *product.ItemCostPerDay * (1 - discountPercent)
+					discountedPrice = &dp
 				}
-				if err := tx.Create(&reservation).Error; err != nil {
-					log.Printf("[RESERVATIONS ERROR] Failed to create reservation for %s: %v", deviceID, err)
+
+				packageIDInt := packageID
+				realJobDevice := models.JobDevice{
+					JobID:         jobID,
+					DeviceID:      realDevice.DeviceID,
+					CustomPrice:   discountedPrice,
+					IsPackageItem: true,
+					PackageID:     &packageIDInt,
+				}
+
+				if err := tx.Create(&realJobDevice).Error; err != nil {
 					tx.Rollback()
-					return nil, fmt.Errorf("failed to create reservation: %w", err)
+					return nil, fmt.Errorf("failed to add real device %s: %w", realDevice.DeviceID, err)
 				}
+
+				log.Printf("[v4.0]   ↳ Added real device %s (%s) with discount: %.2f",
+					realDevice.DeviceID, product.Name, *discountedPrice)
 			}
 		}
-		log.Printf("[RESERVATIONS] All device reservations created successfully")
-	} else {
-		log.Printf("[RESERVATIONS] Skipping - already exist for job_package_id: %d", jobPackage.JobPackageID)
 	}
 
-	// Create a virtual product for this package if it doesn't exist
-	virtualProductID := uint(1000000 + packageID) // Offset by 1M to avoid conflicts
-	log.Printf("[VIRTUAL_PRODUCT] Creating/checking virtual product ID %d for package %d...", virtualProductID, packageID)
-	var virtualProduct models.Product
-	if err := tx.Where("productID = ?", virtualProductID).First(&virtualProduct).Error; err != nil {
-		// Product doesn't exist, create it
-		log.Printf("[VIRTUAL_PRODUCT] Product doesn't exist, creating it...")
-		packageName := fmt.Sprintf("📦 %s", pkg.Name) // Package emoji for visual distinction
-		virtualProduct = models.Product{
-			ProductID: virtualProductID,
-			Name:      packageName,
-		}
-		if pkg.Price.Valid {
-			pricePerDay := pkg.Price.Float64
-			virtualProduct.ItemCostPerDay = &pricePerDay
-		}
-		if pkg.Description.Valid {
-			desc := pkg.Description.String
-			virtualProduct.Description = &desc
-		}
-		if err := tx.Create(&virtualProduct).Error; err != nil {
-			// If error is duplicate key, just continue (race condition)
-			if !strings.Contains(err.Error(), "Duplicate entry") {
-				log.Printf("[VIRTUAL_PRODUCT ERROR] Failed to create: %v", err)
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to create virtual product for package: %w", err)
-			}
-			log.Printf("[VIRTUAL_PRODUCT] Duplicate entry (race condition), continuing...")
-		} else {
-			log.Printf("[VIRTUAL_PRODUCT] Virtual product created successfully: %s", packageName)
-		}
-	} else {
-		log.Printf("[VIRTUAL_PRODUCT] Virtual product already exists: %s", virtualProduct.Name)
+	// Create job_package record for tracking (optional, for backwards compatibility)
+	var priceValue sql.NullFloat64
+	if customPrice != nil {
+		priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
 	}
 
-	// Create ONE virtual device for the package (to show in product list)
-	virtualDeviceID := fmt.Sprintf("PKG_%d", jobPackage.JobPackageID)
-	log.Printf("[VIRTUAL_DEVICE] Creating/checking virtual device %s...", virtualDeviceID)
-	var existingDevice models.Device
-	if err := tx.Where("deviceID = ?", virtualDeviceID).First(&existingDevice).Error; err != nil {
-		// Device doesn't exist, create it
-		log.Printf("[VIRTUAL_DEVICE] Device doesn't exist, creating it...")
-		notes := fmt.Sprintf("Package: %s (ID: %d, Quantity: %d)", pkg.Name, packageID, quantity)
-		virtualDevice := models.Device{
-			DeviceID:  virtualDeviceID,
-			ProductID: &virtualProductID,
-			Status:    "package_virtual",
-			Notes:     &notes,
-		}
-		if err := tx.Create(&virtualDevice).Error; err != nil {
-			if !strings.Contains(err.Error(), "Duplicate entry") {
-				log.Printf("[VIRTUAL_DEVICE ERROR] Failed to create: %v", err)
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to create virtual device entry: %w", err)
-			}
-			log.Printf("[VIRTUAL_DEVICE] Duplicate entry (race condition), continuing...")
-		} else {
-			log.Printf("[VIRTUAL_DEVICE] Virtual device created successfully: %s", virtualDeviceID)
-		}
-	} else {
-		log.Printf("[VIRTUAL_DEVICE] Virtual device already exists: %s", virtualDeviceID)
-	}
-
-	// Add the virtual package device to JobDevices (this makes package appear in product list)
-	log.Printf("[JOBDEVICE_VIRTUAL] Creating JobDevice entry for virtual device %s...", virtualDeviceID)
-	jobDevice := models.JobDevice{
+	jobPackage := &models.JobPackage{
 		JobID:       jobID,
-		DeviceID:    virtualDeviceID,
-		CustomPrice: customPrice, // Full package price (counts in revenue)
+		PackageID:   packageID,
+		Quantity:    quantity,
+		CustomPrice: priceValue,
+		AddedAt:     time.Now(),
+		AddedBy:     &userID,
 	}
-	log.Printf("[JOBDEVICE_VIRTUAL] JobDevice struct: jobID=%d, deviceID=%s, price=%v", jobID, virtualDeviceID, customPrice)
-	result := tx.Create(&jobDevice)
-	if result.Error != nil {
-		log.Printf("[JOBDEVICE_VIRTUAL ERROR] Failed to create: %v", result.Error)
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to create virtual job device for package: %w", result.Error)
-	}
-	log.Printf("[JOBDEVICE_VIRTUAL] Virtual JobDevice created successfully! RowsAffected: %d", result.RowsAffected)
 
-	// Now add all REAL devices from the package to JobDevices
-	// These will show in the device tree for warehouse scans, but won't count in revenue
-	log.Printf("[JOBDEVICE_REAL] Loading reservations for job_package_id %d...", jobPackage.JobPackageID)
-	var reservations []models.JobPackageReservation
-	if err := tx.Where("job_package_id = ?", jobPackage.JobPackageID).Find(&reservations).Error; err != nil {
-		log.Printf("[JOBDEVICE_REAL ERROR] Failed to load reservations: %v", err)
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to load package reservations: %w", err)
-	}
-	log.Printf("[JOBDEVICE_REAL] Loaded %d reservations", len(reservations))
-
-	packageIDInt := packageID
-	zeroPrice := 0.0
-	createdCount := 0
-	skippedCount := 0
-	for _, reservation := range reservations {
-		// Add real device to JobDevices with price=0 and marked as package item
-		realJobDevice := models.JobDevice{
-			JobID:         jobID,
-			DeviceID:      reservation.DeviceID,
-			CustomPrice:   &zeroPrice,        // Price = 0 (doesn't count in revenue)
-			PackageID:     &packageIDInt,     // Mark which package it belongs to
-			IsPackageItem: true,              // Mark as package item for UI
-		}
-		result := tx.Create(&realJobDevice)
-		if result.Error != nil {
-			// Skip if device is already in job (duplicate)
-			if !strings.Contains(result.Error.Error(), "Duplicate entry") {
-				log.Printf("[JOBDEVICE_REAL ERROR] Failed to add device %s: %v", reservation.DeviceID, result.Error)
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to add package device %s to job: %w", reservation.DeviceID, result.Error)
-			}
-			skippedCount++
-			log.Printf("[JOBDEVICE_REAL] Skipped device %s (already exists)", reservation.DeviceID)
-		} else {
-			createdCount++
-			log.Printf("[JOBDEVICE_REAL] Created device %s, RowsAffected: %d", reservation.DeviceID, result.RowsAffected)
+	if err := tx.Create(jobPackage).Error; err != nil {
+		// If already exists, just continue - idempotency
+		if !strings.Contains(err.Error(), "Duplicate entry") {
+			tx.Rollback()
+			return nil, fmt.Errorf("failed to create job_package record: %w", err)
 		}
 	}
-	log.Printf("[JOBDEVICE_REAL] Created %d real JobDevices, skipped %d duplicates", createdCount, skippedCount)
 
-	// Commit transaction
-	log.Printf("[TX] Committing transaction...")
+	// Commit
 	if err := tx.Commit().Error; err != nil {
-		log.Printf("[TX ERROR] Failed to commit: %v", err)
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, fmt.Errorf("failed to commit: %w", err)
 	}
-	log.Printf("[TX] Transaction committed successfully!")
 
-	log.Printf("=== AssignPackageToJob SUCCESS: jobID=%d, packageID=%d, job_package_id=%d ===", jobID, packageID, jobPackage.JobPackageID)
+	log.Printf("=== AssignPackageToJob v4.0 SUCCESS: assigned %d package devices to job %d ===", quantity, jobID)
 
-	// Reload with associations
-	return r.GetJobPackageByID(jobPackage.JobPackageID)
+	return jobPackage, nil
 }
 
 // checkPackageItemAvailability verifies all products in package are available

@@ -459,7 +459,21 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.83** (Latest) - Debug: RowsAffected Logging
+### **v4.0** (Latest) - Package System Redesign
+- 🎯 **MAJOR ARCHITECTURAL CHANGE**: Complete package system redesign for simplicity
+- 📦 **Manual Package Devices**: Packages now treated exactly like products - manually created in WarehouseCore (e.g., PKG_SOUNDM_001, PKG_SOUNDM_002)
+- 🔄 **Automatic Real Device Reservation**: When package device assigned to job, backend automatically reserves real devices with discounted prices
+- 💰 **Smart Discount Calculation**: Calculates discount percentage from (regular prices - package price) and applies to all items
+- 🏷️ **Package Item Flags**: Real devices marked with `is_package_item=true` and excluded from revenue calculation
+- ✅ **Revenue Accuracy**: Only package device price counts; real devices don't double-count revenue
+- 🗑️ **Removed Virtual Device Creation**: No more automatic PKG_* device generation - user creates package devices manually
+- 🔧 **Simplified AssignPackageToJob**: OCR compatibility layer finds real package devices and triggers full assignment logic
+- 🎨 **UI Enhancement**: Package items shown in "Assigned Devices" with special marker (📦)
+- ⚡ **Performance**: Reduced complexity, cleaner transaction handling, fewer database operations
+- 🏗️ **New Functions**: `handlePackageDeviceAssignment()` and `findAvailableDevicesForProduct()` in job_repository.go
+- 📊 **Updated Revenue Calculation**: `CalculateAndUpdateRevenue()` now skips `is_package_item=true` devices
+
+### **v3.83** - Debug: RowsAffected Logging
 - 🔍 **Added RowsAffected Logging**: Track how many rows GORM actually inserts
 - 🐛 **Debug Silent Failures**: Investigate why JobDevice INSERT statements aren't generated
 - 📊 **Enhanced Logging**: Log RowsAffected for both virtual and real JobDevice creation
