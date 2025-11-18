@@ -247,12 +247,13 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		CustomPrice: customPrice, // Full package price (counts in revenue)
 	}
 	log.Printf("[JOBDEVICE_VIRTUAL] JobDevice struct: jobID=%d, deviceID=%s, price=%v", jobID, virtualDeviceID, customPrice)
-	if err := tx.Create(&jobDevice).Error; err != nil {
-		log.Printf("[JOBDEVICE_VIRTUAL ERROR] Failed to create: %v", err)
+	result := tx.Create(&jobDevice)
+	if result.Error != nil {
+		log.Printf("[JOBDEVICE_VIRTUAL ERROR] Failed to create: %v", result.Error)
 		tx.Rollback()
-		return nil, fmt.Errorf("failed to create virtual job device for package: %w", err)
+		return nil, fmt.Errorf("failed to create virtual job device for package: %w", result.Error)
 	}
-	log.Printf("[JOBDEVICE_VIRTUAL] Virtual JobDevice created successfully!")
+	log.Printf("[JOBDEVICE_VIRTUAL] Virtual JobDevice created successfully! RowsAffected: %d", result.RowsAffected)
 
 	// Now add all REAL devices from the package to JobDevices
 	// These will show in the device tree for warehouse scans, but won't count in revenue
@@ -278,17 +279,19 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 			PackageID:     &packageIDInt,     // Mark which package it belongs to
 			IsPackageItem: true,              // Mark as package item for UI
 		}
-		if err := tx.Create(&realJobDevice).Error; err != nil {
+		result := tx.Create(&realJobDevice)
+		if result.Error != nil {
 			// Skip if device is already in job (duplicate)
-			if !strings.Contains(err.Error(), "Duplicate entry") {
-				log.Printf("[JOBDEVICE_REAL ERROR] Failed to add device %s: %v", reservation.DeviceID, err)
+			if !strings.Contains(result.Error.Error(), "Duplicate entry") {
+				log.Printf("[JOBDEVICE_REAL ERROR] Failed to add device %s: %v", reservation.DeviceID, result.Error)
 				tx.Rollback()
-				return nil, fmt.Errorf("failed to add package device %s to job: %w", reservation.DeviceID, err)
+				return nil, fmt.Errorf("failed to add package device %s to job: %w", reservation.DeviceID, result.Error)
 			}
 			skippedCount++
 			log.Printf("[JOBDEVICE_REAL] Skipped device %s (already exists)", reservation.DeviceID)
 		} else {
 			createdCount++
+			log.Printf("[JOBDEVICE_REAL] Created device %s, RowsAffected: %d", reservation.DeviceID, result.RowsAffected)
 		}
 	}
 	log.Printf("[JOBDEVICE_REAL] Created %d real JobDevices, skipped %d duplicates", createdCount, skippedCount)

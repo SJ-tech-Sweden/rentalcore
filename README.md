@@ -459,7 +459,12 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v3.82** (Latest) - Critical Fix: JobDevice Type Mismatch
+### **v3.83** (Latest) - Debug: RowsAffected Logging
+- 🔍 **Added RowsAffected Logging**: Track how many rows GORM actually inserts
+- 🐛 **Debug Silent Failures**: Investigate why JobDevice INSERT statements aren't generated
+- 📊 **Enhanced Logging**: Log RowsAffected for both virtual and real JobDevice creation
+
+### **v3.82** - Critical Fix: JobDevice Type Mismatch
 - 🔴 **CRITICAL BUG FIX**: Fixed JobDevice model type mismatch causing GORM silent failures
 - 🔧 **Type Alignment**: Changed JobDevice.JobID from `uint` to `int` to match database schema
 - ✅ **Package JobDevices Now Created**: Virtual and real package devices now correctly inserted into jobdevices table
