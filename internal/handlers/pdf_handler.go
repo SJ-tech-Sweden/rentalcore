@@ -1707,42 +1707,41 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 		return "", err
 	}
 
-	productCounts := make(map[uint]int)
-	pricingAggregates := make(map[uint]*productPricingAggregate)
-
-	// Separate package handling: map[packageID] -> aggregate info
+	baseProductCounts := make(map[uint]int)
+	basePricingAggregates := make(map[uint]*productPricingAggregate)
 	packageAggregates := make(map[int]*packageAggregate)
+	packageNeeds := make(map[int]map[uint]int)   // package_id -> productID -> qty
+	packageUnitPrice := make(map[uint]float64)   // productID -> discounted unit price
+	packageComponentTotals := make(map[uint]int) // productID -> qty from packages
+	packagePriceContribution := make(map[uint]float64)
+	packageQtyContribution := make(map[uint]int)
 
 	// Categorize items: products vs packages
 	for _, item := range items {
 		switch {
 		case item.MappedProductID.Valid:
-			// Handle product items
 			pid := uint(item.MappedProductID.Int64)
 			qty := getItemQuantity(&item)
 			if qty <= 0 {
 				continue
 			}
-			productCounts[pid] += qty
-
+			baseProductCounts[pid] += qty
 			if lineTotal, hasPrice := resolveLinePricing(&item, qty); hasPrice {
-				agg := pricingAggregates[pid]
+				agg := basePricingAggregates[pid]
 				if agg == nil {
 					agg = &productPricingAggregate{}
-					pricingAggregates[pid] = agg
+					basePricingAggregates[pid] = agg
 				}
 				agg.totalAmount += lineTotal
 				agg.pricedQuantity += qty
 			}
 
 		case item.MappedPackageID.Valid:
-			// Handle package items - keep as packages, don't expand
 			pkgID := int(item.MappedPackageID.Int64)
 			qty := getItemQuantity(&item)
 			if qty <= 0 {
 				continue
 			}
-
 			agg := packageAggregates[pkgID]
 			if agg == nil {
 				agg = &packageAggregate{}
@@ -1750,89 +1749,143 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 			}
 			agg.quantity += qty
 			agg.itemCount++
-
-			// Extract pricing
 			if lineTotal, hasPrice := resolveLinePricing(&item, qty); hasPrice {
 				agg.totalAmount += lineTotal
 				agg.hasPrice = true
 			}
-
-		default:
-			continue
 		}
 	}
 
 	var warnings []string
 
-	// Step 1: Assign packages as packages (not expanded)
-	if len(packageAggregates) > 0 && h.JobPackageRepo != nil {
-		userID := uint(1) // Default user, could be extracted from context
+	// Expand packages into component counts and discounted pricing
+	if len(packageAggregates) > 0 {
+		userID := uint(1)
 		if job.CreatedBy != nil {
 			userID = *job.CreatedBy
 		}
 
 		for pkgID, agg := range packageAggregates {
-			// Load package details to get the name (from WarehouseCore product_packages)
 			var pkg models.ProductPackage
-			packageName := fmt.Sprintf("Package ID %d", pkgID)
-
 			if err := h.DB.Where("package_id = ?", pkgID).First(&pkg).Error; err != nil {
-				// Package doesn't exist in database
-				errMsg := fmt.Sprintf("%s: Package not found in database (ID: %d). Please check package mapping.", packageName, pkgID)
-				log.Printf("Warning: %s", errMsg)
-				warnings = append(warnings, errMsg)
+				msg := fmt.Sprintf("Package %d nicht gefunden: %v", pkgID, err)
+				log.Printf("Warning: %s", msg)
+				warnings = append(warnings, msg)
 				continue
 			}
 
-			// Use the actual package name
-			packageName = pkg.Name
-
-			var customPrice *float64
-			if agg.hasPrice && agg.quantity > 0 {
-				// Calculate average price per package unit (zero allowed for 100% discount)
-				avgPrice := agg.totalAmount / float64(agg.quantity)
-				if avgPrice < 0 {
-					avgPrice = 0
-				}
-				customPrice = &avgPrice
-			}
-
-			// Preload package items for potential fallback
 			var pkgItems []models.ProductPackageItem
 			if err := h.DB.Where("package_id = ?", pkgID).Find(&pkgItems).Error; err != nil {
-				log.Printf("Warning: failed to load items for package %d: %v", pkgID, err)
-				warnings = append(warnings, fmt.Sprintf("%s: Paket-Komponenten konnten nicht geladen werden", packageName))
+				msg := fmt.Sprintf("Package %s: Komponenten nicht ladbar (%v)", pkg.Name, err)
+				log.Printf("Warning: %s", msg)
+				warnings = append(warnings, msg)
 				continue
 			}
 
-			_, err := h.JobPackageRepo.AssignPackageToJob(
-				int(job.JobID),
-				pkgID,
-				uint(agg.quantity),
-				customPrice,
-				userID,
-			)
-			if err != nil {
-				// Log warning but continue with other packages
-				log.Printf("Warning: failed to assign package '%s' (ID: %d) to job %d: %v", packageName, pkgID, job.JobID, err)
-				warnings = append(warnings, fmt.Sprintf("%s: %v", packageName, err))
-				// Fallback: expand package into product selections so devices still get assigned
-				h.fallbackAssignPackageComponents(&pkg, pkgItems, agg, productCounts, pricingAggregates, &warnings)
-			} else {
-				log.Printf("Successfully assigned package '%s' (ID: %d, qty: %d) to job %d", packageName, pkgID, agg.quantity, job.JobID)
+			totalNeededQty := 0
+			regularTotal := 0.0
+			for _, it := range pkgItems {
+				needed := agg.quantity * it.Quantity
+				totalNeededQty += needed
+
+				var prod models.Product
+				if err := h.DB.First(&prod, it.ProductID).Error; err == nil && prod.ItemCostPerDay != nil && *prod.ItemCostPerDay > 0 {
+					regularTotal += *prod.ItemCostPerDay * float64(needed)
+				}
+			}
+
+			packageTotal := agg.totalAmount
+			if packageTotal <= 0 && pkg.Price.Valid {
+				packageTotal = pkg.Price.Float64 * float64(agg.quantity)
+			}
+			if packageTotal < 0 {
+				packageTotal = 0
+			}
+			if packageTotal == 0 && regularTotal > 0 {
+				packageTotal = regularTotal
+			}
+
+			discountPercent := 0.0
+			if regularTotal > 0 {
+				discountPercent = 1 - (packageTotal / regularTotal)
+				if discountPercent < 0 {
+					discountPercent = 0
+				}
+				if discountPercent > 1 {
+					discountPercent = 1
+				}
+			}
+
+			// Persist job_package metadata (no devices)
+			if h.JobPackageRepo != nil {
+				perPackage := packageTotal
+				if agg.quantity > 0 {
+					perPackage = packageTotal / float64(agg.quantity)
+				}
+				if _, err := h.JobPackageRepo.AssignPackageToJob(int(job.JobID), pkgID, uint(agg.quantity), &perPackage, userID); err != nil {
+					log.Printf("Warning: job_package upsert failed for pkg %d job %d: %v", pkgID, job.JobID, err)
+					warnings = append(warnings, fmt.Sprintf("Package %s konnte nicht gespeichert werden", pkg.Name))
+				}
+			}
+
+			for _, it := range pkgItems {
+				needed := agg.quantity * it.Quantity
+				if needed <= 0 {
+					continue
+				}
+
+				if packageNeeds[pkgID] == nil {
+					packageNeeds[pkgID] = make(map[uint]int)
+				}
+				pid := uint(it.ProductID)
+				packageNeeds[pkgID][pid] += needed
+				packageComponentTotals[pid] += needed
+
+				defaultPrice := 0.0
+				var prod models.Product
+				if err := h.DB.First(&prod, it.ProductID).Error; err == nil && prod.ItemCostPerDay != nil && *prod.ItemCostPerDay > 0 {
+					defaultPrice = *prod.ItemCostPerDay
+				}
+
+				priceAfterDiscount := 0.0
+				if regularTotal > 0 && defaultPrice > 0 {
+					priceAfterDiscount = defaultPrice * (1 - discountPercent)
+				} else if totalNeededQty > 0 {
+					priceAfterDiscount = packageTotal / float64(totalNeededQty)
+				}
+				if priceAfterDiscount < 0 {
+					priceAfterDiscount = 0
+				}
+
+				packagePriceContribution[pid] += priceAfterDiscount * float64(needed)
+				packageQtyContribution[pid] += needed
+			}
+		}
+
+		for pid, qty := range packageQtyContribution {
+			if qty > 0 {
+				unit := packagePriceContribution[pid] / float64(qty)
+				if unit < 0 {
+					unit = 0
+				}
+				packageUnitPrice[pid] = unit
 			}
 		}
 	}
 
-	// Step 2: Assign individual products (if any)
-	if len(productCounts) > 0 {
-		priceOverrides, err := h.computePriceOverrides(pricingAggregates)
-		if err != nil {
-			return "", err
-		}
+	// Combine base + package component counts
+	totalCounts := make(map[uint]int)
+	for pid, qty := range baseProductCounts {
+		totalCounts[pid] = qty
+	}
+	for pid, qty := range packageComponentTotals {
+		totalCounts[pid] += qty
+	}
 
-		selections := make([]JobProductSelection, 0, len(productCounts))
-		for pid, qty := range productCounts {
+	// Assign devices for total required counts
+	if len(totalCounts) > 0 {
+		selections := make([]JobProductSelection, 0, len(totalCounts))
+		for pid, qty := range totalCounts {
 			if qty <= 0 {
 				continue
 			}
@@ -1851,12 +1904,109 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 					warnings = append(warnings, fmt.Sprintf("Could not auto-assign devices: %s", err.Error()))
 				}
 			}
+		}
+	}
 
-			if err := h.applyCustomPriceOverrides(job, priceOverrides); err != nil {
-				return "", err
+	// Reload devices after assignment
+	jobDevices, err := h.JobHandler.jobRepo.GetJobDevices(job.JobID)
+	if err != nil {
+		return "", err
+	}
+
+	// Reset package flags before marking
+	h.JobHandler.jobRepo.GetDB().Model(&models.JobDevice{}).
+		Where("jobID = ?", job.JobID).
+		Updates(map[string]interface{}{
+			"is_package_item": false,
+			"package_id":      nil,
+		})
+
+	// Group devices by product
+	devicesByProduct := make(map[uint][]models.JobDevice)
+	for _, jd := range jobDevices {
+		if jd.Device.ProductID != nil {
+			pid := *jd.Device.ProductID
+			devicesByProduct[pid] = append(devicesByProduct[pid], jd)
+		}
+	}
+
+	// Sort package IDs for deterministic assignment
+	pkgIDs := make([]int, 0, len(packageNeeds))
+	for id := range packageNeeds {
+		pkgIDs = append(pkgIDs, id)
+	}
+	sort.Ints(pkgIDs)
+
+	usedDevices := make(map[string]bool)
+
+	// Assign package items and prices
+	for _, pkgID := range pkgIDs {
+		needs := packageNeeds[pkgID]
+		for pid, need := range needs {
+			devices := devicesByProduct[pid]
+			count := 0
+			for i := 0; i < len(devices) && count < need; i++ {
+				jd := devices[i]
+				if usedDevices[jd.DeviceID] {
+					continue
+				}
+
+				updates := map[string]interface{}{
+					"is_package_item": true,
+					"package_id":      pkgID,
+				}
+				if price, ok := packageUnitPrice[pid]; ok {
+					updates["custom_price"] = price
+				}
+
+				h.JobHandler.jobRepo.GetDB().
+					Model(&models.JobDevice{}).
+					Where("jobID = ? AND deviceID = ?", job.JobID, jd.DeviceID).
+					Updates(updates)
+
+				usedDevices[jd.DeviceID] = true
+				count++
+			}
+
+			if count < need {
+				msg := fmt.Sprintf("Package %d: nur %d/%d Geräte für Produkt %d gefunden", pkgID, count, need, pid)
+				log.Printf("Warning: %s", msg)
+				warnings = append(warnings, msg)
 			}
 		}
 	}
+
+	// Standalone pricing (non-package items)
+	standalonePrices := make(map[uint]float64)
+	for pid, agg := range basePricingAggregates {
+		if agg == nil || agg.pricedQuantity == 0 {
+			continue
+		}
+		unit := agg.totalAmount / float64(agg.pricedQuantity)
+		if unit < 0 {
+			unit = 0
+		}
+		standalonePrices[pid] = unit
+	}
+
+	for pid, devices := range devicesByProduct {
+		price, ok := standalonePrices[pid]
+		if !ok {
+			continue
+		}
+		for i := range devices {
+			jd := devices[i]
+			if usedDevices[jd.DeviceID] {
+				continue
+			}
+			if err := h.JobHandler.jobRepo.UpdateDevicePrice(job.JobID, jd.DeviceID, price); err != nil {
+				log.Printf("[WARN] Could not update price for device %s in job %d: %v\n", jd.DeviceID, job.JobID, err)
+			}
+		}
+	}
+
+	// Final revenue update (in case no UpdateDevicePrice was called)
+	_ = h.JobHandler.jobRepo.CalculateAndUpdateRevenue(job.JobID)
 
 	// Return combined warnings if any
 	if len(warnings) > 0 {

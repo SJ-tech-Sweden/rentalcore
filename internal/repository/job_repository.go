@@ -375,16 +375,7 @@ func (r *JobRepository) AssignDevice(jobID uint, deviceID string, price float64)
 
 	// Check if this is a package device
 	var device models.Device
-	if err := r.db.Preload("Product").Where("deviceID = ?", deviceID).First(&device).Error; err == nil {
-		if device.Product != nil {
-			// Check if this product is a package (exists in product_packages table)
-			var pkg models.ProductPackage
-			if err := r.db.Where("product_id = ?", device.Product.ProductID).First(&pkg).Error; err == nil {
-				log.Printf("[PACKAGE] Device %s is a package device (product %d), triggering package assignment logic", deviceID, device.Product.ProductID)
-				return r.handlePackageDeviceAssignment(jobID, deviceID, &job, price, &pkg)
-			}
-		}
-	}
+	_ = r.db.Preload("Product").Where("deviceID = ?", deviceID).First(&device).Error
 
 	// Check if device is available for this job's date range
 	// Implement the date-based availability check directly
@@ -627,12 +618,6 @@ func (r *JobRepository) CalculateAndUpdateRevenue(jobID uint) error {
 	r.loadProductsForJobDevices(jobDevices)
 
 	for _, jd := range jobDevices {
-		// Skip package items - they don't count towards revenue
-		// Only the package device itself (is_package_item=false) counts
-		if jd.IsPackageItem {
-			continue
-		}
-
 		if jd.CustomPrice != nil {
 			// Use custom price as-is (allow zero for full discounts)
 			if *jd.CustomPrice > 0 {

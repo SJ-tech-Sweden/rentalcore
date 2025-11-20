@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"go-barcode-webapp/internal/models"
 	"log"
-	"strings"
 	"time"
+
+	"gorm.io/gorm/clause"
 )
 
 type JobPackageRepository struct {
@@ -18,181 +19,22 @@ func NewJobPackageRepository(db *Database) *JobPackageRepository {
 }
 
 // AssignPackageToJob assigns package devices to a job
-// v4.0 SIMPLIFIED: Works with manually created package devices (e.g., PKG_SOUNDM_001)
-// This is a compatibility layer for OCR - packages are now treated like regular devices
+// v5.0: Only records the package on the job (no package devices, expansion handled elsewhere)
 func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quantity uint, customPrice *float64, userID uint) (*models.JobPackage, error) {
-	log.Printf("=== AssignPackageToJob v4.0 START: jobID=%d, packageID=%d, qty=%d ===", jobID, packageID, quantity)
+	log.Printf("=== AssignPackageToJob v5.0 START: jobID=%d, packageID=%d, qty=%d ===", jobID, packageID, quantity)
 
 	// Verify package exists
 	var pkg models.ProductPackage
 	if err := r.db.Where("package_id = ?", packageID).First(&pkg).Error; err != nil {
 		return nil, fmt.Errorf("package %d not found: %w", packageID, err)
 	}
-	log.Printf("[v4.0] Package found: %s", pkg.Name)
-	packageProductID := pkg.ProductID
-	if packageProductID == 0 {
-		// Backward compatibility: some data binds package devices to package_id
-		packageProductID = packageID
-	}
 
-	// Get job for date range
-	var job models.Job
-	if err := r.db.First(&job, jobID).Error; err != nil {
-		return nil, fmt.Errorf("job %d not found: %w", jobID, err)
-	}
-
-	// Find available package devices (devices whose productID = packageID)
-	// Package devices are regular devices, but their product is a package
-	var availablePackageDevices []models.Device
-	query := r.db.Model(&models.Device{}).Where("productID = ?", packageProductID)
-
-	// Exclude devices assigned to other jobs with overlapping dates
-	if job.StartDate != nil && job.EndDate != nil {
-		query = query.Where(`deviceID NOT IN (
-			SELECT jd.deviceID FROM jobdevices jd
-			JOIN jobs j ON jd.jobID = j.jobID
-			WHERE j.startDate <= ? AND j.endDate >= ?
-			AND j.statusID IN (SELECT statusID FROM status WHERE status IN ('open', 'in_progress'))
-		)`, job.EndDate, job.StartDate)
-	}
-
-	query = query.Order("deviceID ASC").Limit(int(quantity))
-
-	if err := query.Find(&availablePackageDevices).Error; err != nil {
-		return nil, fmt.Errorf("failed to find package devices: %w", err)
-	}
-
-	if len(availablePackageDevices) < int(quantity) {
-		return nil, fmt.Errorf("not enough available package devices: need %d, found %d", quantity, len(availablePackageDevices))
-	}
-
-	log.Printf("[v4.0] Found %d available package devices", len(availablePackageDevices))
-
-	// Start transaction
-	tx := r.db.Begin()
-	if tx.Error != nil {
-		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
-	}
-
-	// Add each package device to jobdevices
-	// Then manually trigger package assignment logic (adding real devices with discounts)
-	for i, device := range availablePackageDevices {
-		price := float64(0)
-		if customPrice != nil {
-			price = *customPrice
-		} else if pkg.Price.Valid {
-			price = pkg.Price.Float64
-		}
-		if price < 0 {
-			price = 0
-		}
-
-		// Load package items
-		var packageItems []models.ProductPackageItem
-		if err := tx.Where("package_id = ?", packageID).Find(&packageItems).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to load package items: %w", err)
-		}
-
-		// Calculate total regular price
-		var regularTotal float64
-		for _, item := range packageItems {
-			var product models.Product
-			if err := tx.First(&product, item.ProductID).Error; err != nil {
-				continue
-			}
-			if product.ItemCostPerDay != nil {
-				regularTotal += *product.ItemCostPerDay * float64(item.Quantity)
-			}
-		}
-
-		// Calculate discount percentage
-		packagePrice := price
-		var discountPercent float64
-		if regularTotal > 0 {
-			discountPercent = (regularTotal - packagePrice) / regularTotal
-			if discountPercent < 0 {
-				discountPercent = 0
-			}
-		}
-
-		// Add package device itself
-		packageJobDevice := models.JobDevice{
-			JobID:       jobID,
-			DeviceID:    device.DeviceID,
-			CustomPrice: &price,
-		}
-		if err := tx.Create(&packageJobDevice).Error; err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to assign package device %s: %w", device.DeviceID, err)
-		}
-
-		log.Printf("[v4.0] ✓ Assigned package device %d/%d: %s (price: %.2f, discount: %.1f%%)",
-			i+1, quantity, device.DeviceID, price, discountPercent*100)
-
-		// Add real devices from the package with discounted prices
-		for _, item := range packageItems {
-			var product models.Product
-			if err := tx.First(&product, item.ProductID).Error; err != nil {
-				continue
-			}
-
-			// Find available devices for this product
-			var availableDevices []models.Device
-			deviceQuery := tx.Model(&models.Device{}).Where("productID = ?", item.ProductID)
-			if job.StartDate != nil && job.EndDate != nil {
-				deviceQuery = deviceQuery.Where(`deviceID NOT IN (
-					SELECT jd.deviceID FROM jobdevices jd
-					JOIN jobs j ON jd.jobID = j.jobID
-					WHERE j.startDate <= ? AND j.endDate >= ?
-					AND j.statusID IN (SELECT statusID FROM status WHERE status IN ('open', 'in_progress'))
-				)`, job.EndDate, job.StartDate)
-			}
-			deviceQuery = deviceQuery.Order("serialnumber ASC").Limit(item.Quantity)
-
-			if err := deviceQuery.Find(&availableDevices).Error; err != nil {
-				tx.Rollback()
-				return nil, fmt.Errorf("failed to find devices for product %d: %w", item.ProductID, err)
-			}
-
-			if len(availableDevices) < item.Quantity {
-				tx.Rollback()
-				return nil, fmt.Errorf("not enough devices for product %d (%s): need %d, found %d",
-					item.ProductID, product.Name, item.Quantity, len(availableDevices))
-			}
-
-			// Add devices with discount
-			for _, realDevice := range availableDevices {
-				var discountedPrice *float64
-				if product.ItemCostPerDay != nil {
-					dp := *product.ItemCostPerDay * (1 - discountPercent)
-					discountedPrice = &dp
-				}
-
-				packageIDInt := packageID
-				realJobDevice := models.JobDevice{
-					JobID:         jobID,
-					DeviceID:      realDevice.DeviceID,
-					CustomPrice:   discountedPrice,
-					IsPackageItem: true,
-					PackageID:     &packageIDInt,
-				}
-
-				if err := tx.Create(&realJobDevice).Error; err != nil {
-					tx.Rollback()
-					return nil, fmt.Errorf("failed to add real device %s: %w", realDevice.DeviceID, err)
-				}
-
-				log.Printf("[v4.0]   ↳ Added real device %s (%s) with discount: %.2f",
-					realDevice.DeviceID, product.Name, *discountedPrice)
-			}
-		}
-	}
-
-	// Create job_package record for tracking (optional, for backwards compatibility)
+	// Build price value
 	var priceValue sql.NullFloat64
 	if customPrice != nil {
 		priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
+	} else if pkg.Price.Valid {
+		priceValue = sql.NullFloat64{Float64: pkg.Price.Float64, Valid: true}
 	}
 
 	jobPackage := &models.JobPackage{
@@ -204,21 +46,20 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		AddedBy:     &userID,
 	}
 
-	if err := tx.Create(jobPackage).Error; err != nil {
-		// If already exists, just continue - idempotency
-		if !strings.Contains(err.Error(), "Duplicate entry") {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to create job_package record: %w", err)
-		}
+	if err := r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "job_id"}, {Name: "package_id"}},
+		DoNothing: false,
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"quantity":     quantity,
+			"custom_price": priceValue,
+			"added_at":     time.Now(),
+			"added_by":     userID,
+		}),
+	}).Create(jobPackage).Error; err != nil {
+		return nil, fmt.Errorf("failed to upsert job_package: %w", err)
 	}
 
-	// Commit
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("failed to commit: %w", err)
-	}
-
-	log.Printf("=== AssignPackageToJob v4.0 SUCCESS: assigned %d package devices to job %d ===", quantity, jobID)
-
+	log.Printf("=== AssignPackageToJob v5.0 RECORDED package %d on job %d (qty=%d, price=%v) ===", packageID, jobID, quantity, priceValue)
 	return jobPackage, nil
 }
 
