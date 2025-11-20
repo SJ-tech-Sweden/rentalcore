@@ -970,6 +970,25 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 			job.StatusID = uint(sid)
 		}
 	}
+	// Job category (accept both snake_case and existing camel-like key)
+	if catVal, ok := requestData["job_category_id"]; ok {
+		if catStr, ok := catVal.(string); ok {
+			if parsed, err := strconv.ParseUint(strings.TrimSpace(catStr), 10, 32); err == nil && parsed > 0 {
+				cid := uint(parsed)
+				job.JobCategoryID = &cid
+			} else {
+				job.JobCategoryID = nil
+			}
+		} else if catNum, ok := catVal.(float64); ok && catNum > 0 {
+			cid := uint(catNum)
+			job.JobCategoryID = &cid
+		}
+	} else if catVal, ok := requestData["jobcategoryID"]; ok {
+		if catNum, ok := catVal.(float64); ok && catNum > 0 {
+			cid := uint(catNum)
+			job.JobCategoryID = &cid
+		}
+	}
 	if description, ok := requestData["description"]; ok {
 		if desc, ok := description.(string); ok {
 			job.Description = &desc
