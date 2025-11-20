@@ -2432,7 +2432,7 @@ func (h *PDFHandler) fallbackAssignPackageComponents(pkg *models.ProductPackage,
 	// Calculate discount based on package price vs. regular component sum
 	regularTotal := 0.0
 	for _, item := range pkgItems {
-		if prod := productMap[item.ProductID]; prod != nil && prod.ItemCostPerDay != nil {
+		if prod := productMap[item.ProductID]; prod != nil && prod.ItemCostPerDay != nil && *prod.ItemCostPerDay > 0 {
 			regularTotal += *prod.ItemCostPerDay * float64(item.Quantity)
 		}
 	}
@@ -2447,6 +2447,12 @@ func (h *PDFHandler) fallbackAssignPackageComponents(pkg *models.ProductPackage,
 	}
 
 	discountPercent := 0.0
+	totalNeededQty := 0
+	if len(pkgItems) > 0 {
+		for _, item := range pkgItems {
+			totalNeededQty += agg.quantity * item.Quantity
+		}
+	}
 	if regularTotal > 0 {
 		discountPercent = (regularTotal - packagePrice) / regularTotal
 		if discountPercent < 0 {
@@ -2470,11 +2476,18 @@ func (h *PDFHandler) fallbackAssignPackageComponents(pkg *models.ProductPackage,
 
 		// Apply discounted pricing into aggregates so price overrides mirror the package discount
 		prod := productMap[item.ProductID]
-		if prod == nil || prod.ItemCostPerDay == nil {
-			continue
+		defaultPrice := 0.0
+		if prod != nil && prod.ItemCostPerDay != nil && *prod.ItemCostPerDay > 0 {
+			defaultPrice = *prod.ItemCostPerDay
 		}
-		defaultPrice := *prod.ItemCostPerDay
-		priceAfterDiscount := defaultPrice * (1 - discountPercent)
+
+		var priceAfterDiscount float64
+		if regularTotal > 0 && defaultPrice > 0 {
+			priceAfterDiscount = defaultPrice * (1 - discountPercent)
+		} else if totalNeededQty > 0 {
+			// Evenly distribute when no default prices exist
+			priceAfterDiscount = packagePrice / float64(totalNeededQty)
+		}
 		if priceAfterDiscount < 0 {
 			priceAfterDiscount = 0
 		}

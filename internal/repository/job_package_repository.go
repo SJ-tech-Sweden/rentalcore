@@ -29,6 +29,11 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		return nil, fmt.Errorf("package %d not found: %w", packageID, err)
 	}
 	log.Printf("[v4.0] Package found: %s", pkg.Name)
+	packageProductID := pkg.ProductID
+	if packageProductID == 0 {
+		// Backward compatibility: some data binds package devices to package_id
+		packageProductID = packageID
+	}
 
 	// Get job for date range
 	var job models.Job
@@ -39,7 +44,7 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 	// Find available package devices (devices whose productID = packageID)
 	// Package devices are regular devices, but their product is a package
 	var availablePackageDevices []models.Device
-	query := r.db.Model(&models.Device{}).Where("productID = ?", packageID)
+	query := r.db.Model(&models.Device{}).Where("productID = ?", packageProductID)
 
 	// Exclude devices assigned to other jobs with overlapping dates
 	if job.StartDate != nil && job.EndDate != nil {
