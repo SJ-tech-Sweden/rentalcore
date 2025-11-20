@@ -80,7 +80,8 @@ func resolvePackageAliasEndpoint() string {
 
 	domain := strings.TrimSpace(os.Getenv("WAREHOUSECORE_DOMAIN"))
 	if domain == "" {
-		return ""
+		// Fallback to in-compose service name for local/demo setups
+		return "http://warehousecore:8082/api/v1/product-packages/alias-map"
 	}
 
 	base := strings.TrimRight(domain, "/")
@@ -88,7 +89,20 @@ func resolvePackageAliasEndpoint() string {
 		return fmt.Sprintf("%s/api/v1/product-packages/alias-map", base)
 	}
 
-	return fmt.Sprintf("https://%s/api/v1/product-packages/alias-map", base)
+	scheme := "https"
+	lower := strings.ToLower(base)
+	// Use http for local/network-internal hosts to avoid TLS failures
+	if strings.Contains(base, ":") ||
+		strings.HasPrefix(lower, "localhost") ||
+		strings.HasPrefix(lower, "warehousecore") ||
+		strings.HasSuffix(lower, ".local") ||
+		strings.HasPrefix(lower, "127.") ||
+		strings.HasPrefix(lower, "10.") ||
+		strings.HasPrefix(lower, "192.168.") {
+		scheme = "http"
+	}
+
+	return fmt.Sprintf("%s://%s/api/v1/product-packages/alias-map", scheme, base)
 }
 
 func buildWarehouseDevicesURL(r *http.Request) string {

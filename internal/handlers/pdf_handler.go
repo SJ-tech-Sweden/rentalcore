@@ -29,15 +29,15 @@ import (
 
 // PDFHandler handles PDF upload and processing requests
 type PDFHandler struct {
-	DB                *gorm.DB
-	Extractor         *pdf.PDFExtractor
-	Mapper            *pdf.ProductMapper
-	PackageMapper     *pdf.PackageMapper
-	CustomerMapper    *pdf.CustomerMapper
-	JobHandler        *JobHandler
-	AttachmentRepo    *repository.JobAttachmentRepository
-	JobPackageRepo    *repository.JobPackageRepository
-	attachmentDir     string
+	DB             *gorm.DB
+	Extractor      *pdf.PDFExtractor
+	Mapper         *pdf.ProductMapper
+	PackageMapper  *pdf.PackageMapper
+	CustomerMapper *pdf.CustomerMapper
+	JobHandler     *JobHandler
+	AttachmentRepo *repository.JobAttachmentRepository
+	JobPackageRepo *repository.JobPackageRepository
+	attachmentDir  string
 }
 
 type duplicateJobMatch struct {
@@ -192,6 +192,22 @@ func getItemQuantity(item *models.PDFExtractionItem) int {
 		return int(item.Quantity.Int64)
 	}
 	return 1
+}
+
+func resolveLinePricing(item *models.PDFExtractionItem, qty int) (float64, bool) {
+	if item == nil || qty <= 0 {
+		return 0, false
+	}
+
+	if item.LineTotal.Valid {
+		return item.LineTotal.Float64, true
+	}
+
+	if item.UnitPrice.Valid {
+		return item.UnitPrice.Float64 * float64(qty), true
+	}
+
+	return 0, false
 }
 
 type packageSummary struct {
@@ -400,8 +416,8 @@ func (h *PDFHandler) processUploadAsync(uploadID uint64) {
 			LineNumber:     sql.NullInt64{Int64: int64(item.LineNumber), Valid: true},
 			RawProductText: item.ProductName,
 			Quantity:       sql.NullInt64{Int64: int64(item.Quantity), Valid: true},
-			UnitPrice:      sql.NullFloat64{Float64: item.UnitPrice, Valid: item.UnitPrice > 0},
-			LineTotal:      sql.NullFloat64{Float64: item.LineTotal, Valid: item.LineTotal > 0},
+			UnitPrice:      sql.NullFloat64{Float64: item.UnitPrice, Valid: item.UnitPrice >= 0},
+			LineTotal:      sql.NullFloat64{Float64: item.LineTotal, Valid: true},
 			MappingStatus:  "pending",
 		}
 
@@ -1692,6 +1708,7 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 		quantity    int
 		totalAmount float64
 		itemCount   int
+		hasPrice    bool
 	}
 	packageAggregates := make(map[int]*packageAggregate)
 
@@ -1707,13 +1724,7 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 			}
 			productCounts[pid] += qty
 
-			lineTotal := 0.0
-			if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
-				lineTotal = item.LineTotal.Float64
-			} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
-				lineTotal = item.UnitPrice.Float64 * float64(qty)
-			}
-			if lineTotal > 0 {
+			if lineTotal, hasPrice := resolveLinePricing(&item, qty); hasPrice {
 				agg := pricingAggregates[pid]
 				if agg == nil {
 					agg = &productPricingAggregate{}
@@ -1740,13 +1751,10 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 			agg.itemCount++
 
 			// Extract pricing
-			lineTotal := 0.0
-			if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
-				lineTotal = item.LineTotal.Float64
-			} else if item.UnitPrice.Valid && item.UnitPrice.Float64 > 0 {
-				lineTotal = item.UnitPrice.Float64 * float64(qty)
+			if lineTotal, hasPrice := resolveLinePricing(&item, qty); hasPrice {
+				agg.totalAmount += lineTotal
+				agg.hasPrice = true
 			}
-			agg.totalAmount += lineTotal
 
 		default:
 			continue
@@ -1779,9 +1787,12 @@ func (h *PDFHandler) assignProductsToJob(job *models.Job, extractionID uint64) (
 			packageName = pkg.Name
 
 			var customPrice *float64
-			if agg.totalAmount > 0 && agg.quantity > 0 {
-				// Calculate average price per package unit
+			if agg.hasPrice && agg.quantity > 0 {
+				// Calculate average price per package unit (zero allowed for 100% discount)
 				avgPrice := agg.totalAmount / float64(agg.quantity)
+				if avgPrice < 0 {
+					avgPrice = 0
+				}
 				customPrice = &avgPrice
 			}
 
@@ -2187,7 +2198,7 @@ func (h *PDFHandler) computePriceOverrides(aggregates map[uint]*productPricingAg
 
 	productIDs := make([]uint, 0, len(aggregates))
 	for pid, agg := range aggregates {
-		if agg == nil || agg.pricedQuantity == 0 || agg.totalAmount <= 0 {
+		if agg == nil || agg.pricedQuantity == 0 {
 			continue
 		}
 		productIDs = append(productIDs, pid)
@@ -2210,12 +2221,12 @@ func (h *PDFHandler) computePriceOverrides(aggregates map[uint]*productPricingAg
 
 	overrides := make(map[uint]float64)
 	for pid, agg := range aggregates {
-		if agg == nil || agg.pricedQuantity == 0 || agg.totalAmount <= 0 {
+		if agg == nil || agg.pricedQuantity == 0 {
 			continue
 		}
 		unitPrice := agg.totalAmount / float64(agg.pricedQuantity)
-		if unitPrice <= 0 {
-			continue
+		if unitPrice < 0 {
+			unitPrice = 0
 		}
 
 		defaultPrice := 0.0
@@ -2223,7 +2234,7 @@ func (h *PDFHandler) computePriceOverrides(aggregates map[uint]*productPricingAg
 			defaultPrice = *product.ItemCostPerDay
 		}
 
-		if defaultPrice > 0 && math.Abs(defaultPrice-unitPrice) < 0.01 {
+		if math.Abs(defaultPrice-unitPrice) < 0.01 {
 			continue
 		}
 
@@ -2264,8 +2275,11 @@ func (h *PDFHandler) applyCustomPriceOverrides(job *models.Job, overrides map[ui
 			continue
 		}
 		price, ok := overrides[productID]
-		if !ok || price <= 0 {
+		if !ok {
 			continue
+		}
+		if price < 0 {
+			price = 0
 		}
 		if err := h.JobHandler.jobRepo.UpdateDevicePrice(job.JobID, jd.DeviceID, price); err != nil {
 			// Log warning but continue - don't fail entire job creation
@@ -2323,7 +2337,7 @@ func calculateExtractionItemDiscount(item *models.PDFExtractionItem) float64 {
 	}
 
 	lineTotal := 0.0
-	if item.LineTotal.Valid && item.LineTotal.Float64 > 0 {
+	if item.LineTotal.Valid {
 		lineTotal = item.LineTotal.Float64
 	}
 

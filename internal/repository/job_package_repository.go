@@ -63,13 +63,6 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 
 	log.Printf("[v4.0] Found %d available package devices", len(availablePackageDevices))
 
-	// Calculate price per package device
-	var pricePerDevice *float64
-	if customPrice != nil && *customPrice > 0 && quantity > 0 {
-		price := *customPrice / float64(quantity)
-		pricePerDevice = &price
-	}
-
 	// Start transaction
 	tx := r.db.Begin()
 	if tx.Error != nil {
@@ -80,8 +73,13 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 	// Then manually trigger package assignment logic (adding real devices with discounts)
 	for i, device := range availablePackageDevices {
 		price := float64(0)
-		if pricePerDevice != nil {
-			price = *pricePerDevice
+		if customPrice != nil {
+			price = *customPrice
+		} else if pkg.Price.Valid {
+			price = pkg.Price.Float64
+		}
+		if price < 0 {
+			price = 0
 		}
 
 		// Load package items
@@ -105,12 +103,12 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 
 		// Calculate discount percentage
 		packagePrice := price
-		if packagePrice == 0 && pkg.Price.Valid {
-			packagePrice = pkg.Price.Float64
-		}
 		var discountPercent float64
 		if regularTotal > 0 {
 			discountPercent = (regularTotal - packagePrice) / regularTotal
+			if discountPercent < 0 {
+				discountPercent = 0
+			}
 		}
 
 		// Add package device itself
