@@ -138,78 +138,66 @@
                         </button>
                     </div>
 
-                    <div class="rc-table-responsive">
-                        <table class="rc-table" id="jobsTable">
-                            <thead>
-                                <tr>
-                                    <th class="sortable" onclick="sortTable('id')" style="cursor: pointer;">
-                                        ID <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('title')" style="cursor: pointer;">
-                                        Title <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('customer')" style="cursor: pointer;">
-                                        Customer <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('startDate')" style="cursor: pointer;">
-                                        Start Date <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('endDate')" style="cursor: pointer;">
-                                        End Date <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('status')" style="cursor: pointer;">
-                                        Status <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('devices')" style="cursor: pointer;">
-                                        Devices <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th class="sortable" onclick="sortTable('revenue')" style="cursor: pointer;">
-                                        Revenue <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i>
-                                    </th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {{range .jobs}}
-                                <tr data-job-id="{{.JobID}}"
-                                    data-customer="{{.CustomerName}}"
-                                    data-status-id="{{.StatusID}}"
-                                    data-status-name="{{.StatusName}}"
-                                    data-category-id="{{if .JobCategoryID}}{{.JobCategoryID}}{{else}}0{{end}}"
-                                    data-device-count="{{.DeviceCount}}"
-                                    data-revenue="{{.TotalRevenue}}"
-                                    data-start-date="{{if .StartDate}}{{.StartDate.Format "2006-01-02"}}{{else}}{{end}}"
-                                    data-end-date="{{if .EndDate}}{{.EndDate.Format "2006-01-02"}}{{else}}{{end}}"
-                                    data-title="{{.JobCode}}"
-                                    onclick="showJobDetails({{.JobID}})"
-                                    style="cursor: pointer;">
-                                    <td><span class="rc-text-mono">{{.JobID}}</span></td>
-                                    <td><span class="rc-text-mono">{{.JobCode}}</span></td>
-                                    <td>{{.CustomerName}}</td>
-                                    <td><span class="rc-text-sm">{{if .StartDate}}{{.StartDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
-                                    <td><span class="rc-text-sm">{{if .EndDate}}{{.EndDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
-                                    <td><span class="rc-badge rc-badge-secondary">{{.StatusName}}</span></td>
-                                    <td>
-                                        <span class="rc-text-mono">{{.DeviceCount}} devices</span>
-                                    </td>
-                                    <td><span class="rc-text-mono">€{{printf "%.2f" .TotalRevenue}}</span></td>
-                                    <td onclick="event.stopPropagation()">
-                                        <div class="rc-flex rc-flex-gap-xs">
-                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" title="View Details" onclick="showJobDetails({{.JobID}})">
-                                                <i class="bi bi-eye"></i>
-                                            </button>
-                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" title="Edit Job" onclick="showEditJob({{.JobID}})">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" title="Delete" onclick="deleteJob({{.JobID}})">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {{end}}
-                            </tbody>
-                        </table>
+                    <div class="rc-table-wc-card">
+                        <div class="rc-table-wc-scroll">
+                            <table class="rc-table-wc" id="jobsTable">
+                                <thead>
+                                    <tr>
+                                    <th class="sortable" onclick="sortTable('id')" style="cursor: pointer;">Job <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('customer')" style="cursor: pointer;">Customer <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('startDate')" style="cursor: pointer;">Start <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('endDate')" style="cursor: pointer;">End <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('status')" style="cursor: pointer;">Status <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('devices')" style="cursor: pointer;">Devices <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th class="sortable" onclick="sortTable('revenue')" style="cursor: pointer; text-align: right;">Revenue <i class="bi bi-arrow-down-up" style="font-size: 0.8em; opacity: 0.5;"></i></th>
+                                    <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {{range .jobs}}
+                                    <tr data-job-id="{{.JobID}}"
+                                        data-customer="{{.CustomerName}}"
+                                        data-status-id="{{.StatusID}}"
+                                        data-status-name="{{.StatusName}}"
+                                        data-category-id="{{if .JobCategoryID}}{{.JobCategoryID}}{{else}}0{{end}}"
+                                        data-device-count="{{.DeviceCount}}"
+                                        data-revenue="{{.TotalRevenue}}"
+                                        data-start-date="{{if .StartDate}}{{.StartDate.Format "2006-01-02"}}{{else}}{{end}}"
+                                        data-end-date="{{if .EndDate}}{{.EndDate.Format "2006-01-02"}}{{else}}{{end}}"
+                                        data-title="{{.JobCode}}"
+                                        onclick="showJobDetails({{.JobID}})"
+                                        style="cursor: pointer;">
+                                        <td>
+                                            <div class="rc-table-wc-title">{{.JobCode}}</div>
+                                            <div class="rc-table-wc-meta">ID {{.JobID}}</div>
+                                        </td>
+                                        <td>
+                                            <div class="rc-table-wc-title">{{.CustomerName}}</div>
+                                            <div class="rc-table-wc-sub">{{if .JobCategoryID}}Category {{.JobCategoryID}}{{else}}No category{{end}}</div>
+                                        </td>
+                                        <td><span class="rc-table-wc-sub">{{if .StartDate}}{{.StartDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
+                                        <td><span class="rc-table-wc-sub">{{if .EndDate}}{{.EndDate.Format "02.01.2006"}}{{else}}-{{end}}</span></td>
+                                        <td><span class="rc-badge rc-badge-secondary">{{.StatusName}}</span></td>
+                                        <td><span class="rc-table-wc-sub">{{.DeviceCount}} devices</span></td>
+                                        <td style="text-align: right;"><span class="rc-table-wc-title">€{{printf "%.2f" .TotalRevenue}}</span></td>
+                                        <td style="text-align: right;" onclick="event.stopPropagation()">
+                                            <div class="rc-flex rc-flex-gap-xs" style="justify-content: flex-end;">
+                                                <button type="button" class="rc-icon-btn" title="View Details" onclick="showJobDetails({{.JobID}})">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button type="button" class="rc-icon-btn" title="Edit Job" onclick="showEditJob({{.JobID}})">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button type="button" class="rc-icon-btn rc-icon-btn-danger" title="Delete" onclick="deleteJob({{.JobID}})">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {{end}}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                     {{else}}
                     <div class="rc-empty-state">

@@ -116,81 +116,73 @@
             </div>
             <div class="rc-card-body">
                 {{if .customers}}
-                <div class="rc-table-container">
-                    <table class="rc-table" id="customersTable">
-                        <thead>
-                            <tr>
-                                <th>
-                                    <span class="rc-text-mono">#</span>
-                                </th>
-                                <th>Customer</th>
-                                <th>Contact</th>
-                                <th>Location</th>
-                                <th>Type</th>
-                                <th style="text-align: center;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {{range .customers}}
-                            <tr onclick="showCustomerDetails({{.CustomerID}})" style="cursor: pointer;">
-                                <td>
-                                    <span class="rc-text-mono rc-badge rc-badge-primary">{{.CustomerID}}</span>
-                                </td>
-                                <td>
-                                    <div>
-                                        <div style="font-weight: 600; color: var(--text-primary);">
+                <div class="rc-table-wc-card">
+                    <div class="rc-table-wc-scroll">
+                        <table class="rc-table-wc" id="customersTable">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Contact</th>
+                                    <th>Location</th>
+                                    <th>Type</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .customers}}
+                                <tr onclick="showCustomerDetails({{.CustomerID}})" style="cursor: pointer;">
+                                    <td>
+                                        <div class="rc-table-wc-title">
                                             {{if .CompanyName}}
                                                 {{.CompanyName}}
                                             {{else}}
                                                 {{.FirstName}} {{.LastName}}
                                             {{end}}
                                         </div>
-                                        {{if .CompanyName}}
-                                        <div class="rc-text-sm">{{.FirstName}} {{.LastName}}</div>
-                                        {{end}}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div>
+                                        <div class="rc-table-wc-meta">ID {{.CustomerID}}</div>
+                                    </td>
+                                    <td>
                                         {{if .Email}}
-                                        <div class="rc-text-sm">
+                                        <div class="rc-table-wc-sub">
                                             <i class="bi bi-envelope"></i> {{.Email}}
                                         </div>
                                         {{end}}
                                         {{if .PhoneNumber}}
-                                        <div class="rc-text-sm">
+                                        <div class="rc-table-wc-sub">
                                             <i class="bi bi-telephone"></i> {{.PhoneNumber}}
                                         </div>
                                         {{end}}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="rc-text-sm">
-                                        {{if .City}}
-                                        <i class="bi bi-geo-alt"></i> {{.City}}
-                                        {{end}}
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="rc-badge rc-badge-primary">{{.CustomerType}}</span>
-                                </td>
-                                <td style="text-align: center;" onclick="event.stopPropagation()">
-                                    <div class="rc-flex rc-flex-center" style="gap: var(--space-xs);">
-                                        <button onclick="showCustomerDetails({{.CustomerID}})" class="rc-btn rc-btn-ghost rc-btn-sm" title="View Details">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button onclick="showEditCustomer({{.CustomerID}})" class="rc-btn rc-btn-secondary rc-btn-sm" title="Edit Customer">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="rc-btn rc-btn-ghost rc-btn-sm" onclick="deleteCustomer({{.CustomerID}})" title="Delete" style="color: var(--error);">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {{end}}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    <td>
+                                        <div class="rc-table-wc-sub">
+                                            {{if .City}}
+                                            <i class="bi bi-geo-alt"></i> {{.City}}
+                                            {{else}}
+                                            —
+                                            {{end}}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="rc-badge rc-badge-primary">{{.CustomerType}}</span>
+                                    </td>
+                                    <td style="text-align: right;" onclick="event.stopPropagation()">
+                                        <div class="rc-flex rc-flex-gap-xs" style="justify-content: flex-end;">
+                                            <button onclick="showCustomerDetails({{.CustomerID}})" class="rc-icon-btn" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button onclick="showEditCustomer({{.CustomerID}})" class="rc-icon-btn" title="Edit Customer">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button class="rc-icon-btn rc-icon-btn-danger" onclick="deleteCustomer({{.CustomerID}})" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 {{else}}
                 <div class="rc-text-center" style="padding: var(--space-3xl);">
