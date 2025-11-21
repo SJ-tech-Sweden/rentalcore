@@ -86,6 +86,11 @@ type Document struct {
 	Signatures     []DigitalSignature  `gorm:"foreignKey:DocumentID" json:"signatures,omitempty"`
 }
 
+// TableName forces the documents table name (older databases used plural).
+func (Document) TableName() string {
+	return "documents"
+}
+
 type DigitalSignature struct {
 	SignatureID      uint      `gorm:"primaryKey;autoIncrement" json:"signatureID"`
 	DocumentID       uint      `gorm:"not null" json:"documentID"`
