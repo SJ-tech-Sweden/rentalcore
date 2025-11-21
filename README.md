@@ -466,7 +466,11 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.0** (Latest) - Nextcloud File Pool
+### **v4.1.2** (Latest) - File Pool UI Integration
+- 🎨 **File Pool in App Shell**: File Pool now uses the main RentalCore UI (navbar/theme) and sits under Tools > File Pool
+- 🧭 **Navigation**: Documents dropdown links to the pool; Tools dropdown highlights when active
+
+### **v4.1.1** - Nextcloud File Pool
 - 📂 **Nextcloud-backed File Pool**: All document uploads now stored in Nextcloud via WebDAV (no local disk copies)
 - 🔒 **Role-gated Pool API**: `/documents/pool` (admin/manager) groups files into Assigned vs. Unused (system/unassigned)
 - 🔄 **Backfill**: Existing local uploads are migrated to Nextcloud on startup (disable with `NEXTCLOUD_BACKFILL_ON_START=false`)

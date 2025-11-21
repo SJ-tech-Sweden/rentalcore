@@ -593,6 +593,20 @@ func (h *DocumentHandler) generateVerificationCode() string {
 	return strings.ToUpper(hex.EncodeToString(randomBytes))
 }
 
+func (h *DocumentHandler) respondError(c *gin.Context, status int, msg string) {
+	accept := c.GetHeader("Accept")
+	if strings.Contains(accept, "text/html") {
+		user, _ := GetCurrentUser(c)
+		c.HTML(status, "error.html", gin.H{
+			"title": "Error",
+			"error": msg,
+			"user":  user,
+		})
+		return
+	}
+	c.JSON(status, gin.H{"error": msg})
+}
+
 // ================================================================
 // API ENDPOINTS
 // ================================================================
@@ -670,14 +684,28 @@ func (h *DocumentHandler) ListFilePool(c *gin.Context) {
 	var assigned []models.Document
 	if err := h.db.Where("entity_type <> ? OR entity_id <> ?", "system", "unassigned").
 		Order("uploaded_at DESC").Find(&assigned).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load assigned documents"})
+		h.respondError(c, http.StatusInternalServerError, "Failed to load assigned documents")
 		return
 	}
 
 	var unused []models.Document
 	if err := h.db.Where("entity_type = ? AND entity_id = ?", "system", "unassigned").
 		Order("uploaded_at DESC").Find(&unused).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load unused documents"})
+		h.respondError(c, http.StatusInternalServerError, "Failed to load unused documents")
+		return
+	}
+
+	accept := c.GetHeader("Accept")
+	if strings.Contains(accept, "text/html") {
+		user, _ := GetCurrentUser(c)
+		c.HTML(http.StatusOK, "documents_pool.html", gin.H{
+			"title":       "File Pool",
+			"user":        user,
+			"assigned":    assigned,
+			"unused":      unused,
+			"currentPage": "documents_pool",
+			"timestamp":   time.Now().Unix(),
+		})
 		return
 	}
 
