@@ -466,7 +466,11 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.3** (Latest) - File Pool Shell Fix
+### **v4.1.4** (Latest) - File Pool Shell Fix
+- 🎨 **File Pool layout**: Page now uses the shared base shell (sidebar/header/scripts) to avoid audit-page redirect quirks and dropped assets
+- 🖼️ **Manifest icons**: Missing PWA icon sizes restored to remove 404s in the browser console
+
+### **v4.1.3** - File Pool Shell Fix
 - 🎨 **File Pool layout**: Page now uses the shared base shell (sidebar/header/scripts) to avoid audit-page redirect quirks and dropped assets
 - 🖼️ **Manifest icons**: Missing PWA icon sizes restored to remove 404s in the browser console
 
