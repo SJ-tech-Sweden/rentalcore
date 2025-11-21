@@ -727,7 +727,13 @@ func (h *DocumentHandler) ListFilePool(c *gin.Context) {
 
 // Helpers
 func (h *DocumentHandler) remotePath(entityType, entityID, filename string) string {
-	rel := path.Join(entityType, entityID, filename)
+	// Store unassigned files in a flat "unassigned" directory; everything else under "assigned/<entityType>/<entityID>"
+	var rel string
+	if entityType == "system" && strings.ToLower(entityID) == "unassigned" {
+		rel = path.Join("unassigned", filename)
+	} else {
+		rel = path.Join("assigned", entityType, entityID, filename)
+	}
 	if h.useNextcloud {
 		return "nextcloud:" + strings.TrimLeft(rel, "/")
 	}
