@@ -275,6 +275,15 @@ func (h *DocumentHandler) UploadDocument(c *gin.Context) {
 		return
 	}
 
+	accept := c.GetHeader("Accept")
+	ct := c.ContentType()
+	if strings.Contains(accept, "text/html") || strings.Contains(ct, "multipart/form-data") {
+		// Return a simple popup then redirect back to the pool
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusCreated, `<script>alert('Upload erfolgreich: %s'); window.location.href='/documents/pool';</script>`, header.Filename)
+		return
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message":    "Document uploaded successfully",
 		"documentID": document.DocumentID,
