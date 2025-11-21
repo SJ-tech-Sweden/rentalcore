@@ -59,13 +59,13 @@ func NewDocumentHandler(db *gorm.DB) *DocumentHandler {
 		maxFileSize:    10 * 1024 * 1024, // 10MB
 		allowedTypes:   allowedTypes,
 		useNextcloud:   false,
-		ncBasePath:     strings.Trim(os.Getenv("NEXTCLOUD_WEBDAV_BASE_PATH"), "/"),
+		ncBasePath:     trimQuotes(strings.Trim(os.Getenv("NEXTCLOUD_WEBDAV_BASE_PATH"), "/")),
 		backfillOnBoot: strings.ToLower(os.Getenv("NEXTCLOUD_BACKFILL_ON_START")) != "false",
 	}
 
-	ncURL := strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_URL"))
-	ncUser := strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_USER"))
-	ncPass := strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_PASSWORD"))
+	ncURL := trimQuotes(strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_URL")))
+	ncUser := trimQuotes(strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_USER")))
+	ncPass := trimQuotes(strings.TrimSpace(os.Getenv("NEXTCLOUD_WEBDAV_PASSWORD")))
 
 	if ncURL != "" && ncUser != "" && ncPass != "" {
 		client, err := storage.NewNextcloudClient(ncURL, ncUser, ncPass, h.ncBasePath)
@@ -831,4 +831,11 @@ func chooseMime(m string) string {
 		return "application/octet-stream"
 	}
 	return m
+}
+
+func trimQuotes(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "\"")
+	s = strings.TrimSuffix(s, "\"")
+	return s
 }

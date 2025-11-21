@@ -1,8 +1,8 @@
 package models
 
 import (
-	"time"
 	"encoding/json"
+	"time"
 )
 
 // ================================================================
@@ -26,21 +26,21 @@ type EquipmentUsageLog struct {
 }
 
 type FinancialTransaction struct {
-	TransactionID     uint      `gorm:"primaryKey;autoIncrement" json:"transactionID"`
-	JobID             *uint     `json:"jobID"`
-	CustomerID        *uint     `json:"customerID"`
-	Type              string    `gorm:"type:enum('rental','deposit','payment','refund','fee','discount');not null" json:"type"`
-	Amount            float64   `gorm:"type:decimal(12,2);not null" json:"amount"`
-	Currency          string    `gorm:"default:'EUR'" json:"currency"`
-	Status            string    `gorm:"type:enum('pending','completed','failed','cancelled');not null" json:"status"`
-	PaymentMethod     string    `json:"paymentMethod"`
-	TransactionDate   time.Time `gorm:"not null" json:"transactionDate"`
-	DueDate           *time.Time `json:"dueDate"`
-	ReferenceNumber   string    `json:"referenceNumber"`
-	Notes             string    `json:"notes"`
-	CreatedBy         *uint     `json:"createdBy"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	TransactionID   uint       `gorm:"primaryKey;autoIncrement" json:"transactionID"`
+	JobID           *uint      `json:"jobID"`
+	CustomerID      *uint      `json:"customerID"`
+	Type            string     `gorm:"type:enum('rental','deposit','payment','refund','fee','discount');not null" json:"type"`
+	Amount          float64    `gorm:"type:decimal(12,2);not null" json:"amount"`
+	Currency        string     `gorm:"default:'EUR'" json:"currency"`
+	Status          string     `gorm:"type:enum('pending','completed','failed','cancelled');not null" json:"status"`
+	PaymentMethod   string     `json:"paymentMethod"`
+	TransactionDate time.Time  `gorm:"not null" json:"transactionDate"`
+	DueDate         *time.Time `json:"dueDate"`
+	ReferenceNumber string     `json:"referenceNumber"`
+	Notes           string     `json:"notes"`
+	CreatedBy       *uint      `json:"createdBy"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
 
 	// Relationships
 	Job      *Job      `gorm:"foreignKey:JobID" json:"job,omitempty"`
@@ -63,7 +63,7 @@ type AnalyticsCache struct {
 // ================================================================
 
 type Document struct {
-	DocumentID       uint      `gorm:"primaryKey;autoIncrement" json:"documentID"`
+	DocumentID       uint      `gorm:"column:documentID;primaryKey;autoIncrement" json:"documentID"`
 	EntityType       string    `gorm:"type:enum('job','device','customer','user','system');not null" json:"entityType"`
 	EntityID         string    `gorm:"not null" json:"entityID"`
 	Filename         string    `gorm:"not null" json:"filename"`
@@ -77,13 +77,13 @@ type Document struct {
 	UploadedAt       time.Time `json:"uploadedAt"`
 	IsPublic         bool      `gorm:"default:false" json:"isPublic"`
 	Version          int       `gorm:"default:1" json:"version"`
-	ParentDocumentID *uint     `json:"parentDocumentID"`
+	ParentDocumentID *uint     `gorm:"column:parent_documentID" json:"parentDocumentID"`
 	Checksum         string    `json:"checksum"`
 
 	// Relationships
-	Uploader       *User               `gorm:"foreignKey:UploadedBy" json:"uploader,omitempty"`
-	ParentDocument *Document           `gorm:"foreignKey:ParentDocumentID" json:"parentDocument,omitempty"`
-	Signatures     []DigitalSignature  `gorm:"foreignKey:DocumentID" json:"signatures,omitempty"`
+	Uploader       *User              `gorm:"foreignKey:UploadedBy" json:"uploader,omitempty"`
+	ParentDocument *Document          `gorm:"foreignKey:ParentDocumentID" json:"parentDocument,omitempty"`
+	Signatures     []DigitalSignature `gorm:"foreignKey:DocumentID" json:"signatures,omitempty"`
 }
 
 // TableName forces the documents table name (older databases used plural).
@@ -146,28 +146,27 @@ type SearchHistory struct {
 // WORKFLOW & TEMPLATES MODELS
 // ================================================================
 
-
 type EquipmentPackage struct {
-	PackageID        uint            `gorm:"primaryKey;autoIncrement;column:packageID" json:"packageID"`
-	Name             string          `gorm:"not null;size:100;column:name" json:"name" binding:"required,min=3,max=100"`
-	Description      string          `gorm:"size:1000;column:description" json:"description" binding:"max=1000"`
-	PackageItems     json.RawMessage `gorm:"type:json;not null;column:package_items" json:"packageItems"`
-	PackagePrice     *float64        `gorm:"type:decimal(12,2);column:package_price" json:"packagePrice" binding:"omitempty,min=0"`
-	DiscountPercent  float64         `gorm:"type:decimal(5,2);default:0.00;column:discount_percent" json:"discountPercent" binding:"min=0,max=100"`
-	MinRentalDays    int             `gorm:"default:1;column:min_rental_days" json:"minRentalDays" binding:"min=1,max=365"`
-	MaxRentalDays    *int            `gorm:"column:max_rental_days" json:"maxRentalDays" binding:"omitempty,min=1,max=3650"`
-	IsActive         bool            `gorm:"default:true;column:is_active" json:"isActive"`
-	Category         string          `gorm:"size:50;column:category" json:"category" binding:"max=50"`
-	Tags             string          `gorm:"size:500;column:tags" json:"tags" binding:"max=500"`
-	CreatedBy        *uint           `gorm:"column:created_by" json:"createdBy"`
-	CreatedAt        time.Time       `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt        time.Time       `gorm:"column:updated_at" json:"updatedAt"`
-	UsageCount       int             `gorm:"default:0;column:usage_count" json:"usageCount"`
-	LastUsedAt       *time.Time      `gorm:"column:last_used_at" json:"lastUsedAt"`
-	TotalRevenue     float64         `gorm:"type:decimal(12,2);default:0.00;column:total_revenue" json:"totalRevenue"`
-	TotalValue       float64         `gorm:"-:all" json:"total_value"`
-	CalculatedPrice  float64         `gorm:"-:all" json:"calculated_price"`
-	DeviceCount      int             `gorm:"-:all" json:"device_count"`
+	PackageID       uint            `gorm:"primaryKey;autoIncrement;column:packageID" json:"packageID"`
+	Name            string          `gorm:"not null;size:100;column:name" json:"name" binding:"required,min=3,max=100"`
+	Description     string          `gorm:"size:1000;column:description" json:"description" binding:"max=1000"`
+	PackageItems    json.RawMessage `gorm:"type:json;not null;column:package_items" json:"packageItems"`
+	PackagePrice    *float64        `gorm:"type:decimal(12,2);column:package_price" json:"packagePrice" binding:"omitempty,min=0"`
+	DiscountPercent float64         `gorm:"type:decimal(5,2);default:0.00;column:discount_percent" json:"discountPercent" binding:"min=0,max=100"`
+	MinRentalDays   int             `gorm:"default:1;column:min_rental_days" json:"minRentalDays" binding:"min=1,max=365"`
+	MaxRentalDays   *int            `gorm:"column:max_rental_days" json:"maxRentalDays" binding:"omitempty,min=1,max=3650"`
+	IsActive        bool            `gorm:"default:true;column:is_active" json:"isActive"`
+	Category        string          `gorm:"size:50;column:category" json:"category" binding:"max=50"`
+	Tags            string          `gorm:"size:500;column:tags" json:"tags" binding:"max=500"`
+	CreatedBy       *uint           `gorm:"column:created_by" json:"createdBy"`
+	CreatedAt       time.Time       `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt       time.Time       `gorm:"column:updated_at" json:"updatedAt"`
+	UsageCount      int             `gorm:"default:0;column:usage_count" json:"usageCount"`
+	LastUsedAt      *time.Time      `gorm:"column:last_used_at" json:"lastUsedAt"`
+	TotalRevenue    float64         `gorm:"type:decimal(12,2);default:0.00;column:total_revenue" json:"totalRevenue"`
+	TotalValue      float64         `gorm:"-:all" json:"total_value"`
+	CalculatedPrice float64         `gorm:"-:all" json:"calculated_price"`
+	DeviceCount     int             `gorm:"-:all" json:"device_count"`
 
 	// Relationships
 	Creator        *User           `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
@@ -179,13 +178,13 @@ func (EquipmentPackage) TableName() string {
 }
 
 type PackageDevice struct {
-	PackageID   uint     `gorm:"primaryKey;column:packageID" json:"packageID"`
-	DeviceID    string   `gorm:"primaryKey;column:deviceID;size:50" json:"deviceID" binding:"required,max=50"`
-	Quantity    uint     `gorm:"not null;default:1;column:quantity" json:"quantity" binding:"required,min=1,max=1000"`
-	CustomPrice *float64 `gorm:"type:decimal(12,2);column:custom_price" json:"customPrice" binding:"omitempty,min=0"`
-	IsRequired  bool     `gorm:"not null;default:false;column:is_required" json:"isRequired"`
-	Notes       string   `gorm:"size:500;column:notes" json:"notes" binding:"max=500"`
-	SortOrder   *uint    `gorm:"column:sort_order" json:"sortOrder"`
+	PackageID   uint      `gorm:"primaryKey;column:packageID" json:"packageID"`
+	DeviceID    string    `gorm:"primaryKey;column:deviceID;size:50" json:"deviceID" binding:"required,max=50"`
+	Quantity    uint      `gorm:"not null;default:1;column:quantity" json:"quantity" binding:"required,min=1,max=1000"`
+	CustomPrice *float64  `gorm:"type:decimal(12,2);column:custom_price" json:"customPrice" binding:"omitempty,min=0"`
+	IsRequired  bool      `gorm:"not null;default:false;column:is_required" json:"isRequired"`
+	Notes       string    `gorm:"size:500;column:notes" json:"notes" binding:"max=500"`
+	SortOrder   *uint     `gorm:"column:sort_order" json:"sortOrder"`
 	CreatedAt   time.Time `gorm:"column:created_at" json:"createdAt"`
 	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updatedAt"`
 
@@ -300,57 +299,57 @@ type OfflineSyncQueue struct {
 
 // UserEnhanced extends the existing User model with new fields
 type UserEnhanced struct {
-	User                     // Embed the existing User struct
-	Timezone                 string          `gorm:"default:'Europe/Berlin'" json:"timezone"`
-	Language                 string          `gorm:"default:'en'" json:"language"`
-	AvatarPath               string          `json:"avatarPath"`
-	NotificationPreferences  json.RawMessage `gorm:"type:json" json:"notificationPreferences"`
-	LastActive               *time.Time      `json:"lastActive"`
-	LoginAttempts            int             `gorm:"default:0" json:"loginAttempts"`
-	LockedUntil              *time.Time      `json:"lockedUntil"`
-	TwoFactorEnabled         bool            `gorm:"default:false" json:"twoFactorEnabled"`
-	TwoFactorSecret          string          `json:"twoFactorSecret,omitempty"`
+	User                                    // Embed the existing User struct
+	Timezone                string          `gorm:"default:'Europe/Berlin'" json:"timezone"`
+	Language                string          `gorm:"default:'en'" json:"language"`
+	AvatarPath              string          `json:"avatarPath"`
+	NotificationPreferences json.RawMessage `gorm:"type:json" json:"notificationPreferences"`
+	LastActive              *time.Time      `json:"lastActive"`
+	LoginAttempts           int             `gorm:"default:0" json:"loginAttempts"`
+	LockedUntil             *time.Time      `json:"lockedUntil"`
+	TwoFactorEnabled        bool            `gorm:"default:false" json:"twoFactorEnabled"`
+	TwoFactorSecret         string          `json:"twoFactorSecret,omitempty"`
 
 	// New relationships
-	UserRoles         []UserRole          `gorm:"foreignKey:UserID" json:"userRoles,omitempty"`
-	PushSubscriptions []PushSubscription  `gorm:"foreignKey:UserID" json:"pushSubscriptions,omitempty"`
-	SavedSearches     []SavedSearch       `gorm:"foreignKey:UserID" json:"savedSearches,omitempty"`
-	OfflineSyncQueue  []OfflineSyncQueue  `gorm:"foreignKey:UserID" json:"offlineSyncQueue,omitempty"`
+	UserRoles         []UserRole         `gorm:"foreignKey:UserID" json:"userRoles,omitempty"`
+	PushSubscriptions []PushSubscription `gorm:"foreignKey:UserID" json:"pushSubscriptions,omitempty"`
+	SavedSearches     []SavedSearch      `gorm:"foreignKey:UserID" json:"savedSearches,omitempty"`
+	OfflineSyncQueue  []OfflineSyncQueue `gorm:"foreignKey:UserID" json:"offlineSyncQueue,omitempty"`
 }
 
 // JobEnhanced extends the existing Job model with new fields
 type JobEnhanced struct {
-	Job                      // Embed the existing Job struct
-	Priority                 string   `gorm:"type:enum('low','normal','high','urgent');default:'normal'" json:"priority"`
-	InternalNotes            string   `json:"internalNotes"`
-	CustomerNotes            string   `json:"customerNotes"`
-	EstimatedRevenue         *float64 `gorm:"type:decimal(12,2)" json:"estimatedRevenue"`
-	ActualCost               float64  `gorm:"type:decimal(12,2);default:0.00" json:"actualCost"`
-	ProfitMargin             *float64 `gorm:"type:decimal(5,2)" json:"profitMargin"`
-	ContractSigned           bool     `gorm:"default:false" json:"contractSigned"`
-	ContractDocumentID       *uint    `json:"contractDocumentID"`
-	CompletionPercentage     int      `gorm:"default:0" json:"completionPercentage"`
+	Job                           // Embed the existing Job struct
+	Priority             string   `gorm:"type:enum('low','normal','high','urgent');default:'normal'" json:"priority"`
+	InternalNotes        string   `json:"internalNotes"`
+	CustomerNotes        string   `json:"customerNotes"`
+	EstimatedRevenue     *float64 `gorm:"type:decimal(12,2)" json:"estimatedRevenue"`
+	ActualCost           float64  `gorm:"type:decimal(12,2);default:0.00" json:"actualCost"`
+	ProfitMargin         *float64 `gorm:"type:decimal(5,2)" json:"profitMargin"`
+	ContractSigned       bool     `gorm:"default:false" json:"contractSigned"`
+	ContractDocumentID   *uint    `json:"contractDocumentID"`
+	CompletionPercentage int      `gorm:"default:0" json:"completionPercentage"`
 
 	// New relationships
-	ContractDocument *Document             `gorm:"foreignKey:ContractDocumentID" json:"contractDocument,omitempty"`
-	UsageLogs        []EquipmentUsageLog   `gorm:"foreignKey:JobID" json:"usageLogs,omitempty"`
+	ContractDocument *Document              `gorm:"foreignKey:ContractDocumentID" json:"contractDocument,omitempty"`
+	UsageLogs        []EquipmentUsageLog    `gorm:"foreignKey:JobID" json:"usageLogs,omitempty"`
 	Transactions     []FinancialTransaction `gorm:"foreignKey:JobID" json:"transactions,omitempty"`
-	Documents        []Document            `gorm:"foreignKey:EntityID;where:entity_type = 'job'" json:"documents,omitempty"`
+	Documents        []Document             `gorm:"foreignKey:EntityID;where:entity_type = 'job'" json:"documents,omitempty"`
 }
 
 // DeviceEnhanced extends the existing Device model with new fields
 type DeviceEnhanced struct {
-	Device                   // Embed the existing Device struct
-	QRCode                   string   `gorm:"uniqueIndex" json:"qrCode"`
-	CurrentLocation          string   `json:"currentLocation"`
-	GPSLatitude              *float64 `gorm:"type:decimal(10,8)" json:"gpsLatitude"`
-	GPSLongitude             *float64 `gorm:"type:decimal(11,8)" json:"gpsLongitude"`
-	ConditionRating          float64  `gorm:"type:decimal(3,1);default:5.0" json:"conditionRating"`
-	UsageHours               float64  `gorm:"type:decimal(10,2);default:0.00" json:"usageHours"`
-	TotalRevenue             float64  `gorm:"type:decimal(12,2);default:0.00" json:"totalRevenue"`
-	LastMaintenanceCost      *float64 `gorm:"type:decimal(10,2)" json:"lastMaintenanceCost"`
-	Notes                    string   `json:"notes"`
-	Barcode                  string   `json:"barcode"`
+	Device                       // Embed the existing Device struct
+	QRCode              string   `gorm:"uniqueIndex" json:"qrCode"`
+	CurrentLocation     string   `json:"currentLocation"`
+	GPSLatitude         *float64 `gorm:"type:decimal(10,8)" json:"gpsLatitude"`
+	GPSLongitude        *float64 `gorm:"type:decimal(11,8)" json:"gpsLongitude"`
+	ConditionRating     float64  `gorm:"type:decimal(3,1);default:5.0" json:"conditionRating"`
+	UsageHours          float64  `gorm:"type:decimal(10,2);default:0.00" json:"usageHours"`
+	TotalRevenue        float64  `gorm:"type:decimal(12,2);default:0.00" json:"totalRevenue"`
+	LastMaintenanceCost *float64 `gorm:"type:decimal(10,2)" json:"lastMaintenanceCost"`
+	Notes               string   `json:"notes"`
+	Barcode             string   `json:"barcode"`
 
 	// New relationships
 	UsageLogs []EquipmentUsageLog `gorm:"foreignKey:DeviceID" json:"usageLogs,omitempty"`
@@ -359,17 +358,17 @@ type DeviceEnhanced struct {
 
 // CustomerEnhanced extends the existing Customer model with new fields
 type CustomerEnhanced struct {
-	Customer                 // Embed the existing Customer struct
-	TaxNumber                string   `json:"taxNumber"`
-	CreditLimit              float64  `gorm:"type:decimal(12,2);default:0.00" json:"creditLimit"`
-	PaymentTerms             int      `gorm:"default:30" json:"paymentTerms"`
-	PreferredPaymentMethod   string   `json:"preferredPaymentMethod"`
-	CustomerSince            *time.Time `json:"customerSince"`
-	TotalLifetimeValue       float64  `gorm:"type:decimal(12,2);default:0.00" json:"totalLifetimeValue"`
-	LastJobDate              *time.Time `json:"lastJobDate"`
-	Rating                   float64  `gorm:"type:decimal(3,1);default:5.0" json:"rating"`
-	BillingAddress           string   `json:"billingAddress"`
-	ShippingAddress          string   `json:"shippingAddress"`
+	Customer                          // Embed the existing Customer struct
+	TaxNumber              string     `json:"taxNumber"`
+	CreditLimit            float64    `gorm:"type:decimal(12,2);default:0.00" json:"creditLimit"`
+	PaymentTerms           int        `gorm:"default:30" json:"paymentTerms"`
+	PreferredPaymentMethod string     `json:"preferredPaymentMethod"`
+	CustomerSince          *time.Time `json:"customerSince"`
+	TotalLifetimeValue     float64    `gorm:"type:decimal(12,2);default:0.00" json:"totalLifetimeValue"`
+	LastJobDate            *time.Time `json:"lastJobDate"`
+	Rating                 float64    `gorm:"type:decimal(3,1);default:5.0" json:"rating"`
+	BillingAddress         string     `json:"billingAddress"`
+	ShippingAddress        string     `json:"shippingAddress"`
 
 	// New relationships
 	Transactions []FinancialTransaction `gorm:"foreignKey:CustomerID" json:"transactions,omitempty"`
@@ -381,27 +380,27 @@ type CustomerEnhanced struct {
 // ================================================================
 
 type EquipmentUtilization struct {
-	DeviceID        string  `json:"deviceID"`
-	ProductName     string  `json:"productName"`
-	Status          string  `json:"status"`
-	UsageHours      float64 `json:"usageHours"`
-	TotalRevenue    float64 `json:"totalRevenue"`
-	RevenuePerHour  float64 `json:"revenuePerHour"`
-	TimesRented     int     `json:"timesRented"`
-	ConditionRating float64 `json:"conditionRating"`
+	DeviceID        string     `json:"deviceID"`
+	ProductName     string     `json:"productName"`
+	Status          string     `json:"status"`
+	UsageHours      float64    `json:"usageHours"`
+	TotalRevenue    float64    `json:"totalRevenue"`
+	RevenuePerHour  float64    `json:"revenuePerHour"`
+	TimesRented     int        `json:"timesRented"`
+	ConditionRating float64    `json:"conditionRating"`
 	LastMaintenance *time.Time `json:"lastMaintenance"`
 }
 
 type CustomerPerformance struct {
-	CustomerID      uint       `json:"customerID"`
-	CompanyName     string     `json:"companyName"`
-	TotalLifetimeValue float64 `json:"totalLifetimeValue"`
-	Rating          float64    `json:"rating"`
-	CustomerSince   *time.Time `json:"customerSince"`
-	TotalJobs       int        `json:"totalJobs"`
-	TotalRevenue    float64    `json:"totalRevenue"`
-	LastJobDate     *time.Time `json:"lastJobDate"`
-	AvgRentalDays   float64    `json:"avgRentalDays"`
+	CustomerID         uint       `json:"customerID"`
+	CompanyName        string     `json:"companyName"`
+	TotalLifetimeValue float64    `json:"totalLifetimeValue"`
+	Rating             float64    `json:"rating"`
+	CustomerSince      *time.Time `json:"customerSince"`
+	TotalJobs          int        `json:"totalJobs"`
+	TotalRevenue       float64    `json:"totalRevenue"`
+	LastJobDate        *time.Time `json:"lastJobDate"`
+	AvgRentalDays      float64    `json:"avgRentalDays"`
 }
 
 type MonthlyRevenue struct {
@@ -418,15 +417,15 @@ type MonthlyRevenue struct {
 // ================================================================
 
 type AnalyticsRequest struct {
-	Period    string    `json:"period"`    // daily, weekly, monthly, yearly
+	Period    string    `json:"period"` // daily, weekly, monthly, yearly
 	StartDate time.Time `json:"startDate"`
 	EndDate   time.Time `json:"endDate"`
-	Metrics   []string  `json:"metrics"`   // revenue, utilization, customers, etc.
+	Metrics   []string  `json:"metrics"` // revenue, utilization, customers, etc.
 }
 
 type SearchRequest struct {
 	Query      string                 `json:"query"`
-	Type       string                 `json:"type"`       // global, jobs, devices, customers, cases
+	Type       string                 `json:"type"` // global, jobs, devices, customers, cases
 	Filters    map[string]interface{} `json:"filters"`
 	Sort       string                 `json:"sort"`
 	Page       int                    `json:"page"`
@@ -436,22 +435,22 @@ type SearchRequest struct {
 }
 
 type BulkActionRequest struct {
-	Action   string   `json:"action"`
-	EntityIDs []string `json:"entityIds"`
-	Data     map[string]interface{} `json:"data"`
+	Action    string                 `json:"action"`
+	EntityIDs []string               `json:"entityIds"`
+	Data      map[string]interface{} `json:"data"`
 }
 
 // Equipment Package DTOs
 type CreateEquipmentPackageRequest struct {
-	Name            string                    `json:"name" binding:"required,min=3,max=100"`
-	Description     string                    `json:"description" binding:"max=1000"`
-	PackagePrice    *float64                  `json:"packagePrice" binding:"omitempty,min=0"`
-	DiscountPercent float64                   `json:"discountPercent" binding:"min=0,max=100"`
-	MinRentalDays   int                       `json:"minRentalDays" binding:"min=1,max=365"`
-	MaxRentalDays   *int                      `json:"maxRentalDays" binding:"omitempty,min=1,max=3650"`
-	IsActive        bool                      `json:"isActive"`
-	Category        string                    `json:"category" binding:"max=50"`
-	Tags            string                    `json:"tags" binding:"max=500"`
+	Name            string                       `json:"name" binding:"required,min=3,max=100"`
+	Description     string                       `json:"description" binding:"max=1000"`
+	PackagePrice    *float64                     `json:"packagePrice" binding:"omitempty,min=0"`
+	DiscountPercent float64                      `json:"discountPercent" binding:"min=0,max=100"`
+	MinRentalDays   int                          `json:"minRentalDays" binding:"min=1,max=365"`
+	MaxRentalDays   *int                         `json:"maxRentalDays" binding:"omitempty,min=1,max=3650"`
+	IsActive        bool                         `json:"isActive"`
+	Category        string                       `json:"category" binding:"max=50"`
+	Tags            string                       `json:"tags" binding:"max=500"`
 	Devices         []CreatePackageDeviceRequest `json:"devices"`
 }
 
@@ -487,25 +486,25 @@ type UpdatePackageDeviceRequest struct {
 }
 
 type EquipmentPackageResponse struct {
-	PackageID       uint                     `json:"packageID"`
-	Name            string                   `json:"name"`
-	Description     string                   `json:"description"`
-	PackagePrice    *float64                 `json:"packagePrice"`
-	DiscountPercent float64                  `json:"discountPercent"`
-	MinRentalDays   int                      `json:"minRentalDays"`
-	MaxRentalDays   *int                     `json:"maxRentalDays"`
-	IsActive        bool                     `json:"isActive"`
-	Category        string                   `json:"category"`
-	Tags            string                   `json:"tags"`
-	UsageCount      int                      `json:"usageCount"`
-	LastUsedAt      *time.Time               `json:"lastUsedAt"`
-	TotalRevenue    float64                  `json:"totalRevenue"`
-	CreatedAt       time.Time                `json:"createdAt"`
-	UpdatedAt       time.Time                `json:"updatedAt"`
-	Creator         *User                    `json:"creator,omitempty"`
-	Devices         []PackageDeviceResponse  `json:"devices,omitempty"`
-	CalculatedPrice float64                  `json:"calculatedPrice"`
-	DeviceCount     int                      `json:"deviceCount"`
+	PackageID       uint                    `json:"packageID"`
+	Name            string                  `json:"name"`
+	Description     string                  `json:"description"`
+	PackagePrice    *float64                `json:"packagePrice"`
+	DiscountPercent float64                 `json:"discountPercent"`
+	MinRentalDays   int                     `json:"minRentalDays"`
+	MaxRentalDays   *int                    `json:"maxRentalDays"`
+	IsActive        bool                    `json:"isActive"`
+	Category        string                  `json:"category"`
+	Tags            string                  `json:"tags"`
+	UsageCount      int                     `json:"usageCount"`
+	LastUsedAt      *time.Time              `json:"lastUsedAt"`
+	TotalRevenue    float64                 `json:"totalRevenue"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	UpdatedAt       time.Time               `json:"updatedAt"`
+	Creator         *User                   `json:"creator,omitempty"`
+	Devices         []PackageDeviceResponse `json:"devices,omitempty"`
+	CalculatedPrice float64                 `json:"calculatedPrice"`
+	DeviceCount     int                     `json:"deviceCount"`
 }
 
 type PackageDeviceResponse struct {
@@ -524,26 +523,26 @@ type PackageDeviceResponse struct {
 // ================================================================
 
 type RentalEquipment struct {
-	EquipmentID   uint      `gorm:"primaryKey;autoIncrement;column:equipment_id" json:"equipmentID"`
-	ProductName   string    `gorm:"not null;size:200;column:product_name" json:"productName" binding:"required,min=1,max=200"`
-	SupplierName  string    `gorm:"not null;size:100;column:supplier_name" json:"supplierName" binding:"required,min=1,max=100"`
-	RentalPrice   float64   `gorm:"type:decimal(12,2);not null;column:rental_price" json:"rentalPrice" binding:"required,min=0"`
-	Category      string    `gorm:"size:50;column:category" json:"category" binding:"max=50"`
-	Description   string    `gorm:"size:1000;column:description" json:"description" binding:"max=1000"`
-	Notes         string    `gorm:"size:500;column:notes" json:"notes" binding:"max=500"`
-	IsActive      bool      `gorm:"default:true;column:is_active" json:"isActive"`
-	CreatedAt     time.Time `gorm:"column:created_at" json:"createdAt"`
-	UpdatedAt     time.Time `gorm:"column:updated_at" json:"updatedAt"`
-	CreatedBy     *uint     `gorm:"column:created_by" json:"createdBy"`
+	EquipmentID  uint      `gorm:"primaryKey;autoIncrement;column:equipment_id" json:"equipmentID"`
+	ProductName  string    `gorm:"not null;size:200;column:product_name" json:"productName" binding:"required,min=1,max=200"`
+	SupplierName string    `gorm:"not null;size:100;column:supplier_name" json:"supplierName" binding:"required,min=1,max=100"`
+	RentalPrice  float64   `gorm:"type:decimal(12,2);not null;column:rental_price" json:"rentalPrice" binding:"required,min=0"`
+	Category     string    `gorm:"size:50;column:category" json:"category" binding:"max=50"`
+	Description  string    `gorm:"size:1000;column:description" json:"description" binding:"max=1000"`
+	Notes        string    `gorm:"size:500;column:notes" json:"notes" binding:"max=500"`
+	IsActive     bool      `gorm:"default:true;column:is_active" json:"isActive"`
+	CreatedAt    time.Time `gorm:"column:created_at" json:"createdAt"`
+	UpdatedAt    time.Time `gorm:"column:updated_at" json:"updatedAt"`
+	CreatedBy    *uint     `gorm:"column:created_by" json:"createdBy"`
 
 	// Analytics fields (computed)
-	TotalUsed     int     `gorm:"-:all" json:"totalUsed"`
-	TotalRevenue  float64 `gorm:"-:all" json:"totalRevenue"`
-	LastUsedDate  *time.Time `gorm:"-:all" json:"lastUsedDate"`
+	TotalUsed    int        `gorm:"-:all" json:"totalUsed"`
+	TotalRevenue float64    `gorm:"-:all" json:"totalRevenue"`
+	LastUsedDate *time.Time `gorm:"-:all" json:"lastUsedDate"`
 
 	// Relationships
-	Creator         *User                 `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
-	JobRentalItems  []JobRentalEquipment  `gorm:"foreignKey:EquipmentID" json:"jobRentalItems,omitempty"`
+	Creator        *User                `gorm:"foreignKey:CreatedBy" json:"creator,omitempty"`
+	JobRentalItems []JobRentalEquipment `gorm:"foreignKey:EquipmentID" json:"jobRentalItems,omitempty"`
 }
 
 func (RentalEquipment) TableName() string {
@@ -561,8 +560,8 @@ type JobRentalEquipment struct {
 	UpdatedAt   time.Time `gorm:"column:updated_at" json:"updatedAt"`
 
 	// Relationships
-	Job             *Job              `gorm:"foreignKey:JobID" json:"job,omitempty"`
-	RentalEquipment *RentalEquipment  `gorm:"foreignKey:EquipmentID" json:"rentalEquipment,omitempty"`
+	Job             *Job             `gorm:"foreignKey:JobID" json:"job,omitempty"`
+	RentalEquipment *RentalEquipment `gorm:"foreignKey:EquipmentID" json:"rentalEquipment,omitempty"`
 }
 
 func (JobRentalEquipment) TableName() string {
@@ -594,11 +593,11 @@ type UpdateRentalEquipmentRequest struct {
 }
 
 type AddRentalToJobRequest struct {
-	JobID       uint    `json:"jobID" binding:"required"`
-	EquipmentID uint    `json:"equipmentID" binding:"required"`
-	Quantity    uint    `json:"quantity" binding:"required,min=1,max=1000"`
-	DaysUsed    uint    `json:"daysUsed" binding:"required,min=1,max=365"`
-	Notes       string  `json:"notes" binding:"max=500"`
+	JobID       uint   `json:"jobID" binding:"required"`
+	EquipmentID uint   `json:"equipmentID" binding:"required"`
+	Quantity    uint   `json:"quantity" binding:"required,min=1,max=1000"`
+	DaysUsed    uint   `json:"daysUsed" binding:"required,min=1,max=365"`
+	Notes       string `json:"notes" binding:"max=500"`
 }
 
 type ManualRentalEntryRequest struct {
@@ -614,31 +613,31 @@ type ManualRentalEntryRequest struct {
 }
 
 type RentalEquipmentResponse struct {
-	EquipmentID   uint       `json:"equipmentID"`
-	ProductName   string     `json:"productName"`
-	SupplierName  string     `json:"supplierName"`
-	RentalPrice   float64    `json:"rentalPrice"`
-	Category      string     `json:"category"`
-	Description   string     `json:"description"`
-	Notes         string     `json:"notes"`
-	IsActive      bool       `json:"isActive"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	UpdatedAt     time.Time  `json:"updatedAt"`
-	Creator       *User      `json:"creator,omitempty"`
-	TotalUsed     int        `json:"totalUsed"`
-	TotalRevenue  float64    `json:"totalRevenue"`
-	LastUsedDate  *time.Time `json:"lastUsedDate"`
+	EquipmentID  uint       `json:"equipmentID"`
+	ProductName  string     `json:"productName"`
+	SupplierName string     `json:"supplierName"`
+	RentalPrice  float64    `json:"rentalPrice"`
+	Category     string     `json:"category"`
+	Description  string     `json:"description"`
+	Notes        string     `json:"notes"`
+	IsActive     bool       `json:"isActive"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	Creator      *User      `json:"creator,omitempty"`
+	TotalUsed    int        `json:"totalUsed"`
+	TotalRevenue float64    `json:"totalRevenue"`
+	LastUsedDate *time.Time `json:"lastUsedDate"`
 }
 
 type RentalEquipmentAnalytics struct {
-	TotalEquipmentItems    int                           `json:"totalEquipmentItems"`
-	ActiveEquipmentItems   int                           `json:"activeEquipmentItems"`
-	TotalSuppliersCount    int                           `json:"totalSuppliersCount"`
-	TotalRentalRevenue     float64                       `json:"totalRentalRevenue"`
-	MostUsedEquipment      []MostUsedRentalEquipment     `json:"mostUsedEquipment"`
-	TopSuppliers           []TopRentalSupplier           `json:"topSuppliers"`
-	CategoryBreakdown      []RentalCategoryBreakdown     `json:"categoryBreakdown"`
-	MonthlyRentalRevenue   []MonthlyRentalRevenue        `json:"monthlyRentalRevenue"`
+	TotalEquipmentItems  int                       `json:"totalEquipmentItems"`
+	ActiveEquipmentItems int                       `json:"activeEquipmentItems"`
+	TotalSuppliersCount  int                       `json:"totalSuppliersCount"`
+	TotalRentalRevenue   float64                   `json:"totalRentalRevenue"`
+	MostUsedEquipment    []MostUsedRentalEquipment `json:"mostUsedEquipment"`
+	TopSuppliers         []TopRentalSupplier       `json:"topSuppliers"`
+	CategoryBreakdown    []RentalCategoryBreakdown `json:"categoryBreakdown"`
+	MonthlyRentalRevenue []MonthlyRentalRevenue    `json:"monthlyRentalRevenue"`
 }
 
 type MostUsedRentalEquipment struct {
@@ -657,11 +656,11 @@ type TopRentalSupplier struct {
 }
 
 type RentalCategoryBreakdown struct {
-	Category                string  `json:"category"`
-	EquipmentCount          int     `json:"equipmentCount"`
-	TotalRevenue            float64 `json:"totalRevenue"`
-	UsageCount              int     `json:"usageCount"`
-	AvgRevenuePerEquipment  float64 `json:"avgRevenuePerEquipment"`
+	Category               string  `json:"category"`
+	EquipmentCount         int     `json:"equipmentCount"`
+	TotalRevenue           float64 `json:"totalRevenue"`
+	UsageCount             int     `json:"usageCount"`
+	AvgRevenuePerEquipment float64 `json:"avgRevenuePerEquipment"`
 }
 
 type MonthlyRentalRevenue struct {
@@ -708,17 +707,17 @@ type UploadAttachmentRequest struct {
 }
 
 type JobAttachmentResponse struct {
-	AttachmentID     uint      `json:"attachmentID"`
-	JobID            uint      `json:"jobID"`
-	Filename         string    `json:"filename"`
-	OriginalFilename string    `json:"originalFilename"`
-	FileSize         int64     `json:"fileSize"`
-	MimeType         string    `json:"mimeType"`
-	UploadedBy       *uint     `json:"uploadedBy"`
-	UploadedAt       time.Time `json:"uploadedAt"`
-	Description      string    `json:"description"`
-	IsActive         bool      `json:"isActive"`
-	Uploader         *User     `json:"uploader,omitempty"`
-	FileSizeFormatted string   `json:"fileSizeFormatted"`
-	IsImage          bool      `json:"isImage"`
+	AttachmentID      uint      `json:"attachmentID"`
+	JobID             uint      `json:"jobID"`
+	Filename          string    `json:"filename"`
+	OriginalFilename  string    `json:"originalFilename"`
+	FileSize          int64     `json:"fileSize"`
+	MimeType          string    `json:"mimeType"`
+	UploadedBy        *uint     `json:"uploadedBy"`
+	UploadedAt        time.Time `json:"uploadedAt"`
+	Description       string    `json:"description"`
+	IsActive          bool      `json:"isActive"`
+	Uploader          *User     `json:"uploader,omitempty"`
+	FileSizeFormatted string    `json:"fileSizeFormatted"`
+	IsImage           bool      `json:"isImage"`
 }

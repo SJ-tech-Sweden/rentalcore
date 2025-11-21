@@ -36,6 +36,7 @@ func NewNextcloudClient(rawURL, username, password, basePath string) (*Nextcloud
 	if err != nil {
 		return nil, fmt.Errorf("parse nextcloud url: %w", err)
 	}
+	basePath = strings.Trim(basePath, "\"")
 	if basePath == "" {
 		basePath = "rentalcore-filepool"
 	}
@@ -271,12 +272,12 @@ type propStat struct {
 }
 
 type prop struct {
-	DisplayName   string `xml:"displayname"`
+	DisplayName   string  `xml:"displayname"`
 	ResourceType  resType `xml:"resourcetype"`
-	ContentType   string `xml:"getcontenttype"`
-	ContentLength string `xml:"getcontentlength"`
-	LastModified  string `xml:"getlastmodified"`
-	ETag          string `xml:"getetag"`
+	ContentType   string  `xml:"getcontenttype"`
+	ContentLength string  `xml:"getcontentlength"`
+	LastModified  string  `xml:"getlastmodified"`
+	ETag          string  `xml:"getetag"`
 }
 
 type resType struct {
