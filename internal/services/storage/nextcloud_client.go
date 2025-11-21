@@ -49,10 +49,16 @@ func NewNextcloudClient(rawURL, username, password, basePath string) (*Nextcloud
 	}, nil
 }
 
+// normalizeRel trims the synthetic nextcloud: prefix and leading slashes.
+func normalizeRel(rel string) string {
+	rel = strings.TrimPrefix(rel, "nextcloud:")
+	return strings.TrimLeft(rel, "/")
+}
+
 // joinPath builds a full WebDAV URL for a given relative path.
 func (c *NextcloudClient) joinPath(rel string) string {
-	rel = strings.TrimLeft(rel, "/")
-	full := path.Join(c.basePath, rel)
+	clean := normalizeRel(rel)
+	full := path.Join(c.basePath, clean)
 	u := *c.baseURL
 	u.Path = path.Join(c.baseURL.Path, full)
 	return u.String()
@@ -60,7 +66,7 @@ func (c *NextcloudClient) joinPath(rel string) string {
 
 // EnsureCollections makes sure each segment exists via MKCOL.
 func (c *NextcloudClient) EnsureCollections(rel string) error {
-	rel = strings.TrimLeft(rel, "/")
+	rel = normalizeRel(rel)
 	segments := strings.Split(rel, "/")
 	current := ""
 	for _, seg := range segments[:len(segments)-1] {
@@ -89,6 +95,7 @@ func (c *NextcloudClient) EnsureCollections(rel string) error {
 
 // Upload streams a file to Nextcloud at the given relative path.
 func (c *NextcloudClient) Upload(rel string, body io.Reader, contentType string) error {
+	rel = normalizeRel(rel)
 	if err := c.EnsureCollections(rel); err != nil {
 		return err
 	}
@@ -113,6 +120,7 @@ func (c *NextcloudClient) Upload(rel string, body io.Reader, contentType string)
 
 // Download fetches a file from Nextcloud.
 func (c *NextcloudClient) Download(rel string) (io.ReadCloser, string, error) {
+	rel = normalizeRel(rel)
 	req, err := http.NewRequest(http.MethodGet, c.joinPath(rel), nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("get request: %w", err)
@@ -131,6 +139,7 @@ func (c *NextcloudClient) Download(rel string) (io.ReadCloser, string, error) {
 
 // Delete removes a file from Nextcloud.
 func (c *NextcloudClient) Delete(rel string) error {
+	rel = normalizeRel(rel)
 	req, err := http.NewRequest(http.MethodDelete, c.joinPath(rel), nil)
 	if err != nil {
 		return fmt.Errorf("delete request: %w", err)
