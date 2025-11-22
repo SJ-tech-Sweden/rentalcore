@@ -19,6 +19,11 @@
     <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .pool-toggle-btn { padding: 6px 10px; font-size: 12px; min-height: 32px; }
+        .pool-compact-input { max-width: 210px; height: 34px; padding: 6px 10px; font-size: 12px; }
+        .pool-compact-select { max-width: 170px; height: 34px; padding: 6px 10px; font-size: 12px; }
+    </style>
 </head>
 <body class="rc-animate-fade-in">
     {{template "navbar.html" .}}
@@ -133,19 +138,17 @@
                         <div class="rc-text-sm rc-text-muted">Wechsel zwischen Assigned und Unassigned, volle Breite</div>
                     </div>
                 </div>
-                <div class="rc-flex rc-flex-gap-xs rc-flex-wrap">
-                    <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm rc-btn-active" data-section-toggle="assigned">
-                        <i class="bi bi-check2-circle"></i> Assigned ({{.assignedCount}})
-                    </button>
-                    <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm" data-section-toggle="unassigned">
-                        <i class="bi bi-inbox-fill"></i> Unassigned ({{.unusedCount}})
-                    </button>
-                </div>
             </div>
             <div class="rc-card-body rc-flex rc-flex-column rc-flex-gap-md">
-                <div class="rc-flex rc-flex-gap-sm rc-flex-wrap rc-flex-align-center rc-mb-sm">
-                    <input class="rc-input" type="text" id="pool-search" placeholder="Filter files" style="max-width: 240px;">
-                    <select class="rc-input" id="pool-type-filter" style="max-width: 180px;">
+                <div class="rc-flex rc-flex-gap-xs rc-flex-wrap rc-flex-align-center rc-mb-sm">
+                    <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm pool-toggle-btn rc-btn-active" data-section-toggle="assigned">
+                        <i class="bi bi-check2-circle"></i> Assigned ({{.assignedCount}})
+                    </button>
+                    <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm pool-toggle-btn" data-section-toggle="unassigned">
+                        <i class="bi bi-inbox-fill"></i> Unassigned ({{.unusedCount}})
+                    </button>
+                    <input class="rc-input pool-compact-input" type="text" id="pool-search" placeholder="Filter files">
+                    <select class="rc-input pool-compact-select" id="pool-type-filter">
                         <option value="">All types</option>
                         <option value="contract">Contract</option>
                         <option value="manual">Manual</option>
@@ -155,7 +158,7 @@
                         <option value="signature">Signature</option>
                         <option value="other">Other</option>
                     </select>
-                    <select class="rc-input" id="pool-sort" style="max-width: 180px;">
+                    <select class="rc-input pool-compact-select" id="pool-sort">
                         <option value="newest">Newest</option>
                         <option value="oldest">Oldest</option>
                         <option value="name">Name</option>
