@@ -16,12 +16,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type JobAttachmentHandler struct {
-	repo       *repository.JobAttachmentRepository
-	jobRepo    *repository.JobRepository
-	uploadPath string
+	repo        *repository.JobAttachmentRepository
+	jobRepo     *repository.JobRepository
+	db          *gorm.DB
+	uploadPath  string
 	maxFileSize int64
 }
 
@@ -35,9 +37,16 @@ func NewJobAttachmentHandler(repo *repository.JobAttachmentRepository, jobRepo *
 		log.Printf("Error creating upload directory: %v", err)
 	}
 
+	// Get DB from repo for documents query
+	var db *gorm.DB
+	if repo != nil {
+		db = repo.GetDB()
+	}
+
 	return &JobAttachmentHandler{
 		repo:        repo,
 		jobRepo:     jobRepo,
+		db:          db,
 		uploadPath:  uploadPath,
 		maxFileSize: maxFileSize,
 	}
@@ -156,6 +165,7 @@ func (h *JobAttachmentHandler) UploadAttachment(c *gin.Context) {
 }
 
 // GetJobAttachments returns all attachments for a job
+// This now queries both job_attachments AND documents tables (File Pool as single source of truth)
 func (h *JobAttachmentHandler) GetJobAttachments(c *gin.Context) {
 	jobIDStr := c.Param("jobid")
 	jobID, err := strconv.ParseUint(jobIDStr, 10, 32)
@@ -164,15 +174,16 @@ func (h *JobAttachmentHandler) GetJobAttachments(c *gin.Context) {
 		return
 	}
 
+	var responses []models.JobAttachmentResponse
+
+	// Query traditional job_attachments table
 	attachments, err := h.repo.GetByJobID(uint(jobID))
 	if err != nil {
 		log.Printf("Error getting attachments for job %d: %v", jobID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get attachments"})
-		return
+		// Continue with documents query even if this fails
 	}
 
-	// Convert to response format
-	var responses []models.JobAttachmentResponse
+	// Convert job_attachments to response format
 	for _, attachment := range attachments {
 		response := models.JobAttachmentResponse{
 			AttachmentID:      attachment.AttachmentID,
@@ -188,8 +199,44 @@ func (h *JobAttachmentHandler) GetJobAttachments(c *gin.Context) {
 			Uploader:          attachment.Uploader,
 			FileSizeFormatted: h.formatFileSize(attachment.FileSize),
 			IsImage:           h.isImageMimeType(attachment.MimeType),
+			Source:            "attachment", // Mark source for debugging
 		}
 		responses = append(responses, response)
+	}
+
+	// Query documents table (File Pool - new single source of truth)
+	if h.db != nil {
+		var documents []models.Document
+		jobIDEntityID := fmt.Sprintf("%d", jobID)
+		if err := h.db.Where("entity_type = ? AND entity_id = ?", "job", jobIDEntityID).
+			Order("uploaded_at DESC").
+			Find(&documents).Error; err != nil {
+			log.Printf("Error getting documents for job %d: %v", jobID, err)
+		} else {
+			// Convert documents to response format
+			for _, doc := range documents {
+				// Create a pseudo AttachmentID from DocumentID (offset to avoid conflicts)
+				pseudoID := doc.DocumentID + 1000000 // Large offset to distinguish from real attachment IDs
+
+				response := models.JobAttachmentResponse{
+					AttachmentID:      pseudoID,
+					JobID:             uint(jobID),
+					Filename:          doc.Filename,
+					OriginalFilename:  doc.OriginalFilename,
+					FileSize:          doc.FileSize,
+					MimeType:          doc.MimeType,
+					UploadedBy:        doc.UploadedBy,
+					UploadedAt:        doc.UploadedAt,
+					Description:       doc.Description,
+					IsActive:          true,
+					FileSizeFormatted: h.formatFileSize(doc.FileSize),
+					IsImage:           h.isImageMimeType(doc.MimeType),
+					Source:            "document", // Mark source for debugging
+					DocumentID:        doc.DocumentID,
+				}
+				responses = append(responses, response)
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, responses)

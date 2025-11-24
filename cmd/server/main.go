@@ -414,7 +414,7 @@ func main() {
 		}
 	}
 
-	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler, jobAttachmentRepo, packageAliasCache)
+	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler, jobAttachmentRepo, packageAliasCache, documentHandler)
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
@@ -1406,6 +1406,9 @@ func setupRoutes(r *gin.Engine,
 				apiPDF.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
 				apiPDF.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
 				apiPDF.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
+				// File Pool integration routes
+				apiPDF.POST("/from-pool/:documentID", pdfHandler.ProcessPoolDocument)
+				apiPDF.GET("/pool-documents", pdfHandler.GetPoolDocumentsForOCR)
 			}
 
 			// Financial API
@@ -1500,6 +1503,9 @@ func setupRoutes(r *gin.Engine,
 				pdfAPI.POST("/customer-map/:extraction_id", pdfHandler.SaveCustomerMapping)
 				pdfAPI.POST("/customers/from-extraction/:extraction_id", pdfHandler.CreateCustomerFromExtraction)
 				pdfAPI.POST("/extractions/:extraction_id/finalize", pdfHandler.FinalizeExtraction)
+				// File Pool integration routes
+				pdfAPI.POST("/from-pool/:documentID", pdfHandler.ProcessPoolDocument)
+				pdfAPI.GET("/pool-documents", pdfHandler.GetPoolDocumentsForOCR)
 			}
 
 			// Company settings API - NOW ACTIVE

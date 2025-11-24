@@ -959,3 +959,229 @@ func trimQuotes(s string) string {
 	s = strings.TrimSuffix(s, "\"")
 	return s
 }
+
+// ================================================================
+// DOCUMENT ASSIGNMENT METHODS (File Pool as Single Source of Truth)
+// ================================================================
+
+// AssignDocumentToJob changes a document's entity_type/entity_id to assign it to a job
+// This also moves the file from unassigned to assigned storage if using Nextcloud
+func (h *DocumentHandler) AssignDocumentToJob(documentID uint, jobID uint) error {
+	var document models.Document
+	if err := h.db.First(&document, documentID).Error; err != nil {
+		return fmt.Errorf("document not found: %v", err)
+	}
+
+	oldEntityType := document.EntityType
+	oldEntityID := document.EntityID
+
+	// Update the document assignment
+	document.EntityType = "job"
+	document.EntityID = fmt.Sprintf("%d", jobID)
+
+	// If using Nextcloud, move the file to the assigned folder structure
+	if h.useNextcloud && h.isRemote(document.FilePath) {
+		newPath := h.remotePath("job", document.EntityID, document.Filename)
+		oldPath := h.stripRemotePrefix(document.FilePath)
+
+		// Only move if paths are different
+		if oldPath != h.stripRemotePrefix(newPath) {
+			if err := h.ncClient.Move(oldPath, h.stripRemotePrefix(newPath)); err != nil {
+				return fmt.Errorf("failed to move file in storage: %v", err)
+			}
+			document.FilePath = newPath
+		}
+	} else if !h.useNextcloud {
+		// For local storage, move the file to the job directory
+		oldPath := document.FilePath
+		newDir := filepath.Join(h.uploadPath, "job", document.EntityID)
+		if err := os.MkdirAll(newDir, 0755); err != nil {
+			return fmt.Errorf("failed to create job directory: %v", err)
+		}
+		newPath := filepath.Join(newDir, document.Filename)
+
+		if oldPath != newPath {
+			if err := os.Rename(oldPath, newPath); err != nil {
+				// Try copy instead
+				if err := h.copyFile(oldPath, newPath); err != nil {
+					return fmt.Errorf("failed to move file: %v", err)
+				}
+				os.Remove(oldPath)
+			}
+			document.FilePath = newPath
+		}
+	}
+
+	// Save the updated document
+	if err := h.db.Save(&document).Error; err != nil {
+		return fmt.Errorf("failed to update document: %v", err)
+	}
+
+	// Log the assignment
+	fmt.Printf("[INFO] Document %d assigned from %s/%s to job/%d\n", documentID, oldEntityType, oldEntityID, jobID)
+
+	return nil
+}
+
+// UnassignDocument sets a document back to system/unassigned status
+func (h *DocumentHandler) UnassignDocument(documentID uint) error {
+	var document models.Document
+	if err := h.db.First(&document, documentID).Error; err != nil {
+		return fmt.Errorf("document not found: %v", err)
+	}
+
+	oldEntityType := document.EntityType
+	oldEntityID := document.EntityID
+
+	// Update to unassigned
+	document.EntityType = "system"
+	document.EntityID = "unassigned"
+
+	// If using Nextcloud, move the file to the unassigned folder
+	if h.useNextcloud && h.isRemote(document.FilePath) {
+		newPath := h.remotePath("system", "unassigned", document.Filename)
+		oldPath := h.stripRemotePrefix(document.FilePath)
+
+		if oldPath != h.stripRemotePrefix(newPath) {
+			if err := h.ncClient.Move(oldPath, h.stripRemotePrefix(newPath)); err != nil {
+				return fmt.Errorf("failed to move file in storage: %v", err)
+			}
+			document.FilePath = newPath
+		}
+	} else if !h.useNextcloud {
+		// For local storage, move to unassigned directory
+		oldPath := document.FilePath
+		newDir := filepath.Join(h.uploadPath, "system", "unassigned")
+		if err := os.MkdirAll(newDir, 0755); err != nil {
+			return fmt.Errorf("failed to create unassigned directory: %v", err)
+		}
+		newPath := filepath.Join(newDir, document.Filename)
+
+		if oldPath != newPath {
+			if err := os.Rename(oldPath, newPath); err != nil {
+				if err := h.copyFile(oldPath, newPath); err != nil {
+					return fmt.Errorf("failed to move file: %v", err)
+				}
+				os.Remove(oldPath)
+			}
+			document.FilePath = newPath
+		}
+	}
+
+	if err := h.db.Save(&document).Error; err != nil {
+		return fmt.Errorf("failed to update document: %v", err)
+	}
+
+	fmt.Printf("[INFO] Document %d unassigned from %s/%s\n", documentID, oldEntityType, oldEntityID)
+
+	return nil
+}
+
+// GetDocumentByID retrieves a document by its ID
+func (h *DocumentHandler) GetDocumentByID(documentID uint) (*models.Document, error) {
+	var document models.Document
+	if err := h.db.First(&document, documentID).Error; err != nil {
+		return nil, err
+	}
+	return &document, nil
+}
+
+// GetJobDocuments returns all documents assigned to a specific job
+func (h *DocumentHandler) GetJobDocuments(jobID uint) ([]models.Document, error) {
+	var documents []models.Document
+	if err := h.db.Where("entity_type = ? AND entity_id = ?", "job", fmt.Sprintf("%d", jobID)).
+		Order("uploaded_at DESC").
+		Find(&documents).Error; err != nil {
+		return nil, err
+	}
+	return documents, nil
+}
+
+// CreateDocumentFromFile creates a new document in the File Pool from file data
+// This is used when uploading PDFs for OCR processing
+func (h *DocumentHandler) CreateDocumentFromFile(
+	filename string,
+	originalFilename string,
+	filePath string,
+	fileSize int64,
+	mimeType string,
+	uploadedBy *uint,
+	entityType string,
+	entityID string,
+) (*models.Document, error) {
+	// Calculate checksum if local file
+	var checksum string
+	if !h.isRemote(filePath) {
+		var err error
+		checksum, err = h.calculateFileChecksum(filePath)
+		if err != nil {
+			checksum = ""
+		}
+	}
+
+	document := models.Document{
+		EntityType:       entityType,
+		EntityID:         entityID,
+		Filename:         filename,
+		OriginalFilename: originalFilename,
+		FilePath:         filePath,
+		FileSize:         fileSize,
+		MimeType:         mimeType,
+		DocumentType:     "other",
+		Description:      "Uploaded via PDF OCR",
+		UploadedBy:       uploadedBy,
+		UploadedAt:       time.Now(),
+		IsPublic:         false,
+		Version:          1,
+		Checksum:         checksum,
+	}
+
+	if err := h.db.Create(&document).Error; err != nil {
+		return nil, fmt.Errorf("failed to create document: %v", err)
+	}
+
+	return &document, nil
+}
+
+// copyFile copies a file from src to dst
+func (h *DocumentHandler) copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
+// GetDB returns the database handle for use by other handlers
+func (h *DocumentHandler) GetDB() *gorm.DB {
+	return h.db
+}
+
+// UseNextcloud returns whether Nextcloud storage is enabled
+func (h *DocumentHandler) UseNextcloud() bool {
+	return h.useNextcloud
+}
+
+// GetNextcloudClient returns the Nextcloud client
+func (h *DocumentHandler) GetNextcloudClient() *storage.NextcloudClient {
+	return h.ncClient
+}
+
+// GetUploadPath returns the local upload path
+func (h *DocumentHandler) GetUploadPath() string {
+	return h.uploadPath
+}
+
+// GetRemotePath generates the remote path for a document
+func (h *DocumentHandler) GetRemotePath(entityType, entityID, filename string) string {
+	return h.remotePath(entityType, entityID, filename)
+}

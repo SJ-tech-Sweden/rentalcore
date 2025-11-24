@@ -50,6 +50,11 @@ func NewPDFExtractor(uploadDir string) *PDFExtractor {
 	}
 }
 
+// GetUploadDir returns the upload directory path
+func (e *PDFExtractor) GetUploadDir() string {
+	return e.UploadDir
+}
+
 // SaveUploadedFile saves the uploaded PDF file to disk
 func (e *PDFExtractor) SaveUploadedFile(file *multipart.FileHeader) (*models.PDFUpload, error) {
 	// Create upload directory if it doesn't exist

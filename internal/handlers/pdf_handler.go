@@ -29,15 +29,16 @@ import (
 
 // PDFHandler handles PDF upload and processing requests
 type PDFHandler struct {
-	DB             *gorm.DB
-	Extractor      *pdf.PDFExtractor
-	Mapper         *pdf.ProductMapper
-	PackageMapper  *pdf.PackageMapper
-	CustomerMapper *pdf.CustomerMapper
-	JobHandler     *JobHandler
-	AttachmentRepo *repository.JobAttachmentRepository
-	JobPackageRepo *repository.JobPackageRepository
-	attachmentDir  string
+	DB              *gorm.DB
+	Extractor       *pdf.PDFExtractor
+	Mapper          *pdf.ProductMapper
+	PackageMapper   *pdf.PackageMapper
+	CustomerMapper  *pdf.CustomerMapper
+	JobHandler      *JobHandler
+	AttachmentRepo  *repository.JobAttachmentRepository
+	JobPackageRepo  *repository.JobPackageRepository
+	DocumentHandler *DocumentHandler
+	attachmentDir   string
 }
 
 type duplicateJobMatch struct {
@@ -238,7 +239,7 @@ func sanitizePackage(pkg *models.ProductPackage) *packageSummary {
 }
 
 // NewPDFHandler creates a new PDF handler
-func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attachmentRepo *repository.JobAttachmentRepository, aliasCache *pdf.PackageAliasCache) *PDFHandler {
+func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attachmentRepo *repository.JobAttachmentRepository, aliasCache *pdf.PackageAliasCache, documentHandler *DocumentHandler) *PDFHandler {
 	attachmentDir := filepath.Join(uploadDir, "job_attachments")
 	if err := os.MkdirAll(attachmentDir, 0755); err != nil {
 		log.Printf("warning: failed to ensure attachment directory %s: %v", attachmentDir, err)
@@ -253,15 +254,16 @@ func NewPDFHandler(db *gorm.DB, uploadDir string, jobHandler *JobHandler, attach
 	jobPackageRepo := repository.NewJobPackageRepository(dbWrapper)
 
 	return &PDFHandler{
-		DB:             db,
-		Extractor:      pdf.NewPDFExtractor(uploadDir),
-		Mapper:         pdf.NewProductMapper(db, aliasCache),
-		PackageMapper:  pdf.NewPackageMapper(db),
-		CustomerMapper: pdf.NewCustomerMapper(db),
-		JobHandler:     jobHandler,
-		AttachmentRepo: attachmentRepo,
-		JobPackageRepo: jobPackageRepo,
-		attachmentDir:  attachmentDir,
+		DB:              db,
+		Extractor:       pdf.NewPDFExtractor(uploadDir),
+		Mapper:          pdf.NewProductMapper(db, aliasCache),
+		PackageMapper:   pdf.NewPackageMapper(db),
+		CustomerMapper:  pdf.NewCustomerMapper(db),
+		JobHandler:      jobHandler,
+		AttachmentRepo:  attachmentRepo,
+		JobPackageRepo:  jobPackageRepo,
+		DocumentHandler: documentHandler,
+		attachmentDir:   attachmentDir,
 	}
 }
 
@@ -2797,7 +2799,23 @@ func formatJobDate(value sql.NullTime) string {
 }
 
 func (h *PDFHandler) attachUploadToJob(upload *models.PDFUpload, jobID uint) {
-	if h.AttachmentRepo == nil || upload == nil || jobID == 0 {
+	if upload == nil || jobID == 0 {
+		return
+	}
+
+	// New approach: Use DocumentHandler to assign document to job (File Pool as single source of truth)
+	if h.DocumentHandler != nil && upload.DocumentID.Valid && upload.DocumentID.Int64 > 0 {
+		// Document already exists in File Pool, just update its assignment
+		if err := h.DocumentHandler.AssignDocumentToJob(uint(upload.DocumentID.Int64), jobID); err != nil {
+			log.Printf("warning: failed to assign document %d to job %d: %v", upload.DocumentID.Int64, jobID, err)
+		} else {
+			log.Printf("Document %d assigned to job %d via File Pool", upload.DocumentID.Int64, jobID)
+			return
+		}
+	}
+
+	// Fallback: Legacy approach for uploads without document_id (backward compatibility)
+	if h.AttachmentRepo == nil {
 		return
 	}
 
@@ -2992,4 +3010,163 @@ func (h *PDFHandler) recordMappingEvent(extractionID uint64, itemID uint64, prod
 	if err := h.DB.Create(&event).Error; err != nil {
 		log.Printf("warning: failed to record mapping event: %v", err)
 	}
+}
+
+// ProcessPoolDocument starts OCR processing from an existing File Pool document
+// POST /api/v1/pdf/from-pool/:documentID
+func (h *PDFHandler) ProcessPoolDocument(c *gin.Context) {
+	documentIDStr := c.Param("documentID")
+	documentID, err := strconv.ParseUint(documentIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid document ID"})
+		return
+	}
+
+	if h.DocumentHandler == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Document handler not configured"})
+		return
+	}
+
+	// Get the document from File Pool
+	document, err := h.DocumentHandler.GetDocumentByID(uint(documentID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found in File Pool"})
+		return
+	}
+
+	// Validate it's a PDF
+	if document.MimeType != "application/pdf" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only PDF documents can be processed for OCR"})
+		return
+	}
+
+	// Get the file path
+	var filePath string
+	if strings.HasPrefix(document.FilePath, "nextcloud:") {
+		// For Nextcloud files, we need to download to a temp location first
+		tempDir := filepath.Join(h.Extractor.GetUploadDir(), "temp")
+		if err := os.MkdirAll(tempDir, 0755); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp directory"})
+			return
+		}
+
+		tempPath := filepath.Join(tempDir, document.Filename)
+		ncPath := strings.TrimPrefix(document.FilePath, "nextcloud:")
+
+		if h.DocumentHandler.UseNextcloud() {
+			reader, _, err := h.DocumentHandler.GetNextcloudClient().Download(ncPath)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download file from storage"})
+				return
+			}
+			defer reader.Close()
+
+			outFile, err := os.Create(tempPath)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp file"})
+				return
+			}
+			defer outFile.Close()
+
+			if _, err := io.Copy(outFile, reader); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save temp file"})
+				return
+			}
+			filePath = tempPath
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Nextcloud not configured"})
+			return
+		}
+	} else {
+		filePath = document.FilePath
+	}
+
+	// Verify file exists
+	info, err := os.Stat(filePath)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document file not found on disk"})
+		return
+	}
+
+	// Get user ID from session
+	var uploadedBy sql.NullInt64
+	if userID, exists := c.Get("userID"); exists {
+		if uid, ok := userID.(int64); ok {
+			uploadedBy = sql.NullInt64{Int64: uid, Valid: true}
+		}
+	}
+
+	// Create pdf_upload record linked to the document
+	upload := &models.PDFUpload{
+		DocumentID:       sql.NullInt64{Int64: int64(document.DocumentID), Valid: true},
+		OriginalFilename: document.OriginalFilename,
+		StoredFilename:   document.Filename,
+		FilePath:         filePath,
+		FileSize:         info.Size(),
+		MimeType:         document.MimeType,
+		UploadedBy:       uploadedBy,
+		UploadedAt:       time.Now(),
+		ProcessingStatus: "pending",
+		IsActive:         true,
+	}
+
+	if err := h.DB.Create(upload).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upload record"})
+		return
+	}
+
+	// Start processing asynchronously
+	go h.processUploadAsync(upload.UploadID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"upload_id":   upload.UploadID,
+		"document_id": document.DocumentID,
+		"message":     "PDF processing started from File Pool document",
+	})
+}
+
+// GetPoolDocumentsForOCR returns unassigned PDF documents from the File Pool
+// that can be selected for OCR processing
+// GET /api/v1/pdf/pool-documents
+func (h *PDFHandler) GetPoolDocumentsForOCR(c *gin.Context) {
+	if h.DocumentHandler == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Document handler not configured"})
+		return
+	}
+
+	// Get unassigned PDF documents
+	var documents []models.Document
+	if err := h.DocumentHandler.GetDB().
+		Where("entity_type = ? AND entity_id = ? AND mime_type = ?", "system", "unassigned", "application/pdf").
+		Order("uploaded_at DESC").
+		Find(&documents).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load documents"})
+		return
+	}
+
+	// Format response
+	type docResponse struct {
+		DocumentID       uint   `json:"document_id"`
+		Filename         string `json:"filename"`
+		OriginalFilename string `json:"original_filename"`
+		FileSize         int64  `json:"file_size"`
+		UploadedAt       string `json:"uploaded_at"`
+	}
+
+	results := make([]docResponse, 0, len(documents))
+	for _, doc := range documents {
+		results = append(results, docResponse{
+			DocumentID:       doc.DocumentID,
+			Filename:         doc.Filename,
+			OriginalFilename: doc.OriginalFilename,
+			FileSize:         doc.FileSize,
+			UploadedAt:       doc.UploadedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"documents": results,
+		"count":     len(results),
+	})
 }

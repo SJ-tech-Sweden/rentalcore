@@ -3,6 +3,8 @@ package repository
 import (
 	"go-barcode-webapp/internal/models"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type JobAttachmentRepository struct {
@@ -11,6 +13,14 @@ type JobAttachmentRepository struct {
 
 func NewJobAttachmentRepository(db *Database) *JobAttachmentRepository {
 	return &JobAttachmentRepository{db: db}
+}
+
+// GetDB returns the underlying gorm.DB instance
+func (r *JobAttachmentRepository) GetDB() *gorm.DB {
+	if r.db != nil {
+		return r.db.DB
+	}
+	return nil
 }
 
 // Create creates a new job attachment

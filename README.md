@@ -45,6 +45,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 
 ### 📄 **PDF Processing & OCR**
 - **📤 PDF Upload**: Upload invoices, quotes, and delivery notes for automatic processing
+- **🗂️ File Pool Integration**: All uploaded PDFs stored in File Pool as single source of truth - no file duplication
 - **🔍 OCR Text Extraction**: Automatic text extraction from PDF documents
 - **🧠 Intelligent Parsing**: Smart detection of customer info, document numbers, dates, line items, prices
 - **📊 Extraction Review**: Visual review screen showing all extracted data with confidence scores
@@ -58,6 +59,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 - **✅ Package Preservation**: Items mapped to packages are added as packages (not expanded to products)
 - **💰 Price Extraction**: Line totals and unit prices from PDFs applied as custom pricing
 - **🔄 Workflow Integration**: Complete workflow from upload → review → mapping → job creation with mixed product/package support
+- **📂 Pool Document OCR**: Process existing File Pool documents for OCR without re-uploading
 
 ### 👥 **Customer & Job Management**
 - **Customer Database**: Comprehensive customer information with rental history
@@ -469,7 +471,20 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.22** (Latest) - File Pool Redesign
+### **v4.1.24** (Latest) - File Pool as Single Source of Truth
+- 🗂️ **Unified File Storage**: File Pool (documents table) is now the single source of truth for all files
+- 🔗 **Document Assignment API**: New methods to assign/unassign documents to jobs without file duplication
+- 📤 **Pool Document OCR**: New endpoint `/api/v1/pdf/from-pool/:documentID` to process existing pool documents for OCR
+- 📋 **Pool Documents List**: New endpoint `/api/v1/pdf/pool-documents` to list unassigned PDF documents for OCR
+- 🔄 **Hybrid Attachments**: Job attachments now query both legacy attachments AND documents tables
+- 📂 **Nextcloud Move Support**: Added WebDAV MOVE method for relocating files within Nextcloud storage
+- 🗄️ **Database Schema Update**: Added `document_id` foreign key to `pdf_uploads` table for File Pool integration
+- 🔌 **PDF Handler Integration**: DocumentHandler now integrated into PDF processing workflow for seamless file management
+
+### **v4.1.23** - Toolbar Separation
+- 🎨 **Pool Table Toolbar**: Separated toolbar from table for better visual hierarchy
+
+### **v4.1.22** - File Pool Redesign
 - 🎨 **Slim Professional Theme**: Complete theming overhaul of the File Pool page with modern, minimalist design
 - 📑 **Tab Navigation**: Clean tab-based navigation replacing bulky card layouts
 - 📤 **Streamlined Upload**: Compact upload form with improved file type display and styling

@@ -156,6 +156,37 @@ func (c *NextcloudClient) Delete(rel string) error {
 	return nil
 }
 
+// Move moves/renames a file in Nextcloud using WebDAV MOVE method.
+func (c *NextcloudClient) Move(srcRel, dstRel string) error {
+	srcRel = normalizeRel(srcRel)
+	dstRel = normalizeRel(dstRel)
+
+	// Ensure destination directories exist
+	if err := c.EnsureCollections(dstRel); err != nil {
+		return fmt.Errorf("ensure dest collections: %w", err)
+	}
+
+	req, err := http.NewRequest("MOVE", c.joinPath(srcRel), nil)
+	if err != nil {
+		return fmt.Errorf("move request: %w", err)
+	}
+	req.SetBasicAuth(c.username, c.password)
+	req.Header.Set("Destination", c.joinPath(dstRel))
+	req.Header.Set("Overwrite", "T")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("move: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 201 Created or 204 No Content are success codes for MOVE
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("move failed: %s", resp.Status)
+	}
+	return nil
+}
+
 // List returns all files under the given relative folder (recursive).
 func (c *NextcloudClient) List(rel string) ([]RemoteEntry, error) {
 	results := []RemoteEntry{}

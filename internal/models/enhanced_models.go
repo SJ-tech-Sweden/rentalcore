@@ -720,4 +720,7 @@ type JobAttachmentResponse struct {
 	Uploader          *User     `json:"uploader,omitempty"`
 	FileSizeFormatted string    `json:"fileSizeFormatted"`
 	IsImage           bool      `json:"isImage"`
+	// File Pool integration fields
+	Source     string `json:"source,omitempty"`     // "attachment" or "document"
+	DocumentID uint   `json:"documentID,omitempty"` // Reference to documents table
 }

@@ -2035,6 +2035,7 @@ CREATE TABLE `zone_types` (
 CREATE TABLE `pdf_uploads` (
   `upload_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `job_id` int DEFAULT NULL COMMENT 'Associated job if already exists',
+  `document_id` int DEFAULT NULL COMMENT 'Reference to File Pool document',
   `original_filename` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `stored_filename` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `file_path` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -2052,7 +2053,9 @@ CREATE TABLE `pdf_uploads` (
   KEY `idx_pdf_uploads_job` (`job_id`),
   KEY `idx_pdf_uploads_status` (`processing_status`),
   KEY `idx_pdf_uploads_hash` (`file_hash`),
-  KEY `idx_pdf_uploads_user` (`uploaded_by`)
+  KEY `idx_pdf_uploads_user` (`uploaded_by`),
+  KEY `idx_pdf_uploads_document` (`document_id`),
+  CONSTRAINT `fk_pdf_uploads_document` FOREIGN KEY (`document_id`) REFERENCES `documents` (`documentID`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Uploaded PDF files for job creation';
 
 -- --------------------------------------------------------
@@ -2074,8 +2077,10 @@ CREATE TABLE `pdf_extractions` (
   `customer_id` int DEFAULT NULL COMMENT 'Matched customer ID',
   `document_date` date DEFAULT NULL COMMENT 'Extracted document date',
   `document_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Invoice/offer number',
-  `total_amount` decimal(12,2) DEFAULT NULL COMMENT 'Extracted total price',
-  `discount_amount` decimal(12,2) DEFAULT NULL COMMENT 'Extracted discount',
+  `parsed_total` decimal(12,2) DEFAULT NULL COMMENT 'Subtotal before discount',
+  `total_amount` decimal(12,2) DEFAULT NULL COMMENT 'Final amount after discount',
+  `discount_amount` decimal(12,2) DEFAULT NULL COMMENT 'Extracted discount amount',
+  `discount_percent` decimal(5,2) DEFAULT NULL COMMENT 'Extracted discount percentage',
   `metadata` json DEFAULT NULL COMMENT 'Additional extraction metadata',
   PRIMARY KEY (`extraction_id`),
   UNIQUE KEY `unique_upload_extraction` (`upload_id`),
