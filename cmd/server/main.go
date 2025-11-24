@@ -922,15 +922,27 @@ func setupRoutes(r *gin.Engine,
 
 		// Cable routes - redirect to WarehouseCore
 		redirectToWarehouseCables := func(c *gin.Context) {
+			user, _ := handlers.GetCurrentUser(c)
 			target := buildWarehouseCablesURL(c.Request)
 			if target == "" {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"error":   "WarehouseCore domain not configured",
-					"message": "Set WAREHOUSECORE_DOMAIN to enable cable management in WarehouseCore.",
+				c.HTML(http.StatusServiceUnavailable, "cables_redirect.html", gin.H{
+					"title":       "Cable Finder",
+					"user":        user,
+					"timestamp":   time.Now().Unix(),
+					"targetURL":   "",
+					"error":       "WarehouseCore domain not configured",
+					"message":     "Set WAREHOUSECORE_DOMAIN to enable cable search in WarehouseCore.",
+					"currentPage": "cables",
 				})
 				return
 			}
-			c.Redirect(http.StatusFound, target)
+			c.HTML(http.StatusOK, "cables_redirect.html", gin.H{
+				"title":       "Cable Finder",
+				"user":        user,
+				"timestamp":   time.Now().Unix(),
+				"targetURL":   target,
+				"currentPage": "cables",
+			})
 		}
 
 		cables := protected.Group("/cables")
