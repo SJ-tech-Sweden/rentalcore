@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="de" data-theme="dark">
 <head>
     <script>
-        // Prevent FOUC by setting theme immediately
         (function() {
             const t=(localStorage.getItem("rc-theme")||"dark");
             document.documentElement.setAttribute("data-theme",t);
@@ -11,412 +10,1173 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.title}} - RentalCore</title>
-    
-    <!-- PWA Manifest -->
+
     <link rel="manifest" href="/static/manifest.json">
-    
-    <!-- Theme Colors -->
     <meta name="theme-color" content="#030712">
     <meta name="msapplication-TileColor" content="#030712">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/static/css/rental-core-design.css?v={{.timestamp}}" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <style>
+/* Premium Financial Reports Styles - Matching Dashboard */
+:root {
+    --fin-bg-primary: #111827;
+    --fin-bg-secondary: #1f2937;
+    --fin-bg-tertiary: #374151;
+    --fin-glass: rgba(255, 255, 255, 0.03);
+    --fin-glass-border: rgba(255, 255, 255, 0.08);
+    --fin-accent: #dc2626;
+    --fin-accent-glow: rgba(220, 38, 38, 0.3);
+    --fin-success: #22c55e;
+    --fin-warning: #eab308;
+    --fin-error: #ef4444;
+    --fin-info: #3b82f6;
+    --fin-text-primary: #ffffff;
+    --fin-text-secondary: #9ca3af;
+    --fin-text-muted: #6b7280;
+}
+
+/* Glass morphism base */
+.glass {
+    background: var(--fin-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--fin-glass-border);
+}
+
+/* Animated background gradient */
+.fin-page-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #1e1b4b 100%);
+    z-index: -2;
+}
+
+.fin-page-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at 20% 20%, rgba(220, 38, 38, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%);
+    z-index: -1;
+}
+
+/* Header section */
+.fin-header {
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.fin-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.fin-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffffff 0%, #9ca3af 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+}
+
+.fin-subtitle {
+    color: var(--fin-text-secondary);
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+/* Buttons */
+.fin-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    text-decoration: none;
+}
+
+.fin-btn-primary {
+    background: var(--fin-accent);
+    color: white;
+    box-shadow: 0 4px 12px var(--fin-accent-glow);
+}
+
+.fin-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--fin-accent-glow);
+    color: white;
+}
+
+.fin-btn-outline {
+    background: transparent;
+    color: var(--fin-text-secondary);
+    border: 1px solid var(--fin-glass-border);
+}
+
+.fin-btn-outline:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--fin-text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.fin-btn-success {
+    background: var(--fin-success);
+    color: white;
+}
+
+.fin-btn-success:hover {
+    filter: brightness(1.1);
+    color: white;
+}
+
+/* Cards */
+.fin-card {
+    background: var(--fin-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.fin-card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--fin-glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fin-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--fin-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+.fin-card-title i {
+    color: var(--fin-accent);
+}
+
+.fin-card-body {
+    padding: 1.5rem;
+}
+
+/* Filter bar */
+.fin-filter-bar {
+    background: var(--fin-glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.fin-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .fin-filter-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .fin-filter-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fin-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.fin-filter-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fin-text-muted);
+}
+
+.fin-input,
+.fin-select {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 8px;
+    padding: 0.625rem 1rem;
+    color: var(--fin-text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.fin-input:focus,
+.fin-select:focus {
+    outline: none;
+    border-color: var(--fin-accent);
+    box-shadow: 0 0 0 3px var(--fin-accent-glow);
+}
+
+.fin-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239ca3af' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    padding-right: 2.5rem;
+}
+
+.fin-select option {
+    background: var(--fin-bg-secondary);
+    color: var(--fin-text-primary);
+}
+
+.fin-filter-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Charts */
+.fin-chart-container {
+    height: 350px;
+    position: relative;
+}
+
+/* Grid layouts */
+.fin-content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .fin-content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fin-charts-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .fin-charts-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Table styles */
+.fin-table-wrapper {
+    overflow-x: auto;
+}
+
+.fin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.fin-table th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fin-text-muted);
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--fin-glass-border);
+}
+
+.fin-table td {
+    padding: 1rem;
+    font-size: 0.875rem;
+    color: var(--fin-text-primary);
+    border-bottom: 1px solid var(--fin-glass-border);
+    vertical-align: middle;
+}
+
+.fin-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.fin-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.fin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Summary stats */
+.fin-summary-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.fin-summary-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+}
+
+.fin-summary-label {
+    font-size: 0.75rem;
+    color: var(--fin-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.fin-summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fin-text-primary);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.fin-summary-value.success {
+    color: var(--fin-success);
+}
+
+.fin-summary-value.info {
+    color: var(--fin-info);
+}
+
+/* Report cards grid */
+.fin-reports-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .fin-reports-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .fin-reports-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.fin-report-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.fin-report-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--fin-accent);
+    box-shadow: 0 8px 24px rgba(220, 38, 38, 0.15);
+}
+
+.fin-report-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto 1rem;
+}
+
+.fin-report-icon.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--fin-success);
+}
+
+.fin-report-icon.primary {
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--fin-info);
+}
+
+.fin-report-icon.info {
+    background: rgba(6, 182, 212, 0.1);
+    color: #06b6d4;
+}
+
+.fin-report-icon.warning {
+    background: rgba(234, 179, 8, 0.1);
+    color: var(--fin-warning);
+}
+
+.fin-report-icon.secondary {
+    background: rgba(107, 114, 128, 0.1);
+    color: var(--fin-text-muted);
+}
+
+.fin-report-icon.danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--fin-error);
+}
+
+.fin-report-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--fin-text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.fin-report-desc {
+    font-size: 0.75rem;
+    color: var(--fin-text-muted);
+    margin-bottom: 1rem;
+}
+
+.fin-report-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    width: 100%;
+}
+
+/* Modal styles */
+.fin-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+}
+
+.fin-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    background: var(--fin-bg-secondary);
+    border: 1px solid var(--fin-glass-border);
+    border-radius: 16px;
+    overflow: hidden;
+    z-index: 1001;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.fin-modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--fin-glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fin-modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--fin-text-primary);
+    margin: 0;
+}
+
+.fin-modal-body {
+    padding: 1.5rem;
+}
+
+.fin-modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--fin-glass-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.fin-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--fin-text-muted);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.fin-modal-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--fin-text-primary);
+}
+
+/* Checkbox styling */
+.fin-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.fin-checkbox input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--fin-accent);
+}
+
+.fin-checkbox-label {
+    font-size: 0.875rem;
+    color: var(--fin-text-secondary);
+}
+
+/* Loading spinner */
+.fin-spinner {
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 2px solid var(--fin-glass-border);
+    border-top-color: var(--fin-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Animations */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+}
+
+.stagger-1 { animation-delay: 0.1s; opacity: 0; }
+.stagger-2 { animation-delay: 0.2s; opacity: 0; }
+.stagger-3 { animation-delay: 0.3s; opacity: 0; }
+.stagger-4 { animation-delay: 0.4s; opacity: 0; }
+.stagger-5 { animation-delay: 0.5s; opacity: 0; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .fin-header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .fin-title {
+        font-size: 1.75rem;
+    }
+
+    .fin-chart-container {
+        height: 250px;
+    }
+}
+    </style>
 </head>
-<body>
+<body class="rc-animate-fade-in">
+    <!-- Background -->
+    <div class="fin-page-bg"></div>
+
     <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-gear-wide-connected"></i> RentalCore
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/jobs">Jobs</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/devices">Devices</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/customers">Customers</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown">
-                            Financial
+    <nav class="rc-navbar">
+        <div class="rc-container">
+            <div class="rc-navbar-content">
+                <a href="/" class="rc-navbar-brand">
+                    <i class="bi bi-gear-wide-connected"></i>
+                    RentalCore
+                </a>
+
+                <!-- Mobile toggle -->
+                <button class="rc-navbar-toggle">
+                    <i class="bi bi-list"></i>
+                </button>
+
+                <!-- Main navigation -->
+                <ul class="rc-navbar-nav">
+                    <li><a href="/jobs" class="rc-nav-link">
+                        <i class="bi bi-briefcase"></i> Jobs
+                    </a></li>
+                    <li><a href="/devices" class="rc-nav-link">
+                        <i class="bi bi-cpu"></i> Devices
+                    </a></li>
+                    <li><a href="/customers" class="rc-nav-link">
+                        <i class="bi bi-people"></i> Customers
+                    </a></li>
+
+                    <!-- Tools Dropdown -->
+                    <li class="rc-dropdown">
+                        <a href="#" class="rc-nav-link rc-dropdown-toggle">
+                            <i class="bi bi-tools"></i> Tools
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="/financial">Dashboard</a></li>
-                            <li><a class="dropdown-item" href="/financial/transactions">Transactions</a></li>
-                            <li><a class="dropdown-item" href="/financial/reports">Reports</a></li>
-                        </ul>
+                        <div class="rc-dropdown-menu">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-folder"></i> Management
+                            </div>
+                            <a href="/workflow/packages" class="rc-dropdown-item">
+                                <i class="bi bi-box-seam"></i> Equipment Packages
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-building"></i> Business
+                            </div>
+                            <a href="/invoices" class="rc-dropdown-item">
+                                <i class="bi bi-file-text"></i> Invoices
+                            </a>
+                            <a href="/analytics" class="rc-dropdown-item">
+                                <i class="bi bi-graph-up"></i> Analytics
+                            </a>
+                            <a href="/financial" class="rc-dropdown-item active">
+                                <i class="bi bi-currency-dollar"></i> Financial
+                            </a>
+                        </div>
                     </li>
-                </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user"></i> {{.user.Username}}
+
+                    <!-- User Dropdown -->
+                    {{if .user}}
+                    <li class="rc-dropdown">
+                        <a href="#" class="rc-nav-link rc-dropdown-toggle">
+                            <i class="bi bi-person-circle"></i> {{.user.Username}}
                         </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="/logout">Logout</a></li>
-                        </ul>
+                        <div class="rc-dropdown-menu">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-person"></i> {{.user.FirstName}} {{.user.LastName}}
+                            </div>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">Personal</div>
+                            <a href="/profile/settings" class="rc-dropdown-item">
+                                <i class="bi bi-gear"></i> Settings
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">Administration</div>
+                            <a href="/users" class="rc-dropdown-item">
+                                <i class="bi bi-people-fill"></i> User Management
+                            </a>
+                            <a href="/security/audit" class="rc-dropdown-item">
+                                <i class="bi bi-shield-check"></i> Security Audit
+                            </a>
+                            <a href="/security/roles" class="rc-dropdown-item">
+                                <i class="bi bi-key"></i> Security Roles
+                            </a>
+                            <a href="/company/settings" class="rc-dropdown-item">
+                                <i class="bi bi-building-gear"></i> Company Settings
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <a href="/logout" class="rc-dropdown-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
                     </li>
+                    {{end}}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container mt-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h1 class="h3 mb-1">
-                            <i class="fas fa-chart-bar text-primary me-2"></i>Financial Reports
-                        </h1>
-                        <p class="text-muted mb-0">Comprehensive financial analysis and reporting</p>
+    <!-- Main Content -->
+    <main class="rc-container rc-py-4" x-data="financialReports()">
+        <!-- Header Section -->
+        <div class="fin-header animate-fade-in">
+            <div class="fin-header-content">
+                <div>
+                    <h1 class="fin-title">Finanzberichte</h1>
+                    <p class="fin-subtitle">Umfassende Finanzanalysen und Auswertungen</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <a href="/financial" class="fin-btn fin-btn-outline">
+                        <i class="bi bi-arrow-left"></i>
+                        Dashboard
+                    </a>
+                    <button class="fin-btn fin-btn-primary" @click="showExportModal = true">
+                        <i class="bi bi-download"></i>
+                        Export
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="fin-filter-bar animate-fade-in stagger-1" style="background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);">
+            <div class="fin-filter-grid">
+                <div class="fin-filter-group">
+                    <label class="fin-filter-label">
+                        <i class="bi bi-file-earmark-bar-graph" style="margin-right: 0.5rem; color: var(--fin-accent);"></i>Berichtstyp
+                    </label>
+                    <select class="fin-select" x-model="reportType" @change="generateReport()">
+                        <option value="revenue">Umsatzanalyse</option>
+                        <option value="payment">Zahlungsstatus</option>
+                        <option value="customer">Kundenanalyse</option>
+                        <option value="job">Job-Rentabilität</option>
+                        <option value="tax">Steuerbericht</option>
+                    </select>
+                </div>
+                <div class="fin-filter-group">
+                    <label class="fin-filter-label">
+                        <i class="bi bi-calendar" style="margin-right: 0.5rem; color: var(--fin-accent);"></i>Zeitraum
+                    </label>
+                    <select class="fin-select" x-model="period" @change="generateReport()">
+                        <option value="daily">Täglich</option>
+                        <option value="monthly" selected>Monatlich</option>
+                        <option value="quarterly">Quartalsweise</option>
+                        <option value="yearly">Jährlich</option>
+                        <option value="custom">Benutzerdefiniert</option>
+                    </select>
+                </div>
+                <div class="fin-filter-group">
+                    <label class="fin-filter-label">
+                        <i class="bi bi-calendar-range" style="margin-right: 0.5rem; color: var(--fin-accent);"></i>Von
+                    </label>
+                    <input type="date" class="fin-input" x-model="startDate" :disabled="period !== 'custom'">
+                </div>
+                <div class="fin-filter-group">
+                    <label class="fin-filter-label">
+                        <i class="bi bi-calendar-check" style="margin-right: 0.5rem; color: var(--fin-accent);"></i>Bis
+                    </label>
+                    <input type="date" class="fin-input" x-model="endDate" :disabled="period !== 'custom'">
+                </div>
+            </div>
+            <div class="fin-filter-actions">
+                <button class="fin-btn fin-btn-primary" @click="generateReport()" :disabled="loading" style="min-width: 180px;">
+                    <template x-if="loading">
+                        <div class="fin-spinner"></div>
+                    </template>
+                    <template x-if="!loading">
+                        <i class="bi bi-bar-chart-line"></i>
+                    </template>
+                    <span x-text="loading ? 'Generiere...' : 'Bericht generieren'"></span>
+                </button>
+                <button class="fin-btn fin-btn-outline" @click="resetFilters()">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    Zurücksetzen
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="fin-card animate-fade-in stagger-2">
+            <div class="fin-card-header">
+                <h3 class="fin-card-title">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Umsatzentwicklung
+                </h3>
+            </div>
+            <div class="fin-card-body">
+                <div class="fin-chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Grid -->
+        <div class="fin-content-grid">
+            <!-- Data Table -->
+            <div class="fin-card animate-fade-in stagger-3">
+                <div class="fin-card-header">
+                    <h3 class="fin-card-title">
+                        <i class="bi bi-table"></i>
+                        Detaillierte Daten
+                    </h3>
+                </div>
+                <div class="fin-card-body">
+                    <div class="fin-table-wrapper">
+                        <table class="fin-table">
+                            <thead>
+                                <tr id="reportTableHeader">
+                                    <th>Zeitraum</th>
+                                    <th>Umsatz</th>
+                                    <th>Ausgaben</th>
+                                    <th>Gewinn</th>
+                                    <th>Transaktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 2rem; color: var(--fin-text-muted);">
+                                        <i class="bi bi-bar-chart" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                                        Klicken Sie auf "Bericht generieren" um Daten zu laden
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <button class="btn btn-primary" onclick="showExportModal()">
-                            <i class="fas fa-download me-2"></i>Export Reports
-                        </button>
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="fin-card animate-fade-in stagger-4">
+                <div class="fin-card-header">
+                    <h3 class="fin-card-title">
+                        <i class="bi bi-calculator"></i>
+                        Zusammenfassung
+                    </h3>
+                </div>
+                <div class="fin-card-body">
+                    <div class="fin-summary-grid" id="summaryStats">
+                        <div class="fin-summary-item">
+                            <div class="fin-summary-label">Gesamtumsatz</div>
+                            <div class="fin-summary-value success" id="summaryRevenue">-</div>
+                        </div>
+                        <div class="fin-summary-item">
+                            <div class="fin-summary-label">Transaktionen</div>
+                            <div class="fin-summary-value info" id="summaryTransactions">-</div>
+                        </div>
+                        <div class="fin-summary-item">
+                            <div class="fin-summary-label">Durchschnitt</div>
+                            <div class="fin-summary-value" id="summaryAverage">-</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Report Filters -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">
-                    <i class="fas fa-filter me-2"></i>Report Filters
-                </h6>
-            </div>
-            <div class="card-body">
-                <form id="reportFilters">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <label for="reportType" class="form-label">Report Type</label>
-                            <select class="form-select" id="reportType" name="reportType">
-                                <option value="revenue">Revenue Analysis</option>
-                                <option value="payment">Payment Status</option>
-                                <option value="customer">Customer Analysis</option>
-                                <option value="job">Job Profitability</option>
-                                <option value="tax">Tax Report</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="period" class="form-label">Time Period</label>
-                            <select class="form-select" id="period" name="period">
-                                <option value="daily">Daily</option>
-                                <option value="monthly" selected>Monthly</option>
-                                <option value="quarterly">Quarterly</option>
-                                <option value="yearly">Yearly</option>
-                                <option value="custom">Custom Range</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="startDate" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="startDate" name="startDate">
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <label for="endDate" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="endDate" name="endDate">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-12">
-                            <button type="button" class="btn btn-primary" onclick="generateReport()">
-                                <i class="fas fa-chart-line me-2"></i>Generate Report
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="resetFilters()">
-                                <i class="fas fa-undo me-2"></i>Reset Filters
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Report Content -->
-        <div id="reportContent">
-            <!-- Revenue Analysis Chart -->
-            <div class="card mb-4" id="revenueChart">
-                <div class="card-header">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-chart-line me-2"></i>Revenue Trend Analysis
-                    </h6>
+        <!-- Additional Charts -->
+        <div class="fin-charts-row">
+            <div class="fin-card animate-fade-in stagger-4">
+                <div class="fin-card-header">
+                    <h3 class="fin-card-title">
+                        <i class="bi bi-pie-chart"></i>
+                        Transaktionstypen
+                    </h3>
                 </div>
-                <div class="card-body">
-                    <canvas id="revenueCanvas" height="100"></canvas>
-                </div>
-            </div>
-
-            <!-- Summary Statistics -->
-            <div class="row mb-4">
-                <div class="col-lg-8">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-table me-2"></i>Detailed Report Data
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="reportTable">
-                                    <thead>
-                                        <tr id="reportTableHeader">
-                                            <!-- Headers will be populated by JavaScript -->
-                                        </tr>
-                                    </thead>
-                                    <tbody id="reportTableBody">
-                                        <tr>
-                                            <td colspan="5" class="text-center text-muted">
-                                                <i class="fas fa-spinner fa-spin me-2"></i>Click "Generate Report" to load data
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-calculator me-2"></i>Summary Statistics
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <div id="summaryStats">
-                                <div class="text-center text-muted">
-                                    <i class="fas fa-chart-pie fa-3x mb-3 d-block"></i>
-                                    Generate a report to see summary statistics
-                                </div>
-                            </div>
-                        </div>
+                <div class="fin-card-body">
+                    <div class="fin-chart-container" style="height: 280px;">
+                        <canvas id="transactionTypesChart"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- Additional Charts -->
-            <div class="row">
-                <div class="col-lg-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-chart-pie me-2"></i>Transaction Types Distribution
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="transactionTypesChart" height="200"></canvas>
-                        </div>
-                    </div>
+            <div class="fin-card animate-fade-in stagger-5">
+                <div class="fin-card-header">
+                    <h3 class="fin-card-title">
+                        <i class="bi bi-people"></i>
+                        Top Kunden
+                    </h3>
                 </div>
-                <div class="col-lg-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h6 class="card-title mb-0">
-                                <i class="fas fa-chart-bar me-2"></i>Top Customers by Revenue
-                            </h6>
-                        </div>
-                        <div class="card-body">
-                            <canvas id="topCustomersChart" height="200"></canvas>
-                        </div>
+                <div class="fin-card-body">
+                    <div class="fin-chart-container" style="height: 280px;">
+                        <canvas id="topCustomersChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Predefined Reports -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">
-                    <i class="fas fa-file-alt me-2"></i>Predefined Reports
-                </h6>
+        <div class="fin-card animate-fade-in stagger-5">
+            <div class="fin-card-header">
+                <h3 class="fin-card-title">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Vordefinierte Berichte
+                </h3>
+                <p style="color: var(--fin-text-secondary); font-size: 0.85rem; margin: 0;">Schneller Zugriff auf häufig verwendete Finanzberichte</p>
             </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-euro-sign fa-2x text-success mb-3"></i>
-                                <h6>Monthly Revenue Report</h6>
-                                <p class="text-muted small">Comprehensive monthly revenue breakdown</p>
-                                <button class="btn btn-success btn-sm" onclick="generatePredefinedReport('monthly-revenue')">
-                                    Generate Report
-                                </button>
-                            </div>
+            <div class="fin-card-body">
+                <div class="fin-reports-grid">
+                    <div class="fin-report-card" @click="generatePredefinedReport('monthly-revenue')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon success">
+                            <i class="bi bi-currency-euro"></i>
                         </div>
+                        <div class="fin-report-title">Monatlicher Umsatz</div>
+                        <div class="fin-report-desc">Detaillierte monatliche Aufschlüsselung</div>
+                        <button class="fin-report-btn fin-btn-success">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-users fa-2x text-primary mb-3"></i>
-                                <h6>Customer Analysis</h6>
-                                <p class="text-muted small">Customer payment patterns and history</p>
-                                <button class="btn btn-primary btn-sm" onclick="generatePredefinedReport('customer-analysis')">
-                                    Generate Report
-                                </button>
-                            </div>
+
+                    <div class="fin-report-card" @click="generatePredefinedReport('customer-analysis')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon primary">
+                            <i class="bi bi-people"></i>
                         </div>
+                        <div class="fin-report-title">Kundenanalyse</div>
+                        <div class="fin-report-desc">Zahlungsmuster und Historie</div>
+                        <button class="fin-report-btn" style="background: var(--fin-info); color: white;">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-calculator fa-2x text-info mb-3"></i>
-                                <h6>Tax Summary</h6>
-                                <p class="text-muted small">Tax-ready financial summary</p>
-                                <button class="btn btn-info btn-sm" onclick="generatePredefinedReport('tax-summary')">
-                                    Generate Report
-                                </button>
-                            </div>
+
+                    <div class="fin-report-card" @click="generatePredefinedReport('tax-summary')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon info">
+                            <i class="bi bi-calculator"></i>
                         </div>
+                        <div class="fin-report-title">Steuerbericht</div>
+                        <div class="fin-report-desc">Steuerfertige Finanzübersicht</div>
+                        <button class="fin-report-btn" style="background: #06b6d4; color: white;">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
-                                <h6>Overdue Payments</h6>
-                                <p class="text-muted small">Payments past due date</p>
-                                <button class="btn btn-warning btn-sm" onclick="generatePredefinedReport('overdue-payments')">
-                                    Generate Report
-                                </button>
-                            </div>
+
+                    <div class="fin-report-card" @click="generatePredefinedReport('overdue-payments')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon warning">
+                            <i class="bi bi-exclamation-triangle"></i>
                         </div>
+                        <div class="fin-report-title">Überfällige Zahlungen</div>
+                        <div class="fin-report-desc">Zahlungen nach Fälligkeit</div>
+                        <button class="fin-report-btn" style="background: var(--fin-warning); color: #000;">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-briefcase fa-2x text-secondary mb-3"></i>
-                                <h6>Job Profitability</h6>
-                                <p class="text-muted small">Revenue per job analysis</p>
-                                <button class="btn btn-secondary btn-sm" onclick="generatePredefinedReport('job-profitability')">
-                                    Generate Report
-                                </button>
-                            </div>
+
+                    <div class="fin-report-card" @click="generatePredefinedReport('job-profitability')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon secondary">
+                            <i class="bi bi-briefcase"></i>
                         </div>
+                        <div class="fin-report-title">Job-Rentabilität</div>
+                        <div class="fin-report-desc">Umsatz pro Job Analyse</div>
+                        <button class="fin-report-btn" style="background: var(--fin-text-muted); color: white;">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card border">
-                            <div class="card-body text-center">
-                                <i class="fas fa-chart-line fa-2x text-danger mb-3"></i>
-                                <h6>Expense Tracking</h6>
-                                <p class="text-muted small">Business expense analysis</p>
-                                <button class="btn btn-danger btn-sm" onclick="generatePredefinedReport('expense-tracking')">
-                                    Generate Report
-                                </button>
-                            </div>
+
+                    <div class="fin-report-card" @click="generatePredefinedReport('expense-tracking')" style="transition: all 0.3s ease; cursor: pointer;">
+                        <div class="fin-report-icon danger">
+                            <i class="bi bi-graph-down-arrow"></i>
                         </div>
+                        <div class="fin-report-title">Ausgabenverfolgung</div>
+                        <div class="fin-report-desc">Geschäftsausgaben Analyse</div>
+                        <button class="fin-report-btn" style="background: var(--fin-error); color: white;">
+                            <i class="bi bi-arrow-right"></i>
+                            Anzeigen
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Export Modal -->
-    <div class="modal fade" id="exportModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Export Financial Reports</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="exportFormat" class="form-label">Export Format</label>
-                        <select class="form-select" id="exportFormat">
-                            <option value="csv">CSV (Excel Compatible)</option>
-                            <option value="pdf">PDF Report</option>
-                            <option value="xlsx">Excel Spreadsheet</option>
-                            <option value="json">JSON Data</option>
-                        </select>
+        <!-- Export Modal -->
+        <template x-if="showExportModal">
+            <div>
+                <div class="fin-modal-backdrop" @click="showExportModal = false"></div>
+                <div class="fin-modal">
+                    <div class="fin-modal-header">
+                        <h3 class="fin-modal-title">Finanzberichte exportieren</h3>
+                        <button class="fin-modal-close" @click="showExportModal = false">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
                     </div>
-                    <div class="mb-3">
-                        <label for="exportRange" class="form-label">Date Range</label>
-                        <select class="form-select" id="exportRange">
-                            <option value="current">Current Report Data</option>
-                            <option value="last-month">Last Month</option>
-                            <option value="last-quarter">Last Quarter</option>
-                            <option value="last-year">Last Year</option>
-                            <option value="all">All Time</option>
-                        </select>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="includeCharts">
-                        <label class="form-check-label" for="includeCharts">
-                            Include charts and visualizations
+                    <div class="fin-modal-body">
+                        <div class="fin-filter-group" style="margin-bottom: 1rem;">
+                            <label class="fin-filter-label">Export Format</label>
+                            <select class="fin-select" x-model="exportFormat">
+                                <option value="csv">CSV (Excel kompatibel)</option>
+                                <option value="pdf">PDF Bericht</option>
+                                <option value="xlsx">Excel Tabelle</option>
+                                <option value="json">JSON Daten</option>
+                            </select>
+                        </div>
+                        <div class="fin-filter-group" style="margin-bottom: 1rem;">
+                            <label class="fin-filter-label">Zeitraum</label>
+                            <select class="fin-select" x-model="exportRange">
+                                <option value="current">Aktuelle Berichtsdaten</option>
+                                <option value="last-month">Letzter Monat</option>
+                                <option value="last-quarter">Letztes Quartal</option>
+                                <option value="last-year">Letztes Jahr</option>
+                                <option value="all">Alle Daten</option>
+                            </select>
+                        </div>
+                        <label class="fin-checkbox">
+                            <input type="checkbox" x-model="includeCharts">
+                            <span class="fin-checkbox-label">Diagramme und Visualisierungen einschließen</span>
                         </label>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="performExport()">
-                        <i class="fas fa-download me-2"></i>Export Report
-                    </button>
+                    <div class="fin-modal-footer">
+                        <button class="fin-btn fin-btn-outline" @click="showExportModal = false">
+                            Abbrechen
+                        </button>
+                        <button class="fin-btn fin-btn-primary" @click="performExport()">
+                            <i class="bi bi-download"></i>
+                            Exportieren
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
+        </template>
+    </main>
 
+    <!-- Footer -->
+    <footer class="rc-footer">
+        <div class="rc-container">
+            <div class="rc-footer-content">
+                <p>&copy; 2025 RentalCore. Alle Rechte vorbehalten.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let revenueChart, transactionTypesChart, topCustomersChart;
+function financialReports() {
+    return {
+        reportType: 'revenue',
+        period: 'monthly',
+        startDate: '',
+        endDate: '',
+        loading: false,
+        showExportModal: false,
+        exportFormat: 'csv',
+        exportRange: 'current',
+        includeCharts: false,
+        revenueChart: null,
+        transactionTypesChart: null,
+        topCustomersChart: null,
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeCharts();
-            setDefaultDates();
-        });
+        init() {
+            this.setDefaultDates();
+            this.initCharts();
+        },
 
-        function setDefaultDates() {
+        setDefaultDates() {
             const now = new Date();
             const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
             const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            this.startDate = firstDay.toISOString().split('T')[0];
+            this.endDate = lastDay.toISOString().split('T')[0];
+        },
 
-            document.getElementById('startDate').value = firstDay.toISOString().split('T')[0];
-            document.getElementById('endDate').value = lastDay.toISOString().split('T')[0];
-        }
-
-        function initializeCharts() {
+        initCharts() {
             // Revenue Chart
-            const revenueCtx = document.getElementById('revenueCanvas').getContext('2d');
-            revenueChart = new Chart(revenueCtx, {
+            const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+            const gradient = revenueCtx.createLinearGradient(0, 0, 0, 350);
+            gradient.addColorStop(0, 'rgba(220, 38, 38, 0.3)');
+            gradient.addColorStop(1, 'rgba(220, 38, 38, 0)');
+
+            this.revenueChart = new Chart(revenueCtx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Revenue',
+                        label: 'Umsatz',
                         data: [],
-                        borderColor: '#0d6efd',
-                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        borderColor: '#dc2626',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        fill: true,
                         tension: 0.4,
-                        fill: true
+                        pointBackgroundColor: '#dc2626',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
                     }, {
-                        label: 'Expenses',
+                        label: 'Ausgaben',
                         data: [],
-                        borderColor: '#dc3545',
-                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        borderColor: '#6b7280',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
                         tension: 0.4,
-                        fill: true
+                        pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                color: '#9ca3af',
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#9ca3af',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString('de-DE') + ' EUR';
+                                }
+                            }
+                        }
+                    },
                     scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280'
+                            }
+                        },
                         y: {
                             beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
                             ticks: {
+                                color: '#6b7280',
                                 callback: function(value) {
-                                    return '€' + value.toLocaleString();
+                                    return value.toLocaleString('de-DE') + ' EUR';
                                 }
                             }
                         }
@@ -426,23 +1186,38 @@
 
             // Transaction Types Chart
             const typesCtx = document.getElementById('transactionTypesChart').getContext('2d');
-            transactionTypesChart = new Chart(typesCtx, {
+            this.transactionTypesChart = new Chart(typesCtx, {
                 type: 'doughnut',
                 data: {
                     labels: [],
                     datasets: [{
                         data: [],
-                        backgroundColor: [
-                            '#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'
-                        ]
+                        backgroundColor: ['#dc2626', '#22c55e', '#eab308', '#3b82f6', '#8b5cf6', '#f97316'],
+                        borderWidth: 0,
+                        hoverOffset: 10
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '60%',
                     plugins: {
                         legend: {
-                            position: 'bottom'
+                            position: 'bottom',
+                            labels: {
+                                color: '#9ca3af',
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#9ca3af',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8
                         }
                     }
                 }
@@ -450,112 +1225,141 @@
 
             // Top Customers Chart
             const customersCtx = document.getElementById('topCustomersChart').getContext('2d');
-            topCustomersChart = new Chart(customersCtx, {
+            this.topCustomersChart = new Chart(customersCtx, {
                 type: 'bar',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Revenue',
+                        label: 'Umsatz',
                         data: [],
-                        backgroundColor: 'rgba(13, 110, 253, 0.8)'
+                        backgroundColor: 'rgba(220, 38, 38, 0.8)',
+                        borderColor: '#dc2626',
+                        borderWidth: 1,
+                        borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '€' + value.toLocaleString();
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#9ca3af',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.x.toLocaleString('de-DE') + ' EUR';
                                 }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                callback: function(value) {
+                                    return value.toLocaleString('de-DE') + ' EUR';
+                                }
+                            }
+                        },
+                        y: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#9ca3af'
                             }
                         }
                     }
                 }
             });
-        }
+        },
 
-        function generateReport() {
-            const reportType = document.getElementById('reportType').value;
-            const period = document.getElementById('period').value;
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+        generateReport() {
+            this.loading = true;
+            this.updateTableHeaders();
 
-            // Update table headers based on report type
-            updateTableHeaders(reportType);
+            const params = new URLSearchParams({
+                period: this.period,
+                startDate: this.startDate,
+                endDate: this.endDate
+            });
 
-            // Fetch report data
-            fetchReportData(reportType, period, startDate, endDate);
-        }
+            fetch(`/financial/api/reports/${this.reportType}?${params}`)
+                .then(response => response.json())
+                .then(data => {
+                    this.updateReportDisplay(data);
+                    this.loading = false;
+                })
+                .catch(error => {
+                    console.error('Error fetching report data:', error);
+                    this.loading = false;
+                    // Show empty state on error
+                    this.updateReportDisplay({ tableData: [], chartData: null, summary: null });
+                });
+        },
 
-        function updateTableHeaders(reportType) {
+        updateTableHeaders() {
             const header = document.getElementById('reportTableHeader');
             let headers = [];
 
-            switch(reportType) {
+            switch(this.reportType) {
                 case 'revenue':
-                    headers = ['Period', 'Revenue', 'Expenses', 'Net Profit', 'Transactions'];
+                    headers = ['Zeitraum', 'Umsatz', 'Ausgaben', 'Gewinn', 'Transaktionen'];
                     break;
                 case 'payment':
-                    headers = ['Status', 'Count', 'Total Amount', 'Average Amount', 'Percentage'];
+                    headers = ['Status', 'Anzahl', 'Gesamtbetrag', 'Durchschnitt', 'Prozent'];
                     break;
                 case 'customer':
-                    headers = ['Customer', 'Total Revenue', 'Transactions', 'Average', 'Last Payment'];
+                    headers = ['Kunde', 'Gesamtumsatz', 'Transaktionen', 'Durchschnitt', 'Letzte Zahlung'];
                     break;
                 case 'job':
-                    headers = ['Job', 'Customer', 'Revenue', 'Expenses', 'Profit Margin'];
+                    headers = ['Job', 'Kunde', 'Umsatz', 'Ausgaben', 'Gewinnmarge'];
                     break;
                 case 'tax':
-                    headers = ['Period', 'Gross Revenue', 'Tax Base', 'VAT Amount', 'Net Amount'];
+                    headers = ['Zeitraum', 'Bruttoumsatz', 'Steuerbasis', 'MwSt', 'Nettobetrag'];
                     break;
             }
 
             header.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
-        }
+        },
 
-        function fetchReportData(reportType, period, startDate, endDate) {
-            const params = new URLSearchParams({
-                period: period,
-                startDate: startDate,
-                endDate: endDate
-            });
-
-            fetch(`/financial/api/reports/${reportType}?${params}`)
-                .then(response => response.json())
-                .then(data => {
-                    updateReportDisplay(data, reportType);
-                })
-                .catch(error => {
-                    console.error('Error fetching report data:', error);
-                    // Show error message to user
-                    updateReportDisplay({ tableData: [], chartData: null, summary: null }, reportType);
-                });
-        }
-
-        function updateReportDisplay(data, reportType) {
+        updateReportDisplay(data) {
             // Update table
-            updateReportTable(data.tableData || [], reportType);
-            
+            this.updateReportTable(data.tableData || []);
+
             // Update charts
             if (data.chartData) {
-                updateCharts(data.chartData);
+                this.updateCharts(data.chartData);
             }
-            
+
             // Update summary
             if (data.summary) {
-                updateSummaryStats(data.summary);
+                this.updateSummaryStats(data.summary);
             }
-        }
+        },
 
-        function updateReportTable(data, reportType) {
+        updateReportTable(data) {
             const tbody = document.getElementById('reportTableBody');
-            
+
             if (data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted">No data found for the selected criteria</td>
+                        <td colspan="5" style="text-align: center; padding: 2rem; color: var(--fin-text-muted);">
+                            Keine Daten für die ausgewählten Kriterien gefunden
+                        </td>
                     </tr>
                 `;
                 return;
@@ -564,83 +1368,109 @@
             tbody.innerHTML = data.map(row => {
                 return `<tr>${Object.values(row).map(cell => `<td>${cell}</td>`).join('')}</tr>`;
             }).join('');
-        }
+        },
 
-        function updateCharts(chartData) {
+        updateCharts(chartData) {
             if (chartData.revenue) {
-                revenueChart.data.labels = chartData.revenue.labels;
-                revenueChart.data.datasets[0].data = chartData.revenue.revenue;
-                revenueChart.data.datasets[1].data = chartData.revenue.expenses;
-                revenueChart.update();
+                this.revenueChart.data.labels = chartData.revenue.labels;
+                this.revenueChart.data.datasets[0].data = chartData.revenue.revenue;
+                this.revenueChart.data.datasets[1].data = chartData.revenue.expenses;
+                this.revenueChart.update('active');
             }
 
             if (chartData.transactionTypes) {
-                transactionTypesChart.data.labels = chartData.transactionTypes.labels;
-                transactionTypesChart.data.datasets[0].data = chartData.transactionTypes.data;
-                transactionTypesChart.update();
+                this.transactionTypesChart.data.labels = chartData.transactionTypes.labels;
+                this.transactionTypesChart.data.datasets[0].data = chartData.transactionTypes.data;
+                this.transactionTypesChart.update('active');
             }
 
             if (chartData.topCustomers) {
-                topCustomersChart.data.labels = chartData.topCustomers.labels;
-                topCustomersChart.data.datasets[0].data = chartData.topCustomers.data;
-                topCustomersChart.update();
+                this.topCustomersChart.data.labels = chartData.topCustomers.labels;
+                this.topCustomersChart.data.datasets[0].data = chartData.topCustomers.data;
+                this.topCustomersChart.update('active');
             }
+        },
+
+        updateSummaryStats(summary) {
+            document.getElementById('summaryRevenue').textContent = summary.totalRevenue.toLocaleString('de-DE') + ' EUR';
+            document.getElementById('summaryTransactions').textContent = summary.totalTransactions;
+            document.getElementById('summaryAverage').textContent = summary.averageTransaction.toFixed(2) + ' EUR';
+        },
+
+        resetFilters() {
+            this.reportType = 'revenue';
+            this.period = 'monthly';
+            this.setDefaultDates();
+        },
+
+        generatePredefinedReport(type) {
+            // Map predefined report types to filter settings
+            const reportMappings = {
+                'monthly-revenue': { type: 'revenue', period: 'monthly' },
+                'customer-analysis': { type: 'customer', period: 'monthly' },
+                'tax-summary': { type: 'tax', period: 'monthly' },
+                'overdue-payments': { type: 'payment', period: 'monthly' },
+                'job-profitability': { type: 'job', period: 'monthly' },
+                'expense-tracking': { type: 'revenue', period: 'monthly' }
+            };
+
+            const mapping = reportMappings[type];
+            if (mapping) {
+                this.reportType = mapping.type;
+                this.period = mapping.period;
+                this.generateReport();
+            }
+        },
+
+        performExport() {
+            const format = this.exportFormat;
+            const range = this.exportRange;
+
+            // Build export URL based on format
+            let url = `/financial/api/export/revenue?format=${format}`;
+
+            if (range === 'current') {
+                url += `&startDate=${this.startDate}&endDate=${this.endDate}`;
+            } else if (range === 'last-month') {
+                const now = new Date();
+                const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const end = new Date(now.getFullYear(), now.getMonth(), 0);
+                url += `&startDate=${start.toISOString().split('T')[0]}&endDate=${end.toISOString().split('T')[0]}`;
+            }
+
+            // Trigger download
+            window.open(url, '_blank');
+            this.showExportModal = false;
         }
+    };
+}
 
-        function updateSummaryStats(summary) {
-            const container = document.getElementById('summaryStats');
-            container.innerHTML = `
-                <div class="row text-center">
-                    <div class="col-12 mb-3">
-                        <div class="fs-6 text-muted">Total Revenue</div>
-                        <div class="fs-3 fw-bold text-success">€${summary.totalRevenue.toLocaleString()}</div>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <div class="fs-6 text-muted">Total Transactions</div>
-                        <div class="fs-4 fw-bold text-primary">${summary.totalTransactions}</div>
-                    </div>
-                    <div class="col-12 mb-3">
-                        <div class="fs-6 text-muted">Average Transaction</div>
-                        <div class="fs-4 fw-bold text-info">€${summary.averageTransaction.toFixed(2)}</div>
-                    </div>
-                </div>
-            `;
-        }
+// Initialize dropdown functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const toggles = document.querySelectorAll('.rc-dropdown-toggle');
 
+    toggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const dropdown = this.closest('.rc-dropdown');
 
-        function generatePredefinedReport(reportType) {
-            alert(`Generating ${reportType} report - feature coming soon!`);
-        }
-
-        function showExportModal() {
-            new bootstrap.Modal(document.getElementById('exportModal')).show();
-        }
-
-        function performExport() {
-            const format = document.getElementById('exportFormat').value;
-            const range = document.getElementById('exportRange').value;
-            const includeCharts = document.getElementById('includeCharts').checked;
-            
-            alert(`Exporting report as ${format} with range ${range} - feature coming soon!`);
-            bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
-        }
-
-        function resetFilters() {
-            document.getElementById('reportFilters').reset();
-            setDefaultDates();
-        }
-
-        // Handle period change
-        document.getElementById('period').addEventListener('change', function() {
-            const customFields = ['startDate', 'endDate'];
-            const isCustom = this.value === 'custom';
-            
-            customFields.forEach(field => {
-                const element = document.getElementById(field);
-                element.disabled = !isCustom;
-                element.required = isCustom;
-            });
+            if (dropdown) {
+                document.querySelectorAll('.rc-dropdown.show').forEach(other => {
+                    if (other !== dropdown) {
+                        other.classList.remove('show');
+                    }
+                });
+                dropdown.classList.toggle('show');
+            }
         });
+    });
+
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.rc-dropdown.show').forEach(dropdown => {
+            dropdown.classList.remove('show');
+        });
+    });
+});
     </script>
 </body>
 </html>

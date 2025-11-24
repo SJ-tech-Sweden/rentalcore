@@ -471,7 +471,40 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.27** (Latest) - WarehouseCore Rental Equipment Integration
+### **v4.1.35** (Latest) - Advanced Financial Dashboard & Reports Redesign
+- 🎨 **Complete Premium UI Redesign**: Financial dashboard and reports pages rebuilt with enterprise SaaS aesthetics
+- ✨ **Enhanced Glass Morphism**: Advanced backdrop-blur effects with semi-transparent layered card backgrounds and radial gradient overlays
+- 🌈 **Dynamic Animated Backgrounds**: Gradient backgrounds with accent color highlights and smooth animations
+- 📊 **6-Card Hero Metrics Grid**: Expanded to include Revenue, Profit, Pending, Overdue, Monthly, and Financial Health Score
+  - **Visual Health Ring**: Conic gradient health score visualization with dynamic percentage display
+  - **Profit Analytics**: New profit card with growth trends and margin analysis
+  - **Smart Trends**: Context-aware trend indicators with color-coded performance metrics
+  - **Interactive Detail Modals**: Click any metric to see comprehensive breakdown with detailed analytics
+- 📈 **Advanced Chart Visualizations**:
+  - Revenue trend with multi-dataset (revenue + expenses) line charts
+  - Payment status doughnut chart with smooth hover animations
+  - Transaction type distribution charts with color-coded segments
+  - Top customers bar chart with currency formatting
+- 🎯 **Smart Period Selection**: Elegant pill-button design for time period selection with active state animations
+- 📋 **Modern Responsive Tables**:
+  - Redesigned with hover effects, status badges, and type icons
+  - Automatic mobile transformation to card layout
+  - Sticky headers with smooth scrolling
+- ⚡ **Quick Actions Grid**: 4+ action cards for common tasks with color-coded icons and descriptions
+- 🔢 **Sophisticated Number Animations**: Count-up animations with cubic-bezier easing functions
+- ⌨️ **Keyboard Shortcuts**: R (refresh), N (new), Escape (close), with smart context awareness
+- 🔄 **Auto-Refresh**: Charts and transactions automatically refresh every 5 minutes with smooth updates
+- 📱 **Fully Responsive Design**: Mobile-first, tablet, and desktop layouts with touch optimization
+- 🎯 **JetBrains Mono Typography**: Monospace font for precise financial number display
+- 📑 **Enhanced Reports Page**:
+  - Gradient filter bar with icon labels and visual hierarchy
+  - 6 predefined report types (Revenue, Payments, Customers, Jobs, Tax, Overdue)
+  - Dynamic content grid with summary stats
+  - Advanced export modal with format selection (CSV, PDF, Excel, JSON)
+- 🖨️ **Professional Export Options**: Multiple format support with date range and chart inclusion
+- 🎭 **Visual Polish**: Subtle shadows, smooth transitions, and micro-interactions throughout
+
+### **v4.1.27** - WarehouseCore Rental Equipment Integration
 - 🚛 **Rental Equipment in Jobs**: Fetch and display rental equipment from WarehouseCore API in job creation/edit forms
 - 📊 **Supplier Grouping**: Rental equipment displayed sorted and grouped by supplier name for easy navigation
 - 🎨 **Visual Distinction**: Purple/violet accent color differentiates rental equipment from owned products (red accent)
