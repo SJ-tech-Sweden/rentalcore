@@ -553,6 +553,18 @@
 
     let currentJobID = null;
 
+    function toggleAssignedCategory(groupId) {
+        const section = document.getElementById(groupId);
+        const icon = document.getElementById(`${groupId}-icon`);
+        if (!section) return;
+        const isHidden = section.style.display === 'none' || section.style.display === '';
+        section.style.display = isHidden ? 'block' : 'none';
+        if (icon) {
+            icon.classList.toggle('bi-chevron-down', !isHidden);
+            icon.classList.toggle('bi-chevron-up', isHidden);
+        }
+    }
+
     function expandToDeviceView(jobID) {
         currentJobID = jobID;
         
@@ -835,111 +847,106 @@
                         </div>
                     </div>
                     
-                                <!-- Rental Equipment Section -->
-                                <div id="editRentalEquipmentContainer" class="rc-mt-lg">
-                                    <h5 class="rc-heading-5">Rental Equipment</h5>
-                                    <div id="editRentalEquipmentList">
-                                        <div class="rc-alert rc-alert-info rc-alert-sm">
-                                            <i class="bi bi-info-circle"></i>
-                                            Rental equipment is now managed in WarehouseCore.
-                                        </div>
-                                    </div>
+                    <div class="rc-card rc-mb-md">
+                        <div class="rc-card-header rc-flex rc-flex-between rc-flex-align-center">
+                            <div>
+                                <h4 class="rc-card-title"><i class="bi bi-cpu"></i> Assigned Devices</h4>
+                                <div class="rc-text-sm rc-text-secondary">Grouped by category with quick price edits.</div>
+                            </div>
+                            <button type="button" onclick="refreshEditAssignedDevices(${job.jobID})" class="rc-btn rc-btn-outline rc-btn-sm" title="Refresh assigned devices">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="editAssignedDevicesList">
+                                <!-- Assigned devices with price editing will appear here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="editRentalEquipmentContainer" class="rc-mt-sm rc-card rc-p-sm rc-flex rc-flex-between rc-flex-items-center">
+                        <div>
+                            <div class="rc-text-sm rc-font-semibold">Rental Devices (external)</div>
+                            <div class="rc-text-xs rc-text-secondary">Managed in WarehouseCore</div>
+                        </div>
+                        <div class="rc-flex rc-flex-gap-xs">
+                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="notifyRentalFeatureMoved()">
+                                <i class="bi bi-plus-lg"></i> Add rental
+                            </button>
+                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="notifyRentalFeatureMoved()">
+                                <i class="bi bi-eye"></i> View rentals
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="editFileAttachmentsContainer" class="rc-mt-md rc-card">
+                        <div class="rc-card-header rc-flex rc-flex-between rc-flex-align-center">
+                            <h5 class="rc-card-title rc-mb-0">
+                                <i class="bi bi-paperclip"></i> Files
+                            </h5>
+                            <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="document.getElementById('editJobFileInput').click();">
+                                <i class="bi bi-plus-lg"></i> Add file
+                            </button>
+                            <input type="file" id="editJobFileInput" multiple accept="*/*" style="display: none;" onchange="handleEditJobFileSelection(this)">
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="editSelectedFilesList" style="display: none; margin-bottom: 12px;">
+                                <h6 style="margin-bottom: 8px; font-size: 14px;">Selected Files:</h6>
+                                <div id="editSelectedFilesContainer"></div>
+                                <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="uploadEditJobFiles()" style="margin-top: 8px;">
+                                    <i class="bi bi-upload"></i> Upload Files
+                                </button>
+                            </div>
+                            <div id="editCurrentAttachments">
+                                <h6 style="margin-bottom: 8px; font-size: 14px;">Current Attachments:</h6>
+                                <div id="editAttachmentsList">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rc-card rc-mt-lg">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title">
+                                <i class="bi bi-box-seam"></i> Product Selection
+                            </h4>
+                            <div class="rc-text-sm rc-text-secondary">
+                                Availability updates automatically based on the selected dates above.
+                            </div>
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="editProductSelectionContainer">
+                                <div class="rc-flex rc-flex-center rc-py-xl" id="editProductTreeLoading">
+                                    <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                    Please select start and end dates to load available products
                                 </div>
-
-                                <!-- File Attachments Section -->
-                                <div id="editFileAttachmentsContainer" class="rc-mt-lg">
-                                    <div class="rc-flex rc-flex-between rc-mb-md">
-                                        <h5 class="rc-heading-5">
-                                            <i class="bi bi-paperclip"></i> File Attachments
-                                        </h5>
-                                        <button type="button" onclick="toggleEditAttachments()" class="rc-btn rc-btn-outline rc-btn-sm" id="toggleEditAttachmentsBtn">
-                                            <i class="bi bi-eye"></i> Show Files
-                                        </button>
-                                    </div>
-                                    <div id="editAttachmentsSection" style="display: none;">
-                                        <div class="file-upload-area" style="border: 2px dashed var(--surface-3); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-bottom: 16px;"
-                                             onclick="document.getElementById('editJobFileInput').click();">
-                                            <i class="bi bi-cloud-upload" style="font-size: 1.5rem; color: var(--text-muted); margin-bottom: 6px;"></i>
-                                            <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Click to select files or drag and drop</p>
-                                            <small style="color: var(--text-muted); font-size: 12px;">Max 50MB per file</small>
-                                        </div>
-                                        <input type="file" id="editJobFileInput" multiple accept="*/*" style="display: none;" onchange="handleEditJobFileSelection(this)">
-
-                                        <div id="editSelectedFilesList" style="display: none;">
-                                            <h6 style="margin-bottom: 8px; font-size: 14px;">Selected Files:</h6>
-                                            <div id="editSelectedFilesContainer"></div>
-                                            <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="uploadEditJobFiles()" style="margin-top: 8px;">
-                                                <i class="bi bi-upload"></i> Upload Files
-                                            </button>
-                                        </div>
-
-                                        <div id="editCurrentAttachments" style="margin-top: 16px;">
-                                            <h6 style="margin-bottom: 8px; font-size: 14px;">Current Attachments:</h6>
-                                            <div id="editAttachmentsList">Loading...</div>
-                                        </div>
-                                    </div>
+                                <div id="editProductTreeRoot" class="rc-product-tree" style="display: none;"></div>
+                                <div id="editProductTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> No products found for the selected dates.
                                 </div>
-
-                                            <div class="rc-card rc-mt-lg">
-                                                <div class="rc-card-header">
-                                                    <h4 class="rc-card-title">
-                                                        <i class="bi bi-box-seam"></i> Product Selection
-                                                    </h4>
-                                                    <div class="rc-text-sm rc-text-secondary">
-                                                        Availability updates automatically based on the selected dates above.
-                                                    </div>
-                                                </div>
-                                                <div class="rc-card-body">
-                                                    <div id="editProductSelectionContainer">
-                                                        <div class="rc-flex rc-flex-center rc-py-xl" id="editProductTreeLoading">
-                                                            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
-                                                            Please select start and end dates to load available products
-                                                        </div>
-                                                        <div id="editProductTreeRoot" class="rc-product-tree" style="display: none;"></div>
-                                                        <div id="editProductTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
-                                                            <i class="bi bi-info-circle"></i> No products found for the selected dates.
-                                                        </div>
-                                                    </div>
-                                                    <div id="editProductSelectionErrors" class="rc-alert rc-alert-error rc-mt-lg" style="display: none;"></div>
-                                                    <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
-                                                    <div>
-                                                        <h5>Selected Products</h5>
-                                                        <div id="editSelectedProductsEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
-                                                            No products selected yet.
-                                                        </div>
-                                                        <div class="rc-table-scroll">
-                                                            <table class="rc-table rc-table-compact" id="editSelectedProductsTable" style="display: none;">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Product</th>
-                                                                        <th style="width: 120px;">Quantity</th>
-                                                                        <th style="width: 140px;">Available</th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody></tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-                                                    <input type="hidden" name="selected_products" id="editSelectedProductsInput" value="">
-                                                </div>
-                                            </div>
-
-                                            <div class="rc-card rc-mt-lg">
-                                                <div class="rc-card-header rc-flex rc-flex-between rc-flex-align-center">
-                                                    <div>
-                                                        <h4 class="rc-card-title"><i class="bi bi-cpu"></i> Assigned Devices</h4>
-                                                        <div class="rc-text-sm rc-text-secondary">Review pricing or remove device assignments.</div>
-                                                    </div>
-                                                    <button type="button" onclick="refreshEditAssignedDevices(${job.jobID})" class="rc-btn rc-btn-outline rc-btn-sm" title="Refresh assigned devices">
-                                                        <i class="bi bi-arrow-clockwise"></i> Refresh
-                                                    </button>
-                                                </div>
-                                                <div class="rc-card-body">
-                                                    <div id="editAssignedDevicesList">
-                                                        <!-- Assigned devices with price editing will appear here -->
-                                                    </div>
-                                                </div>
-                                            </div>
+                            </div>
+                            <div id="editProductSelectionErrors" class="rc-alert rc-alert-error rc-mt-lg" style="display: none;"></div>
+                            <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
+                            <div>
+                                <h5>Selected Products</h5>
+                                <div id="editSelectedProductsEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                    No products selected yet.
+                                </div>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="editSelectedProductsTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th style="width: 120px;">Quantity</th>
+                                                <th style="width: 140px;">Available</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <input type="hidden" name="selected_products" id="editSelectedProductsInput" value="">
+                        </div>
+                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1920,17 +1927,24 @@
             categories[category].push(device);
         });
 
+        const categoryOrder = ['Sound', 'Light', 'Stage', 'Effect', 'Other'];
         let html = '';
-        Object.keys(categories).forEach(category => {
+        categoryOrder.forEach(category => {
             if (categories[category].length > 0) {
+                const groupId = `assigned-${category.toLowerCase()}`;
                 html += `
-                    <div class="assigned-category-group rc-mb-md">
-                        <div class="category-header rc-flex rc-flex-center rc-mb-sm">
-                            <i class="bi bi-${getCategoryIcon(category)} rc-mr-sm" style="color: var(--accent-electric);"></i>
-                            <h6 class="rc-heading-6" style="color: var(--text-primary);">${category}</h6>
-                            <span class="device-count-badge rc-ml-sm">${categories[category].length}</span>
+                    <div class="assigned-category-group rc-mb-sm">
+                        <div class="category-header rc-flex rc-flex-between rc-flex-items-center rc-p-xs rc-radius-sm" style="cursor: pointer; border: 1px solid var(--surface-3);" onclick="toggleAssignedCategory('${groupId}')">
+                            <div class="rc-flex rc-flex-items-center rc-flex-gap-xs">
+                                <i class="bi bi-${getCategoryIcon(category)}" style="color: var(--accent-electric);"></i>
+                                <span class="rc-text-sm rc-font-semibold">${category}</span>
+                            </div>
+                            <div class="rc-flex rc-flex-items-center rc-flex-gap-xs">
+                                <span class="rc-badge rc-badge-outline rc-text-xs">${categories[category].length}</span>
+                                <i class="bi bi-chevron-down" id="${groupId}-icon"></i>
+                            </div>
                         </div>
-                        <div class="assigned-devices-list">
+                        <div class="assigned-devices-list" id="${groupId}" style="display: none; border: 1px solid var(--surface-3); border-top: none; border-radius: 0 0 var(--radius-sm) var(--radius-sm); padding: 6px 8px;">
                 `;
 
                 categories[category].forEach(device => {
@@ -1945,17 +1959,17 @@
                     const price = (customPrice && customPrice > 0) ? customPrice : productPrice;
 
                     html += `
-                        <div class="assigned-device-item rc-flex rc-flex-between rc-flex-center rc-p-sm rc-mb-xs" style="background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--surface-3);">
+                        <div class="assigned-device-item rc-flex rc-flex-between rc-flex-center rc-p-xs rc-mb-xxs" style="background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--surface-3);">
                             <div class="device-info">
-                                <div class="device-name rc-text-sm rc-font-medium">${productName}</div>
+                                <div class="device-name rc-text-sm rc-font-medium">${escapeHtml(productName)}</div>
                                 <div class="device-details rc-text-xs rc-text-secondary">
-                                    ID: ${deviceID}${serialNumber ? ` • SN: ${serialNumber}` : ''}
+                                    ID: ${escapeHtml(deviceID)}${serialNumber ? ` • SN: ${escapeHtml(serialNumber)}` : ''}
                                 </div>
                             </div>
                             <div class="device-price-container rc-flex rc-flex-center rc-flex-gap-xs">
                                 <input type="number"
                                        class="device-price-input rc-input rc-input-sm"
-                                       style="width: 100px;"
+                                       style="width: 90px;"
                                        step="0.01"
                                        onchange="updateDevicePrice(${jobID}, '${deviceID}', this.value)"
                                        placeholder="${price.toFixed(2)}">
