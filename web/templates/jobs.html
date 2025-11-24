@@ -712,10 +712,36 @@
     }
 
     // Job Edit Modal
-    function showEditJob(jobID) {
+    async function confirmJobEditorConflict(jobID) {
+        try {
+            const response = await fetch(getJobEditingEndpoint(jobID));
+            if (!response.ok) {
+                return true; // allow if we can't load editors
+            }
+            const data = await response.json();
+            const editors = data.active_editors || [];
+            if (!editors.length) {
+                return true;
+            }
+            const names = editors
+                .map(e => e.display_name || e.username || `User ${e.user_id}`)
+                .join(', ');
+            return window.confirm(`This job is currently being edited by ${names}. Proceed anyway?`);
+        } catch (error) {
+            console.warn('Failed to check editing sessions', error);
+            return true;
+        }
+    }
+
+    async function showEditJob(jobID) {
         // Close details modal if open
         closeJobModal();
         
+        const proceed = await confirmJobEditorConflict(jobID);
+        if (!proceed) {
+            return;
+        }
+
         const modal = document.getElementById('jobEditModal');
         const content = document.getElementById('jobEditContent');
         
