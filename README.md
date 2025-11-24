@@ -471,7 +471,15 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.24** (Latest) - File Pool as Single Source of Truth
+### **v4.1.25** (Latest) - File Pool Job Creation UI
+- 🎨 **Tab-Based PDF Modal**: Job creation PDF modal now features tabbed interface with "Upload New" and "From Pool" options
+- 📂 **Pool Document Selection**: Browse and select existing File Pool documents directly from the job creation modal
+- 🔍 **Live Pool List**: Dynamic loading of unassigned PDF documents with filename, size, and upload date
+- ✅ **Visual Selection**: Radio-style selection UI with clear selected state and pool item highlighting
+- 🎯 **Unified Processing**: Single "Process" button handles both upload and pool document OCR workflows
+- 🎨 **Consistent Styling**: Tab toggle uses theme red accent color matching File Pool page design
+
+### **v4.1.24** - File Pool as Single Source of Truth
 - 🗂️ **Unified File Storage**: File Pool (documents table) is now the single source of truth for all files
 - 🔗 **Document Assignment API**: New methods to assign/unassign documents to jobs without file duplication
 - 📤 **Pool Document OCR**: New endpoint `/api/v1/pdf/from-pool/:documentID` to process existing pool documents for OCR

@@ -4647,25 +4647,53 @@ function showToast(message, type) {
             <div class="pdf-modal-header">
                 <div>
                     <p class="eyebrow">OCR Assistant</p>
-                    <h3>Upload Offer / Invoice PDF</h3>
-                    <p class="pdf-modal-subtitle">We extract products, customer details, and discounts automatically.</p>
+                    <h3>Import PDF for Job Creation</h3>
+                    <p class="pdf-modal-subtitle">Upload new or select from File Pool</p>
                 </div>
                 <button class="rc-btn rc-btn-link" onclick="closePDFUploadModal()">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>
             <div class="pdf-modal-body">
-                <div class="pdf-upload-card">
-                    <div class="pdf-upload-illustration">
-                        <i class="bi bi-cloud-arrow-up"></i>
-                    </div>
-                    <div>
-                        <label class="rc-label">Select PDF File</label>
-                        <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="sr-only">
-                        <p>Drop your PDF here or click to choose a file. Max 15MB.</p>
-                        <button class="rc-btn rc-btn-outline" onclick="document.getElementById('pdfUploadInput').click()">Choose File</button>
+                <!-- Tab Toggle -->
+                <div class="pdf-source-tabs">
+                    <button type="button" class="pdf-source-tab active" data-tab="upload" onclick="switchPdfTab('upload')">
+                        <i class="bi bi-cloud-arrow-up"></i> Upload New
+                    </button>
+                    <button type="button" class="pdf-source-tab" data-tab="pool" onclick="switchPdfTab('pool')">
+                        <i class="bi bi-folder2-open"></i> From Pool
+                    </button>
+                </div>
+
+                <!-- Upload Tab Content -->
+                <div id="pdf-tab-upload" class="pdf-tab-content">
+                    <div class="pdf-upload-card">
+                        <div class="pdf-upload-illustration">
+                            <i class="bi bi-cloud-arrow-up"></i>
+                        </div>
+                        <div>
+                            <label class="rc-label">Select PDF File</label>
+                            <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="sr-only">
+                            <p>Drop your PDF here or click to choose a file. Max 15MB.</p>
+                            <button class="rc-btn rc-btn-outline" onclick="document.getElementById('pdfUploadInput').click()">Choose File</button>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Pool Tab Content -->
+                <div id="pdf-tab-pool" class="pdf-tab-content" style="display: none;">
+                    <div class="pdf-pool-list" id="pdfPoolList">
+                        <div class="pdf-pool-loading">
+                            <i class="bi bi-hourglass-split"></i> Loading pool documents...
+                        </div>
+                    </div>
+                    <div class="pdf-pool-empty" id="pdfPoolEmpty" style="display: none;">
+                        <i class="bi bi-inbox"></i>
+                        <p>No PDF files in pool</p>
+                        <a href="/documents/pool" class="rc-btn rc-btn-outline rc-btn-sm">Go to File Pool</a>
+                    </div>
+                </div>
+
                 <div class="pdf-upload-hints">
                     <span><i class="bi bi-lightning-charge"></i> OCR maps every line item and quantity.</span>
                     <span><i class="bi bi-person-badge"></i> Customer block is parsed to prefill CRM data.</span>
@@ -4675,19 +4703,138 @@ function showToast(message, type) {
             </div>
             <div class="pdf-modal-footer">
                 <button type="button" class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Close</button>
-                <button type="button" class="rc-btn rc-btn-primary" onclick="uploadPDFFile()">
-                    <i class="bi bi-upload"></i> Upload & Process
+                <button type="button" class="rc-btn rc-btn-primary" id="pdfProcessBtn" onclick="processPdfSource()">
+                    <i class="bi bi-cpu"></i> Process
                 </button>
             </div>
         </div>
     </div>
 
+    <style>
+        .pdf-source-tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .pdf-source-tab {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 0.625rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.15s;
+        }
+        .pdf-source-tab:hover {
+            color: #fff;
+        }
+        .pdf-source-tab.active {
+            background: #D0021B;
+            color: #fff;
+        }
+        .pdf-pool-list {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+        }
+        .pdf-pool-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .pdf-pool-item:last-child {
+            border-bottom: none;
+        }
+        .pdf-pool-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .pdf-pool-item.selected {
+            background: rgba(208, 2, 27, 0.15);
+            border-color: rgba(208, 2, 27, 0.3);
+        }
+        .pdf-pool-item-icon {
+            color: #ef4444;
+            font-size: 1.25rem;
+        }
+        .pdf-pool-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .pdf-pool-item-name {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pdf-pool-item-meta {
+            font-size: 0.6875rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .pdf-pool-item-check {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+        .pdf-pool-item.selected .pdf-pool-item-check {
+            background: #D0021B;
+            border-color: #D0021B;
+        }
+        .pdf-pool-item.selected .pdf-pool-item-check::after {
+            content: '';
+            width: 0.375rem;
+            height: 0.375rem;
+            background: #fff;
+            border-radius: 50%;
+        }
+        .pdf-pool-loading, .pdf-pool-empty {
+            padding: 2rem;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .pdf-pool-empty i {
+            font-size: 2rem;
+            opacity: 0.3;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+
     <script>
         // PDF Upload Modal Functions (Global scope for jobs.html)
+        let currentPdfTab = 'upload';
+        let selectedPoolDocumentId = null;
+        let poolDocuments = [];
+
         function openPDFUploadModal() {
             const modal = document.getElementById('pdfUploadModal');
             if (modal) {
                 modal.classList.add('is-visible');
+                // Reset state
+                currentPdfTab = 'upload';
+                selectedPoolDocumentId = null;
+                switchPdfTab('upload');
             }
         }
 
@@ -4697,6 +4844,118 @@ function showToast(message, type) {
                 modal.classList.remove('is-visible');
                 document.getElementById('pdfUploadInput').value = '';
                 document.getElementById('pdfUploadStatus').innerHTML = '';
+                selectedPoolDocumentId = null;
+            }
+        }
+
+        function switchPdfTab(tab) {
+            currentPdfTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.pdf-source-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+
+            // Show/hide content
+            document.getElementById('pdf-tab-upload').style.display = tab === 'upload' ? 'block' : 'none';
+            document.getElementById('pdf-tab-pool').style.display = tab === 'pool' ? 'block' : 'none';
+
+            // Update button text
+            const btn = document.getElementById('pdfProcessBtn');
+            if (tab === 'upload') {
+                btn.innerHTML = '<i class="bi bi-upload"></i> Upload & Process';
+            } else {
+                btn.innerHTML = '<i class="bi bi-cpu"></i> Process Selected';
+                loadPoolDocuments();
+            }
+        }
+
+        async function loadPoolDocuments() {
+            const listEl = document.getElementById('pdfPoolList');
+            const emptyEl = document.getElementById('pdfPoolEmpty');
+
+            listEl.innerHTML = '<div class="pdf-pool-loading"><i class="bi bi-hourglass-split"></i> Loading...</div>';
+            emptyEl.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/v1/pdf/pool-documents');
+                const data = await response.json();
+
+                if (data.success && data.documents && data.documents.length > 0) {
+                    poolDocuments = data.documents;
+                    listEl.innerHTML = data.documents.map(doc => `
+                        <div class="pdf-pool-item" onclick="selectPoolDocument(${doc.document_id})" data-doc-id="${doc.document_id}">
+                            <i class="bi bi-file-earmark-pdf-fill pdf-pool-item-icon"></i>
+                            <div class="pdf-pool-item-info">
+                                <div class="pdf-pool-item-name">${doc.original_filename}</div>
+                                <div class="pdf-pool-item-meta">${formatFileSize(doc.file_size)} • ${formatDate(doc.uploaded_at)}</div>
+                            </div>
+                            <div class="pdf-pool-item-check"></div>
+                        </div>
+                    `).join('');
+                } else {
+                    listEl.innerHTML = '';
+                    emptyEl.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading pool documents:', error);
+                listEl.innerHTML = '<div class="pdf-pool-loading" style="color: #ef4444;"><i class="bi bi-exclamation-circle"></i> Failed to load</div>';
+            }
+        }
+
+        function selectPoolDocument(docId) {
+            selectedPoolDocumentId = docId;
+
+            // Update selection UI
+            document.querySelectorAll('.pdf-pool-item').forEach(item => {
+                item.classList.toggle('selected', parseInt(item.dataset.docId) === docId);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+        }
+
+        function processPdfSource() {
+            if (currentPdfTab === 'upload') {
+                uploadPDFFile();
+            } else {
+                processPoolDocument();
+            }
+        }
+
+        async function processPoolDocument() {
+            if (!selectedPoolDocumentId) {
+                alert('Please select a PDF from the pool');
+                return;
+            }
+
+            const statusDiv = document.getElementById('pdfUploadStatus');
+            statusDiv.innerHTML = '<div class="rc-alert rc-alert-info"><i class="bi bi-hourglass-split"></i> Processing PDF from pool...</div>';
+
+            try {
+                const response = await fetch(`/api/v1/pdf/from-pool/${selectedPoolDocumentId}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    statusDiv.innerHTML = '<div class="rc-alert rc-alert-success"><i class="bi bi-check-circle"></i> Processing started! Waiting for extraction...</div>';
+                    pollExtractionResults(result.upload_id);
+                } else {
+                    statusDiv.innerHTML = `<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Processing failed: ${result.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                console.error('Pool processing error:', error);
+                statusDiv.innerHTML = '<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Processing failed. Please try again.</div>';
             }
         }
 
