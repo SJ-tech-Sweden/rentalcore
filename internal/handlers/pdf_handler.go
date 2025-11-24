@@ -3135,6 +3135,9 @@ func (h *PDFHandler) GetPoolDocumentsForOCR(c *gin.Context) {
 		return
 	}
 
+	// Auto-sync from Nextcloud before listing
+	h.DocumentHandler.SyncFromNextcloud()
+
 	// Get unassigned PDF documents
 	var documents []models.Document
 	if err := h.DocumentHandler.GetDB().
@@ -3166,6 +3169,7 @@ func (h *PDFHandler) GetPoolDocumentsForOCR(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
 		"documents": results,
 		"count":     len(results),
 	})

@@ -1059,6 +1059,7 @@ func setupRoutes(r *gin.Engine,
 			pool := documents.Group("/pool")
 			pool.Use(rbacMiddleware.RequireAdminOrManager())
 			pool.GET("", documentHandler.ListFilePool)
+			pool.GET("/sync", documentHandler.SyncFilePool)
 			documents.GET("/:id", documentHandler.GetDocument)
 			documents.GET("/:id/view", documentHandler.ViewDocument)
 			documents.GET("/:id/download", documentHandler.DownloadDocument)

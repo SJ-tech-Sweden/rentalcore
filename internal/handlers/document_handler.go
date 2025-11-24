@@ -704,6 +704,9 @@ func (h *DocumentHandler) GetDocumentStats(c *gin.Context) {
 
 // ListFilePool groups documents by assignment status.
 func (h *DocumentHandler) ListFilePool(c *gin.Context) {
+	// Auto-sync from Nextcloud before listing
+	h.SyncFromNextcloud()
+
 	var documents []models.Document
 	if err := h.db.Preload("Uploader").Order("uploaded_at DESC").Find(&documents).Error; err != nil {
 		h.respondError(c, http.StatusInternalServerError, "Failed to load documents")
@@ -748,6 +751,168 @@ func (h *DocumentHandler) ListFilePool(c *gin.Context) {
 		"assignedCount": assignedCount,
 		"unusedCount":   unusedCount,
 	})
+}
+
+// SyncFromNextcloud scans Nextcloud folders and creates database entries for files not yet tracked.
+// This enables "live" detection of files added directly via Nextcloud or Windows Explorer.
+func (h *DocumentHandler) SyncFromNextcloud() (int, error) {
+	if !h.useNextcloud || h.ncClient == nil {
+		return 0, nil
+	}
+
+	synced := 0
+
+	// Sync unassigned folder
+	unassignedFiles, err := h.ncClient.List(h.unassignedRoot)
+	if err == nil {
+		for _, entry := range unassignedFiles {
+			if entry.IsDir || entry.Size == 0 {
+				continue
+			}
+
+			filename := path.Base(entry.Path)
+			remotePath := "nextcloud:" + strings.TrimLeft(entry.Path, "/")
+
+			// Check if already in database
+			var count int64
+			h.db.Model(&models.Document{}).Where("file_path = ?", remotePath).Count(&count)
+			if count > 0 {
+				continue
+			}
+
+			// Determine document type from extension
+			docType := h.guessDocumentType(filename)
+			mimeType := h.guessMimeType(filename)
+
+			// Create database entry
+			doc := models.Document{
+				EntityType:       "system",
+				EntityID:         "unassigned",
+				Filename:         filename,
+				OriginalFilename: filename,
+				FilePath:         remotePath,
+				FileSize:         entry.Size,
+				MimeType:         mimeType,
+				DocumentType:     docType,
+				Description:      "Auto-synced from Nextcloud",
+				UploadedAt:       entry.ModTime,
+				IsPublic:         false,
+				Version:          1,
+			}
+
+			if err := h.db.Create(&doc).Error; err == nil {
+				synced++
+			}
+		}
+	}
+
+	// Sync assigned folder (recursively)
+	assignedFiles, err := h.ncClient.List(h.assignedRoot)
+	if err == nil {
+		for _, entry := range assignedFiles {
+			if entry.IsDir || entry.Size == 0 {
+				continue
+			}
+
+			filename := path.Base(entry.Path)
+			remotePath := "nextcloud:" + strings.TrimLeft(entry.Path, "/")
+
+			// Check if already in database
+			var count int64
+			h.db.Model(&models.Document{}).Where("file_path = ?", remotePath).Count(&count)
+			if count > 0 {
+				continue
+			}
+
+			// Parse entity type and ID from path: assigned/<entityType>/<entityID>/filename
+			pathParts := strings.Split(strings.TrimPrefix(entry.Path, h.assignedRoot+"/"), "/")
+			entityType := "system"
+			entityID := "unknown"
+			if len(pathParts) >= 3 {
+				entityType = pathParts[0]
+				entityID = pathParts[1]
+			}
+
+			docType := h.guessDocumentType(filename)
+			mimeType := h.guessMimeType(filename)
+
+			doc := models.Document{
+				EntityType:       entityType,
+				EntityID:         entityID,
+				Filename:         filename,
+				OriginalFilename: filename,
+				FilePath:         remotePath,
+				FileSize:         entry.Size,
+				MimeType:         mimeType,
+				DocumentType:     docType,
+				Description:      "Auto-synced from Nextcloud",
+				UploadedAt:       entry.ModTime,
+				IsPublic:         false,
+				Version:          1,
+			}
+
+			if err := h.db.Create(&doc).Error; err == nil {
+				synced++
+			}
+		}
+	}
+
+	return synced, nil
+}
+
+// SyncFilePool is an HTTP endpoint to manually trigger Nextcloud sync
+// GET /api/v1/documents/sync
+func (h *DocumentHandler) SyncFilePool(c *gin.Context) {
+	synced, err := h.SyncFromNextcloud()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"synced":  synced,
+		"message": fmt.Sprintf("Synced %d new files from Nextcloud", synced),
+	})
+}
+
+// Helper functions for sync
+func (h *DocumentHandler) guessDocumentType(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".pdf":
+		return "contract"
+	case ".jpg", ".jpeg", ".png", ".gif":
+		return "photo"
+	case ".doc", ".docx":
+		return "manual"
+	default:
+		return "other"
+	}
+}
+
+func (h *DocumentHandler) guessMimeType(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".pdf":
+		return "application/pdf"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".doc":
+		return "application/msword"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".xls":
+		return "application/vnd.ms-excel"
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // Helpers

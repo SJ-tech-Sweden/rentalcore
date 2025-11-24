@@ -471,7 +471,17 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.25** (Latest) - File Pool Job Creation UI
+### **v4.1.26** (Latest) - Nextcloud Live Sync
+- 🔄 **Automatic Nextcloud Sync**: Files added directly to Nextcloud (via Explorer or Nextcloud UI) are automatically detected and tracked in database
+- 📂 **Auto-Sync on Access**: ListFilePool and GetPoolDocumentsForOCR now sync from Nextcloud before returning data
+- 🔌 **Manual Sync Endpoint**: New GET `/api/v1/documents/pool/sync` endpoint for manual sync triggers
+- ✅ **Fixed API Response**: GetPoolDocumentsForOCR now returns proper `success: true` field
+- 🧠 **Intelligent Detection**: Smart MIME type and document type detection for synced files
+- 📁 **Folder Scanning**: Scans both unassigned and assigned Nextcloud folders recursively
+- 🔍 **Duplicate Prevention**: Only creates database entries for files not already tracked
+- 📊 **Sync Reporting**: Returns count of newly synced files for monitoring
+
+### **v4.1.25** - File Pool Job Creation UI
 - 🎨 **Tab-Based PDF Modal**: Job creation PDF modal now features tabbed interface with "Upload New" and "From Pool" options
 - 📂 **Pool Document Selection**: Browse and select existing File Pool documents directly from the job creation modal
 - 🔍 **Live Pool List**: Dynamic loading of unassigned PDF documents with filename, size, and upload date
