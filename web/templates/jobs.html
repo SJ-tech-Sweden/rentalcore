@@ -669,6 +669,8 @@
                 const customPrice = device.custom_price;
                 const productPrice = device.device?.product?.itemcostperday || device.device?.product?.itemCostPerDay || 0;
                 const price = (customPrice && customPrice > 0) ? customPrice : productPrice;
+                const priceLabel = Number(price || 0).toFixed(2);
+                const priceNote = customPrice && customPrice > 0 ? ' (custom)' : '';
 
                 html += `
                     <div class="device-item rc-flex rc-flex-between rc-flex-items-center rc-p-sm rc-mb-xs" style="border: 1px solid var(--surface-3); border-radius: var(--radius-sm);">
@@ -676,15 +678,8 @@
                             <strong>${escapeHtml(deviceName)}</strong>
                             <br><small class="rc-text-muted">${escapeHtml(deviceId || 'Unknown ID')}</small>
                         </div>
-                        <div class="rc-flex rc-flex-items-center rc-flex-gap-sm">
-                            <input type="number" 
-                                   value="${Number(price || 0).toFixed(2)}" 
-                                   class="device-price-input rc-input rc-input-sm" 
-                                   style="width: 100px;" 
-                                   step="0.01"
-                                   onchange="updateDevicePrice(${jobID}, ${JSON.stringify(deviceId)}, this.value)"
-                                   placeholder="0.00">
-                            <span class="rc-text-sm">€</span>
+                        <div class="rc-text-sm rc-text-secondary" title="${customPrice ? 'Custom price set for this device' : 'Price from product'}">
+                            €${priceLabel}${priceNote}
                         </div>
                     </div>
                 `;
