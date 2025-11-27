@@ -781,6 +781,7 @@
             padding: var(--space-md);
             transition: background var(--transition-fast), border var(--transition-fast), box-shadow var(--transition-fast);
             overflow: visible;
+            z-index: 1;
         }
         .wc-node::before {
             content: '';
@@ -796,6 +797,7 @@
         }
         .wc-node.open {
             box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+            z-index: 2;
         }
         .wc-node.open::before {
             background: linear-gradient(180deg, var(--rc-primary), transparent);
@@ -1831,16 +1833,7 @@
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            const childIds = [];
-            (category.subcategories || []).forEach(sub => {
-                const subId = `sub-${sub.id}`;
-                childIds.push(subId);
-                (sub.subbiercategories || []).forEach(sb => childIds.push(`subbier-${sb.id}`));
-            });
-            if (Array.isArray(category.products) && category.products.length > 0) {
-                childIds.push(`cat-${category.id}-products`);
-            }
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, childIds));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1882,11 +1875,7 @@
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            const childIds = (subcategory.subbiercategories || []).map(sb => `subbier-${sb.id}`);
-            if (Array.isArray(subcategory.products) && subcategory.products.length > 0) {
-                childIds.push(`sub-${subcategory.id}-products`);
-            }
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, childIds));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1928,7 +1917,7 @@
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, []));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1970,7 +1959,7 @@
             const header = document.createElement('div');
             header.className = 'wc-node-header';
             const stats = collectProductsStats(products);
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, []));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -2070,10 +2059,9 @@
             return card;
         }
 
-        function toggleNode(set, id, childIds = []) {
+        function toggleNode(set, id) {
             if (set.has(id)) {
                 set.delete(id);
-                childIds.forEach(child => set.delete(child));
             } else {
                 set.add(id);
             }
@@ -2081,6 +2069,14 @@
         }
 
         function toggleProductTreeNodes(open) {
+            if (!open) {
+                // Collapse all
+                productTreeExpanded = new Set();
+                renderProductTree(productTreeData);
+                return;
+            }
+
+            // Expand all - add ALL node IDs
             const ids = [];
             productTreeData.forEach(cat => {
                 ids.push('cat-' + cat.id);
@@ -2092,10 +2088,15 @@
                     if (Array.isArray(sub.products) && sub.products.length > 0) {
                         ids.push(`sub-${sub.id}-products`);
                     }
-                    (sub.subbiercategories || []).forEach(sb => ids.push('subbier-' + sb.id));
+                    (sub.subbiercategories || []).forEach(sb => {
+                        ids.push('subbier-' + sb.id);
+                        if (Array.isArray(sb.products) && sb.products.length > 0) {
+                            ids.push(`subbier-${sb.id}-products`);
+                        }
+                    });
                 });
             });
-            productTreeExpanded = new Set(open ? ids : []);
+            productTreeExpanded = new Set(ids);
             renderProductTree(productTreeData);
         }
 
