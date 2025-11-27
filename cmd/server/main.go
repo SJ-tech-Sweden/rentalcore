@@ -1343,6 +1343,9 @@ func setupRoutes(r *gin.Engine,
 				apiProducts.GET("", productHandler.ListProducts)
 				apiProducts.GET("/:id", productHandler.GetProductAPI)
 
+				// Product Dependencies (WarehouseCore integration)
+				apiProducts.GET("/:id/dependencies", accessoriesConsumablesHandler.GetProductDependenciesAPI)
+
 				// Product Accessories
 				apiProducts.GET("/:id/accessories", accessoriesConsumablesHandler.GetProductAccessoriesAPI)
 				apiProducts.POST("/:id/accessories", accessoriesConsumablesHandler.AddProductAccessoryAPI)

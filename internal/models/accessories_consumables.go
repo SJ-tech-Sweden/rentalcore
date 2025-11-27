@@ -53,6 +53,42 @@ func (ProductConsumable) TableName() string {
 	return "product_consumables"
 }
 
+// ProductDependency represents the new unified dependency table from WarehouseCore
+type ProductDependency struct {
+	ID                  int       `json:"id" gorm:"primaryKey;column:id;autoIncrement"`
+	ProductID           int       `json:"product_id" gorm:"not null;column:product_id;index"`
+	DependencyProductID int       `json:"dependency_product_id" gorm:"not null;column:dependency_product_id;index"`
+	IsOptional          bool      `json:"is_optional" gorm:"column:is_optional;default:1"`
+	DefaultQuantity     float64   `json:"default_quantity" gorm:"column:default_quantity;type:decimal(10,2);default:1.00"`
+	Notes               *string   `json:"notes" gorm:"column:notes;type:varchar(500)"`
+	CreatedAt           time.Time `json:"created_at" gorm:"column:created_at;default:CURRENT_TIMESTAMP"`
+	UpdatedAt           time.Time `json:"updated_at" gorm:"column:updated_at;default:CURRENT_TIMESTAMP"`
+
+	// Relations
+	Product           *Product `json:"product,omitempty" gorm:"foreignKey:ProductID;references:ProductID"`
+	DependencyProduct *Product `json:"dependency_product,omitempty" gorm:"foreignKey:DependencyProductID;references:ProductID"`
+}
+
+func (ProductDependency) TableName() string {
+	return "product_dependencies"
+}
+
+// ProductDependencyView represents a denormalized view of product dependencies with product details
+type ProductDependencyView struct {
+	ID                  int      `json:"id" gorm:"column:id"`
+	ProductID           int      `json:"product_id" gorm:"column:product_id"`
+	DependencyProductID int      `json:"dependency_product_id" gorm:"column:dependency_product_id"`
+	DependencyName      string   `json:"dependency_name" gorm:"column:dependency_name"`
+	IsAccessory         bool     `json:"is_accessory" gorm:"column:is_accessory"`
+	IsConsumable        bool     `json:"is_consumable" gorm:"column:is_consumable"`
+	GenericBarcode      *string  `json:"generic_barcode" gorm:"column:generic_barcode"`
+	CountTypeAbbr       *string  `json:"count_type_abbr" gorm:"column:count_type_abbr"`
+	StockQuantity       *float64 `json:"stock_quantity" gorm:"column:stock_quantity"`
+	IsOptional          bool     `json:"is_optional" gorm:"column:is_optional"`
+	DefaultQuantity     float64  `json:"default_quantity" gorm:"column:default_quantity"`
+	Notes               *string  `json:"notes" gorm:"column:notes"`
+}
+
 // JobAccessory tracks accessories assigned to a job
 type JobAccessory struct {
 	JobAccessoryID     uint64    `json:"job_accessory_id" gorm:"primaryKey;column:job_accessory_id;autoIncrement"`

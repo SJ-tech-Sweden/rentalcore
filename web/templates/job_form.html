@@ -2913,7 +2913,7 @@
 
         // ===== ACCESSORIES & CONSUMABLES SELECTION =====
 
-        // Check if product has accessories/consumables and show selection modal
+        // Check if product has dependencies and show selection modal
         async function checkAndPromptAccessoriesConsumables(productID, deviceID, multiplier = 1, jobIDOverride) {
             const templateJobID = {{if .job}}{{.job.JobID}}{{else}}null{{end}};
             const jobID = jobIDOverride !== undefined ? jobIDOverride : templateJobID;
@@ -2921,36 +2921,55 @@
             if (!productID || !jobID) return;
 
             try {
-                // Fetch accessories and consumables for this product
-                const [accRes, consRes] = await Promise.all([
-                    fetch(`/api/products/${productID}/accessories`),
-                    fetch(`/api/products/${productID}/consumables`)
-                ]);
+                // Fetch dependencies for this product from WarehouseCore integration
+                const depRes = await fetch(`/api/products/${productID}/dependencies`);
 
-                if (!accRes.ok || !consRes.ok) {
-                    console.error('Failed to fetch accessories/consumables');
+                if (!depRes.ok) {
+                    console.log('No dependencies found for this product');
                     return;
                 }
 
-                const accData = await accRes.json();
-                const consData = await consRes.json();
+                const depData = await depRes.json();
+                const dependencies = depData.dependencies || [];
 
-                const accessories = (accData.accessories || []).map(acc => {
-                    const baseQty = typeof acc.default_quantity === 'number' ? acc.default_quantity : 1;
-                    const scaled = Math.max(1, Math.round(baseQty * multiplier));
-                    return {
-                        ...acc,
-                        default_quantity: scaled
-                    };
-                });
-                const consumables = (consData.consumables || []).map(cons => {
-                    const baseQty = typeof cons.default_quantity === 'number' ? cons.default_quantity : 0;
-                    const scaled = baseQty * multiplier;
-                    return {
-                        ...cons,
-                        default_quantity: Number.isFinite(scaled) ? scaled : baseQty
-                    };
-                });
+                if (dependencies.length === 0) {
+                    return;
+                }
+
+                // Separate dependencies into accessories and consumables
+                const accessories = dependencies
+                    .filter(dep => dep.is_accessory)
+                    .map(dep => {
+                        const baseQty = typeof dep.default_quantity === 'number' ? dep.default_quantity : 1;
+                        const scaled = Math.max(1, Math.round(baseQty * multiplier));
+                        return {
+                            accessory_product_id: dep.dependency_product_id,
+                            accessory_name: dep.dependency_name,
+                            accessory_stock: dep.stock_quantity,
+                            count_type_abbr: dep.count_type_abbr,
+                            generic_barcode: dep.generic_barcode,
+                            is_optional: dep.is_optional,
+                            default_quantity: scaled,
+                            notes: dep.notes
+                        };
+                    });
+
+                const consumables = dependencies
+                    .filter(dep => dep.is_consumable)
+                    .map(dep => {
+                        const baseQty = typeof dep.default_quantity === 'number' ? dep.default_quantity : 0;
+                        const scaled = baseQty * multiplier;
+                        return {
+                            consumable_product_id: dep.dependency_product_id,
+                            consumable_name: dep.dependency_name,
+                            consumable_stock: dep.stock_quantity,
+                            count_type: dep.count_type_abbr,
+                            count_type_abbr: dep.count_type_abbr,
+                            generic_barcode: dep.generic_barcode,
+                            default_quantity: Number.isFinite(scaled) ? scaled : baseQty,
+                            notes: dep.notes
+                        };
+                    });
 
                 // Show modals if there are accessories or consumables
                 if (accessories.length > 0) {
@@ -2961,7 +2980,7 @@
                     await showConsumablesInputModal(jobID, deviceID, consumables);
                 }
             } catch (error) {
-                console.error('Error checking accessories/consumables:', error);
+                console.error('Error checking dependencies:', error);
             }
         }
 

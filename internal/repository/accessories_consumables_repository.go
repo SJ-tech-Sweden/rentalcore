@@ -36,6 +36,36 @@ func (r *AccessoriesConsumablesRepository) GetCountTypeByID(id uint) (*models.Co
 }
 
 // ============================================================================
+// Product Dependencies (WarehouseCore integration)
+// ============================================================================
+
+func (r *AccessoriesConsumablesRepository) GetProductDependencies(productID uint) ([]models.ProductDependencyView, error) {
+	var dependencies []models.ProductDependencyView
+	query := `
+		SELECT
+			pd.id,
+			pd.product_id,
+			pd.dependency_product_id,
+			p.name as dependency_name,
+			COALESCE(p.is_accessory, false) as is_accessory,
+			COALESCE(p.is_consumable, false) as is_consumable,
+			p.generic_barcode,
+			ct.abbreviation as count_type_abbr,
+			p.stock_quantity,
+			pd.is_optional,
+			pd.default_quantity,
+			pd.notes
+		FROM product_dependencies pd
+		JOIN products p ON pd.dependency_product_id = p.productID
+		LEFT JOIN count_types ct ON p.count_type_id = ct.count_type_id
+		WHERE pd.product_id = ?
+		ORDER BY pd.is_optional ASC, pd.created_at DESC
+	`
+	err := r.db.Raw(query, productID).Scan(&dependencies).Error
+	return dependencies, err
+}
+
+// ============================================================================
 // Product Accessories
 // ============================================================================
 

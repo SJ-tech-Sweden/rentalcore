@@ -48,6 +48,28 @@ func (h *AccessoriesConsumablesHandler) GetCountTypesAPI(c *gin.Context) {
 }
 
 // ============================================================================
+// Product Dependencies API (WarehouseCore integration)
+// ============================================================================
+
+func (h *AccessoriesConsumablesHandler) GetProductDependenciesAPI(c *gin.Context) {
+	productIDStr := c.Param("productID")
+	productID, err := strconv.ParseUint(productIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	dependencies, err := h.repo.GetProductDependencies(uint(productID))
+	if err != nil {
+		log.Printf("❌ Error fetching product dependencies: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product dependencies"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"dependencies": dependencies})
+}
+
+// ============================================================================
 // Product Accessories API
 // ============================================================================
 
