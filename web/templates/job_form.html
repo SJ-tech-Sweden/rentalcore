@@ -1624,6 +1624,34 @@
             return product.id ?? product.productID ?? product.ProductID ?? product.productId ?? product.Id ?? null;
         }
 
+        function collectProductsStats(products) {
+            if (!Array.isArray(products)) {
+                return { products: 0, available: 0, total: 0 };
+            }
+            return products.reduce((acc, product) => {
+                const stats = extractProductStats(product);
+                acc.products += 1;
+                acc.available += stats.available;
+                acc.total += stats.total;
+                return acc;
+            }, { products: 0, available: 0, total: 0 });
+        }
+
+        function isConsumableProduct(product) {
+            const flag = product?.is_consumable ?? product?.IsConsumable ?? product?.isConsumable;
+            return flag === true || flag === 1 || flag === "1";
+        }
+
+        function getProductStock(product) {
+            const raw = product?.stock_quantity ?? product?.StockQuantity;
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function getProductUnit(product) {
+            return product?.count_type_abbr ?? product?.CountTypeAbbr ?? product?.countTypeAbbr ?? '';
+        }
+
         function toNumber(value, fallback = 0) {
             const parsed = Number(value);
             return Number.isFinite(parsed) ? parsed : fallback;
@@ -1808,6 +1836,9 @@
                 childIds.push(subId);
                 (sub.subbiercategories || []).forEach(sb => childIds.push(`subbier-${sb.id}`));
             });
+            if (Array.isArray(category.products) && category.products.length > 0) {
+                childIds.push(`cat-${category.id}-products`);
+            }
             header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, childIds));
 
             const title = document.createElement('div');
@@ -1829,7 +1860,10 @@
             body.className = 'wc-node-body';
 
             (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
-            (category.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+            const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+            if (catProductsGroup) {
+                body.appendChild(catProductsGroup);
+            }
 
             node.appendChild(header);
             node.appendChild(body);
@@ -1844,6 +1878,9 @@
             const header = document.createElement('div');
             header.className = 'wc-node-header';
             const childIds = (subcategory.subbiercategories || []).map(sb => `subbier-${sb.id}`);
+            if (Array.isArray(subcategory.products) && subcategory.products.length > 0) {
+                childIds.push(`sub-${subcategory.id}-products`);
+            }
             header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, childIds));
 
             const title = document.createElement('div');
@@ -1865,7 +1902,10 @@
             body.className = 'wc-node-body';
 
             (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
-            (subcategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+            if (subProductsGroup) {
+                body.appendChild(subProductsGroup);
+            }
 
             node.appendChild(header);
             node.appendChild(body);
@@ -1899,6 +1939,42 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
             (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+
+            node.appendChild(header);
+            node.appendChild(body);
+            return node;
+        }
+
+        function renderProductGroup(products, nodeId, label) {
+            if (!Array.isArray(products) || products.length === 0) {
+                return null;
+            }
+            const node = document.createElement('div');
+            node.className = 'wc-node';
+            if (productTreeExpanded.has(nodeId)) node.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'wc-node-header';
+            const stats = collectProductsStats(products);
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, []));
+
+            const title = document.createElement('div');
+            title.className = 'wc-node-title';
+            title.innerHTML = `<i class="bi bi-chevron-right wc-node-chevron"></i><span>${escapeHtml(label || 'Produkte')}</span>`;
+
+            const chips = document.createElement('div');
+            chips.className = 'rc-node-metrics';
+            chips.innerHTML = `
+                <span class="wc-chip">${stats.products} Produkte</span>
+                <span class="wc-chip ${stats.available > 0 ? 'success' : stats.total === 0 ? 'muted' : 'danger'}">${stats.available}/${stats.total} frei</span>
+            `;
+
+            header.appendChild(title);
+            header.appendChild(chips);
+
+            const body = document.createElement('div');
+            body.className = 'wc-node-body';
+            products.forEach(product => body.appendChild(renderProductCard(product)));
 
             node.appendChild(header);
             node.appendChild(body);
@@ -1958,6 +2034,16 @@
                 input.title = 'Produkt-ID fehlt, Auswahl nicht möglich';
             }
 
+            if (isConsumableProduct(product)) {
+                const unit = escapeHtml(getProductUnit(product));
+                const stock = getProductStock(product);
+                const stockText = stock !== null ? `${stock}${unit ? ' ' + unit : ''}` : `0${unit ? ' ' + unit : ''}`;
+                const stockChip = document.createElement('span');
+                stockChip.className = 'wc-chip muted';
+                stockChip.innerHTML = `<i class="bi bi-archive"></i> Lager: ${stockText}`;
+                inputs.appendChild(stockChip);
+            }
+
             inputs.appendChild(availChip);
             inputs.appendChild(input);
 
@@ -1980,8 +2066,14 @@
             const ids = [];
             productTreeData.forEach(cat => {
                 ids.push('cat-' + cat.id);
+                if (Array.isArray(cat.products) && cat.products.length > 0) {
+                    ids.push(`cat-${cat.id}-products`);
+                }
                 (cat.subcategories || []).forEach(sub => {
                     ids.push('sub-' + sub.id);
+                    if (Array.isArray(sub.products) && sub.products.length > 0) {
+                        ids.push(`sub-${sub.id}-products`);
+                    }
                     (sub.subbiercategories || []).forEach(sb => ids.push('subbier-' + sb.id));
                 });
             });
