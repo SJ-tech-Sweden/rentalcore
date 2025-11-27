@@ -748,6 +748,7 @@
     async function showEditJob(jobID) {
         // Close details modal if open
         closeJobModal();
+        currentEditingJobId = jobID;
         
         const proceed = await confirmJobEditorConflict(jobID);
         if (!proceed) {
@@ -915,13 +916,29 @@
                         </div>
                         <div class="rc-card-body">
                             <div id="editProductSelectionContainer">
-                                <div class="rc-flex rc-flex-center rc-py-xl" id="editProductTreeLoading">
-                                    <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
-                                    Please select start and end dates to load available products
-                                </div>
-                                <div id="editProductTreeRoot" class="rc-product-tree" style="display: none;"></div>
-                                <div id="editProductTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> No products found for the selected dates.
+                                <div class="rc-product-tree-frame">
+                                    <div class="rc-product-tree-toolbar" id="editProductTreeActions" style="display: none;">
+                                        <div class="rc-product-tree-status">
+                                            <i class="bi bi-stars"></i>
+                                            <span id="editProductTreeSummary">Pick a timeframe to see live availability.</span>
+                                        </div>
+                                        <div class="rc-product-tree-controls">
+                                            <button type="button" class="rc-btn rc-btn-ghost rc-btn-xs" data-action="edit-collapse-product-tree">
+                                                <i class="bi bi-chevron-up"></i> Collapse All
+                                            </button>
+                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" data-action="edit-expand-product-tree">
+                                                <i class="bi bi-arrows-expand"></i> Expand All
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="rc-flex rc-flex-center rc-py-xl" id="editProductTreeLoading">
+                                        <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                        Please select start and end dates to load available products
+                                    </div>
+                                    <div id="editProductTreeRoot" class="rc-product-tree" style="display: none;"></div>
+                                    <div id="editProductTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
+                                        <i class="bi bi-info-circle"></i> No products found for the selected dates.
+                                    </div>
                                 </div>
                             </div>
                             <div id="editProductSelectionErrors" class="rc-alert rc-alert-error rc-mt-lg" style="display: none;"></div>
@@ -989,6 +1006,18 @@
                 endDateInput.addEventListener('change', () => loadEditProductTree(jobID));
             }
 
+            if (!editProductTreeControlsBound) {
+                const expandButton = document.querySelector('[data-action="edit-expand-product-tree"]');
+                const collapseButton = document.querySelector('[data-action="edit-collapse-product-tree"]');
+                if (expandButton) {
+                    expandButton.addEventListener('click', () => toggleEditProductTreeNodes(true));
+                }
+                if (collapseButton) {
+                    collapseButton.addEventListener('click', () => toggleEditProductTreeNodes(false));
+                }
+                editProductTreeControlsBound = true;
+            }
+
             initializeEditProductSelections(job.jobID, existingDevices);
             loadEditAssignedDevices(job.jobID, existingDevices);
             refreshJobRentalEquipment(job.jobID);
@@ -1005,6 +1034,7 @@
 
     function closeEditJobModal() {
         document.getElementById('jobEditModal').style.display = 'none';
+        currentEditingJobId = null;
         stopJobEditSession();
     }
 
@@ -1409,6 +1439,8 @@
     let editInitialProductSelections = new Map();
     let editProductTreeData = [];
     let editProductValidationErrors = [];
+    let currentEditingJobId = null;
+    let editProductTreeControlsBound = false;
 
     function initializeEditProductSelections(jobID, existingDevices) {
         editProductSelections = new Map();
@@ -1457,6 +1489,7 @@
         const loading = document.getElementById('editProductTreeLoading');
         const root = document.getElementById('editProductTreeRoot');
         const empty = document.getElementById('editProductTreeEmpty');
+        const actions = document.getElementById('editProductTreeActions');
 
         if (!startDate || !endDate) {
             if (loading) {
@@ -1465,6 +1498,8 @@
             }
             if (root) root.style.display = 'none';
             if (empty) empty.style.display = 'none';
+            if (actions) actions.style.display = 'none';
+            updateEditProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
             return;
         }
 
@@ -1595,10 +1630,122 @@
         idsToRemove.forEach(id => editProductSelections.delete(id));
     }
 
+    function editMergeStats(target, addition) {
+        return {
+            products: (target.products || 0) + (addition.products || 0),
+            available: (target.available || 0) + (addition.available || 0),
+            total: (target.total || 0) + (addition.total || 0)
+        };
+    }
+
+    function editCollectNodeStats(node) {
+        if (!node || typeof node !== 'object') {
+            return { products: 0, available: 0, total: 0 };
+        }
+
+        let stats = { products: 0, available: 0, total: 0 };
+
+        if (Array.isArray(node.products)) {
+            node.products.forEach(product => {
+                const productStats = extractEditProductStats(product);
+                stats.products += 1;
+                stats.available += productStats.available;
+                stats.total += productStats.total;
+            });
+        }
+
+        if (Array.isArray(node.subcategories)) {
+            node.subcategories.forEach(sub => {
+                stats = editMergeStats(stats, editCollectNodeStats(sub));
+            });
+        }
+
+        if (Array.isArray(node.subbiercategories)) {
+            node.subbiercategories.forEach(sub => {
+                stats = editMergeStats(stats, editCollectNodeStats(sub));
+            });
+        }
+
+        return stats;
+    }
+
+    function editCollectTreeStats(tree) {
+        if (!Array.isArray(tree)) {
+            return { products: 0, available: 0, total: 0 };
+        }
+        return tree.reduce((acc, node) => editMergeStats(acc, editCollectNodeStats(node)), { products: 0, available: 0, total: 0 });
+    }
+
+    function updateEditProductTreeSummary(stats, categoryCount) {
+        const summary = document.getElementById('editProductTreeSummary');
+        if (!summary) {
+            return;
+        }
+
+        if (!categoryCount) {
+            summary.textContent = 'No products available for the selected dates.';
+            return;
+        }
+
+        const parts = [
+            `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}`,
+            `${stats.products} ${stats.products === 1 ? 'product' : 'products'}`
+        ];
+
+        if (stats.total > 0) {
+            const percent = Math.round((stats.available / Math.max(stats.total, 1)) * 100);
+            parts.push(`${stats.available}/${stats.total} devices free (${percent}% open)`);
+        }
+
+        summary.textContent = parts.join(' • ');
+    }
+
+    function toggleEditProductTreeNodes(open) {
+        const root = document.getElementById('editProductTreeRoot');
+        if (!root) {
+            return;
+        }
+        const nodes = root.querySelectorAll('details');
+        nodes.forEach(detail => {
+            detail.open = open;
+        });
+    }
+
+    function editBuildNodeHeader(level, name, stats) {
+        const icons = {
+            category: 'bi-diagram-3',
+            subcategory: 'bi-diagram-2',
+            subbiercategory: 'bi-layers'
+        };
+        const availabilityClass = stats.total === 0
+            ? 'rc-chip-muted'
+            : stats.available > 0
+                ? 'rc-chip-success'
+                : 'rc-chip-danger';
+        const availabilityText = stats.total === 0
+            ? 'No devices yet'
+            : `${stats.available}/${stats.total} ready`;
+        const productLabel = `${stats.products} ${stats.products === 1 ? 'Product' : 'Products'}`;
+
+        return `
+            <div class="rc-node-header">
+                <div class="rc-node-title">
+                    <i class="bi ${icons[level] || icons.category}"></i>
+                    <span>${escapeHtml(name || 'Untitled')}</span>
+                </div>
+                <div class="rc-node-metrics">
+                    <span class="rc-chip rc-chip-neutral">${productLabel}</span>
+                    <span class="rc-chip ${availabilityClass}">${availabilityText}</span>
+                </div>
+            </div>
+        `;
+    }
+
     function renderEditProductTree(treeData) {
         const loading = document.getElementById('editProductTreeLoading');
         const root = document.getElementById('editProductTreeRoot');
         const empty = document.getElementById('editProductTreeEmpty');
+        const actions = document.getElementById('editProductTreeActions');
 
         if (!root) {
             return;
@@ -1613,6 +1760,8 @@
         if (!Array.isArray(treeData) || treeData.length === 0) {
             if (empty) empty.style.display = 'block';
             root.style.display = 'none';
+            if (actions) actions.style.display = 'none';
+            updateEditProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
             updateEditSelectedProductsSummary();
             updateEditHiddenProductInput();
             validateEditProductSelections();
@@ -1621,6 +1770,11 @@
 
         if (empty) empty.style.display = 'none';
         root.style.display = 'block';
+        const totals = editCollectTreeStats(treeData);
+        updateEditProductTreeSummary(totals, treeData.length);
+        if (actions) {
+            actions.style.display = 'flex';
+        }
 
         const renderedProducts = new Set();
 
@@ -1630,7 +1784,8 @@
             categoryDetails.className = 'rc-product-node rc-product-node-category';
 
             const summary = document.createElement('summary');
-            summary.innerHTML = `<strong>${escapeHtml(category.name)}</strong>`;
+            const categoryStats = editCollectNodeStats(category);
+            summary.innerHTML = editBuildNodeHeader('category', category.name, categoryStats);
             categoryDetails.appendChild(summary);
 
             const body = document.createElement('div');
@@ -1659,6 +1814,7 @@
             root.appendChild(categoryDetails);
         });
 
+        toggleEditProductTreeNodes(false);
         updateEditSelectedProductsSummary();
         updateEditHiddenProductInput();
         validateEditProductSelections();
@@ -1670,7 +1826,8 @@
         subDetails.className = 'rc-product-node rc-product-node-subcategory';
 
         const summary = document.createElement('summary');
-        summary.innerHTML = `<span>${escapeHtml(subcategory.name || 'Subcategory')}</span>`;
+        const subStats = editCollectNodeStats(subcategory);
+        summary.innerHTML = editBuildNodeHeader('subcategory', subcategory.name || 'Subcategory', subStats);
         subDetails.appendChild(summary);
 
         const body = document.createElement('div');
@@ -1682,7 +1839,8 @@
                 detail.open = false;
                 detail.className = 'rc-product-node rc-product-node-subbiercategory';
                 const summary = document.createElement('summary');
-                summary.innerHTML = `<span>${escapeHtml(subbiercategory.name || 'Group')}</span>`;
+                const subbierStats = editCollectNodeStats(subbiercategory);
+                summary.innerHTML = editBuildNodeHeader('subbiercategory', subbiercategory.name || 'Group', subbierStats);
                 detail.appendChild(summary);
                 const list = document.createElement('div');
                 list.className = 'rc-product-list';
@@ -1717,37 +1875,159 @@
     function renderEditProductEntry(product) {
         const wrapper = document.createElement('div');
         wrapper.className = 'rc-product-entry';
+        wrapper.dataset.productId = String(product.id);
 
         const stats = extractEditProductStats(product);
         const available = stats.available;
         const total = stats.total;
+        const percentAvailable = total > 0 ? Math.round((available / total) * 100) : 0;
 
         const name = document.createElement('div');
         name.className = 'rc-product-entry-name';
-        name.innerHTML = `<span>${escapeHtml(product.name)}</span>`;
 
-        const meta = document.createElement('div');
-        meta.className = 'rc-product-entry-meta';
-        meta.innerHTML = `<span class="rc-badge ${available > 0 ? 'rc-badge-success' : 'rc-badge-warning'}">${available} / ${total}</span>`;
+        const title = document.createElement('div');
+        title.className = 'rc-product-entry-title';
+        title.innerHTML = `<i class="bi bi-box-seam"></i><span>${escapeHtml(product.name)}</span>`;
+        name.appendChild(title);
+
+        const subtitleBits = [];
+        const brand = product.brand_name || product.BrandName;
+        if (brand) {
+            subtitleBits.push(escapeHtml(brand));
+        }
+        const manufacturer = product.manufacturer_name || product.ManufacturerName;
+        if (manufacturer) {
+            subtitleBits.push(escapeHtml(manufacturer));
+        }
+        const model = product.model_number || product.modelNumber || product.product_code || product.ProductCode || product.generic_barcode;
+        if (model) {
+            subtitleBits.push(`#${escapeHtml(model)}`);
+        }
+        if (subtitleBits.length > 0) {
+            const subtitle = document.createElement('div');
+            subtitle.className = 'rc-product-entry-subtitle';
+            subtitle.innerHTML = subtitleBits.join(' • ');
+            name.appendChild(subtitle);
+        }
 
         const inputGroup = document.createElement('div');
         inputGroup.className = 'rc-product-entry-input';
+
+        const quantityLabel = document.createElement('span');
+        quantityLabel.className = 'rc-product-entry-quantity-label';
+        quantityLabel.textContent = 'Quantity';
+        inputGroup.appendChild(quantityLabel);
 
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '0';
         input.step = '1';
         input.value = getEditCurrentQuantity(product.id);
-        input.addEventListener('input', () => {
-            const value = Math.max(0, parseInt(input.value || '0', 10));
-            setEditProductSelection(product, value);
-        });
+        input.setAttribute('aria-label', `Select quantity for ${product.name}`);
+        input.title = `Enter quantity for ${product.name}`;
+
+        const meta = document.createElement('div');
+        meta.className = 'rc-product-entry-meta';
+
+        const availabilityClass = total === 0 ? 'rc-chip-muted' : available > 0 ? 'rc-chip-success' : 'rc-chip-danger';
+        const availabilityIcon = total === 0 ? 'bi-slash-circle' : available > 0 ? 'bi-lightning-charge' : 'bi-exclamation-octagon';
+        const availabilityBadge = document.createElement('span');
+        availabilityBadge.className = `rc-chip ${availabilityClass} rc-chip-pill`;
+        availabilityBadge.innerHTML = `<i class="bi ${availabilityIcon}"></i> ${available} / ${total || 0} ready`;
+        meta.appendChild(availabilityBadge);
+
+        const tagRow = document.createElement('div');
+        tagRow.className = 'rc-product-entry-tags';
+        if (product.is_consumable || product.IsConsumable) {
+            const tag = document.createElement('span');
+            tag.className = 'rc-chip rc-chip-accent rc-chip-pill';
+            tag.textContent = 'Consumable';
+            tagRow.appendChild(tag);
+        }
+        if (product.is_accessory || product.IsAccessory) {
+            const tag = document.createElement('span');
+            tag.className = 'rc-chip rc-chip-primary rc-chip-pill';
+            tag.textContent = 'Accessory';
+            tagRow.appendChild(tag);
+        }
+        const unit = product.count_type_abbr || product.CountTypeAbbr;
+        if (unit) {
+            const tag = document.createElement('span');
+            tag.className = 'rc-chip rc-chip-neutral rc-chip-pill';
+            tag.textContent = unit;
+            tagRow.appendChild(tag);
+        }
+        if (tagRow.childNodes.length > 0) {
+            meta.appendChild(tagRow);
+        }
+
+        const selectedBadge = document.createElement('span');
+        selectedBadge.className = 'rc-chip rc-chip-accent rc-chip-pill';
+        selectedBadge.style.display = 'none';
+        meta.appendChild(selectedBadge);
+
+        const progress = document.createElement('div');
+        progress.className = 'rc-product-entry-progress';
+        const progressTrack = document.createElement('div');
+        progressTrack.className = 'rc-product-entry-progress-track';
+        const progressBar = document.createElement('div');
+        progressBar.className = 'rc-product-entry-progress-bar';
+        if (available === 0) {
+            progressBar.classList.add('is-empty');
+        }
+        progressBar.style.width = `${Math.max(0, Math.min(100, percentAvailable))}%`;
+        progressTrack.appendChild(progressBar);
+        const progressLabel = document.createElement('span');
+        progressLabel.className = 'rc-product-entry-progress-text';
+        progressLabel.textContent = total > 0 ? `${percentAvailable}% available` : 'No devices yet';
+        progress.appendChild(progressTrack);
+        progress.appendChild(progressLabel);
 
         inputGroup.appendChild(input);
+        inputGroup.appendChild(meta);
+        inputGroup.appendChild(progress);
 
         wrapper.appendChild(name);
-        wrapper.appendChild(meta);
         wrapper.appendChild(inputGroup);
+
+        function updateProductEntryState(quantityValue) {
+            const value = quantityValue !== undefined ? quantityValue : Math.max(0, parseInt(input.value || '0', 10));
+            const overbooked = total > 0 && value > available;
+            const hasSelection = value > 0;
+            const unavailable = total === 0 || available === 0;
+
+            wrapper.classList.toggle('rc-product-entry-selected', hasSelection);
+            wrapper.classList.toggle('rc-product-entry-overbooked', overbooked);
+            wrapper.classList.toggle('rc-product-entry-unavailable', unavailable);
+
+            selectedBadge.textContent = `Selected: ${value}`;
+            selectedBadge.style.display = hasSelection ? 'inline-flex' : 'none';
+
+            if (overbooked) {
+                progressLabel.textContent = `Need ${value - available} more`;
+                progressBar.classList.add('is-warning');
+            } else {
+                progressLabel.textContent = total > 0 ? `${percentAvailable}% available` : 'No devices yet';
+                progressBar.classList.remove('is-warning');
+            }
+        }
+
+        input.addEventListener('input', () => {
+            const value = Math.max(0, parseInt(input.value || '0', 10));
+            input.value = value;
+            setEditProductSelection(product, value);
+            updateProductEntryState(value);
+        });
+
+        wrapper.addEventListener('click', () => {
+            input.focus();
+        });
+
+        input.addEventListener('click', event => {
+            event.stopPropagation();
+        });
+
+        updateProductEntryState(parseInt(input.value || '0', 10));
 
         return wrapper;
     }
@@ -1766,6 +2046,8 @@
     function setEditProductSelection(product, quantity) {
         const key = String(product.id);
         const stats = extractEditProductStats(product);
+        const previousEntry = editProductSelections.get(key) || editInitialProductSelections.get(key);
+        const previousQuantity = previousEntry ? previousEntry.quantity || 0 : 0;
         const entry = editProductSelections.get(key) || {
             id: product.id,
             name: product.name,
@@ -1782,6 +2064,11 @@
             editProductSelections.delete(key);
         } else {
             editProductSelections.set(key, entry);
+        }
+
+        const increase = quantity - previousQuantity;
+        if (increase > 0 && currentEditingJobId) {
+            checkAndPromptEditDependencies(product.id, increase);
         }
 
         updateEditSelectedProductsSummary();
@@ -1863,6 +2150,235 @@
                 ${editProductValidationErrors.map(msg => `<li>${escapeHtml(msg)}</li>`).join('')}
             </ul>
         `;
+    }
+
+    // Dependency prompts for edit modal
+    async function checkAndPromptEditDependencies(productID, multiplier = 1) {
+        const jobID = currentEditingJobId;
+        if (!productID || !jobID) return;
+
+        try {
+            const [accRes, consRes] = await Promise.all([
+                fetch(`/api/products/${productID}/accessories`),
+                fetch(`/api/products/${productID}/consumables`)
+            ]);
+
+            if (!accRes.ok || !consRes.ok) {
+                console.error('Failed to fetch accessories/consumables for dependencies');
+                return;
+            }
+
+            const accData = await accRes.json();
+            const consData = await consRes.json();
+
+            const accessories = (accData.accessories || []).map(acc => {
+                const baseQty = typeof acc.default_quantity === 'number' ? acc.default_quantity : 1;
+                const scaled = Math.max(1, Math.round(baseQty * multiplier));
+                return { ...acc, default_quantity: scaled };
+            });
+
+            const consumables = (consData.consumables || []).map(cons => {
+                const baseQty = typeof cons.default_quantity === 'number' ? cons.default_quantity : 0;
+                const scaled = baseQty * multiplier;
+                return { ...cons, default_quantity: Number.isFinite(scaled) ? scaled : baseQty };
+            });
+
+            if (accessories.length > 0) {
+                await showEditAccessoriesSelectionModal(jobID, accessories);
+            }
+
+            if (consumables.length > 0) {
+                await showEditConsumablesInputModal(jobID, consumables);
+            }
+        } catch (error) {
+            console.error('Error checking dependencies:', error);
+        }
+    }
+
+    function showEditAccessoriesSelectionModal(jobID, accessories) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('editAccessoriesSelectionModal');
+            const content = document.getElementById('editAccessoriesSelectionContent');
+
+            let html = `<div class="rc-mb-md"><h4>Select Accessories for Job</h4></div>`;
+
+            accessories.forEach((acc, index) => {
+                const available = acc.accessory_stock || 0;
+                const isOptional = acc.is_optional;
+
+                html += `
+                    <div class="rc-flex rc-flex-between rc-p-md rc-mb-sm" style="background: var(--surface); border-radius: 8px;">
+                        <div class="rc-flex rc-flex-gap-md rc-flex-align-center">
+                            <input type="checkbox" id="edit_acc_${index}" class="edit-accessory-checkbox"
+                                   data-product-id="${acc.accessory_product_id}"
+                                   data-default-qty="${acc.default_quantity}"
+                                   data-price="${acc.accessory_price || 0}"
+                                   ${!isOptional ? 'checked disabled' : ''}>
+                            <div>
+                                <div class="rc-font-semibold">${acc.accessory_name}</div>
+                                <div class="rc-text-sm rc-text-secondary">
+                                    ${available} ${acc.count_type_abbr || ''} available
+                                    ${!isOptional ? ' • <strong>Required</strong>' : ' • Optional'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                            <label class="rc-text-sm">Qty:</label>
+                            <input type="number" id="edit_qty_${index}" min="1" max="${available}"
+                                   value="${acc.default_quantity || 1}" class="rc-input" style="width: 80px;"
+                                   ${!isOptional ? 'required' : ''}>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+
+            window.__editAccessoriesModalResolve = resolve;
+            window.__editAccessoriesModalData = { jobID };
+        });
+    }
+
+    async function submitEditAccessoriesSelection() {
+        const { jobID } = window.__editAccessoriesModalData || {};
+        const checkboxes = document.querySelectorAll('.edit-accessory-checkbox:checked');
+
+        const selections = [];
+        checkboxes.forEach((checkbox, index) => {
+            const productID = checkbox.dataset.productId;
+            const qtyInput = document.getElementById(`edit_qty_${index}`);
+            const quantity = parseInt(qtyInput?.value, 10) || 1;
+            const price = parseFloat(checkbox.dataset.price) || 0;
+
+            selections.push({
+                job_id: jobID,
+                parent_device_id: null,
+                accessory_product_id: parseInt(productID, 10),
+                quantity_assigned: quantity,
+                price_per_unit: price
+            });
+        });
+
+        try {
+            for (const selection of selections) {
+                await fetch(`/api/jobs/${jobID}/accessories`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(selection)
+                });
+            }
+
+            closeEditAccessoriesSelectionModal();
+            if (window.__editAccessoriesModalResolve) {
+                window.__editAccessoriesModalResolve();
+            }
+        } catch (error) {
+            console.error('Error submitting accessories:', error);
+            alert('Error adding accessories');
+        }
+    }
+
+    function closeEditAccessoriesSelectionModal() {
+        const modal = document.getElementById('editAccessoriesSelectionModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        if (window.__editAccessoriesModalResolve) {
+            window.__editAccessoriesModalResolve();
+        }
+    }
+
+    function showEditConsumablesInputModal(jobID, consumables) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('editConsumablesInputModal');
+            const content = document.getElementById('editConsumablesInputContent');
+
+            let html = `<div class="rc-mb-md"><h4>Enter Consumable Quantities for Job</h4></div>`;
+
+            consumables.forEach((cons, index) => {
+                const available = cons.consumable_stock || 0;
+
+                html += `
+                    <div class="rc-p-md rc-mb-sm" style="background: var(--surface); border-radius: 8px;">
+                        <div class="rc-flex rc-flex-between rc-flex-align-center">
+                            <div>
+                                <div class="rc-font-semibold">${cons.consumable_name}</div>
+                                <div class="rc-text-sm rc-text-secondary">
+                                    ${available} ${cons.count_type_abbr || ''} available
+                                </div>
+                            </div>
+                            <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                                <label class="rc-text-sm">Quantity:</label>
+                                <input type="number" id="edit_cons_qty_${index}"
+                                       min="0" max="${available}" step="0.001"
+                                       value="${cons.default_quantity || 0}"
+                                       data-product-id="${cons.consumable_product_id}"
+                                       data-price="${cons.consumable_price || 0}"
+                                       class="rc-input edit-consumable-quantity" style="width: 100px;">
+                                <span class="rc-text-sm">${cons.count_type_abbr || ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+            modal.style.display = 'flex';
+
+            window.__editConsumablesModalResolve = resolve;
+            window.__editConsumablesModalData = { jobID };
+        });
+    }
+
+    async function submitEditConsumablesInput() {
+        const { jobID } = window.__editConsumablesModalData || {};
+        const inputs = document.querySelectorAll('.edit-consumable-quantity');
+
+        const selections = [];
+        inputs.forEach(input => {
+            const quantity = parseFloat(input.value) || 0;
+            if (quantity > 0) {
+                const productID = input.dataset.productId;
+                const price = parseFloat(input.dataset.price) || 0;
+
+                selections.push({
+                    job_id: jobID,
+                    parent_device_id: null,
+                    consumable_product_id: parseInt(productID, 10),
+                    quantity_assigned: quantity,
+                    price_per_unit: price
+                });
+            }
+        });
+
+        try {
+            for (const selection of selections) {
+                await fetch(`/api/jobs/${jobID}/consumables`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(selection)
+                });
+            }
+
+            closeEditConsumablesInputModal();
+            if (window.__editConsumablesModalResolve) {
+                window.__editConsumablesModalResolve();
+            }
+        } catch (error) {
+            console.error('Error submitting consumables:', error);
+            alert('Error adding consumables');
+        }
+    }
+
+    function closeEditConsumablesInputModal() {
+        const modal = document.getElementById('editConsumablesInputModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        if (window.__editConsumablesModalResolve) {
+            window.__editConsumablesModalResolve();
+        }
     }
 
     // Functions for managing assigned devices in edit modal
@@ -5255,6 +5771,48 @@ function showToast(message, type) {
             return div.innerHTML;
         }
     </script>
+
+    <!-- Accessories Selection Modal (Edit) -->
+    <div id="editAccessoriesSelectionModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-content" style="max-width: 600px;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title">
+                    <i class="bi bi-paperclip"></i> Select Accessories
+                </h3>
+                <button type="button" class="rc-modal-close" onclick="closeEditAccessoriesSelectionModal()">&times;</button>
+            </div>
+            <div class="rc-modal-body">
+                <div id="editAccessoriesSelectionContent"></div>
+            </div>
+            <div class="rc-modal-footer">
+                <button type="button" class="rc-btn rc-btn-ghost" onclick="closeEditAccessoriesSelectionModal()">Skip</button>
+                <button type="button" class="rc-btn rc-btn-primary" onclick="submitEditAccessoriesSelection()">
+                    <i class="bi bi-check-lg"></i> Add Selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consumables Input Modal (Edit) -->
+    <div id="editConsumablesInputModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-content" style="max-width: 600px;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title">
+                    <i class="bi bi-droplet"></i> Enter Consumable Quantities
+                </h3>
+                <button type="button" class="rc-modal-close" onclick="closeEditConsumablesInputModal()">&times;</button>
+            </div>
+            <div class="rc-modal-body">
+                <div id="editConsumablesInputContent"></div>
+            </div>
+            <div class="rc-modal-footer">
+                <button type="button" class="rc-btn rc-btn-ghost" onclick="closeEditConsumablesInputModal()">Skip</button>
+                <button type="button" class="rc-btn rc-btn-primary" onclick="submitEditConsumablesInput()">
+                    <i class="bi bi-check-lg"></i> Add Quantities
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Job History Modal -->
     <div id="jobHistoryModalMain" class="rc-modal" style="display: none;">

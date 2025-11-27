@@ -1477,6 +1477,8 @@
             return matches ? matches[1] : null;
         }
 
+        const currentJobId = getJobIdFromUrl();
+
         function loadExistingProductSelections(jobID) {
             return fetch(`/api/v1/jobs/${jobID}`, { credentials: 'include' })
                 .then(response => {
@@ -2071,6 +2073,8 @@
         function setProductSelection(product, quantity) {
             const key = String(product.id);
             const stats = extractProductStats(product);
+            const previousEntry = productSelections.get(key) || initialProductSelections.get(key);
+            const previousQuantity = previousEntry ? previousEntry.quantity || 0 : 0;
             const entry = productSelections.get(key) || {
                 id: product.id,
                 name: product.name,
@@ -2087,6 +2091,12 @@
                 productSelections.delete(key);
             } else {
                 productSelections.set(key, entry);
+            }
+
+            const effectiveJobId = currentJobId || {{if .job.JobID}}{{.job.JobID}}{{else}}null{{end}};
+            const increase = quantity - previousQuantity;
+            if (increase > 0 && effectiveJobId) {
+                checkAndPromptAccessoriesConsumables(product.id, null, increase, effectiveJobId);
             }
 
             updateSelectedProductsSummary();
@@ -2875,8 +2885,9 @@
         // ===== ACCESSORIES & CONSUMABLES SELECTION =====
 
         // Check if product has accessories/consumables and show selection modal
-        async function checkAndPromptAccessoriesConsumables(productID, deviceID) {
-            const jobID = {{if .job}}{{.job.JobID}}{{else}}null{{end}};
+        async function checkAndPromptAccessoriesConsumables(productID, deviceID, multiplier = 1, jobIDOverride) {
+            const templateJobID = {{if .job}}{{.job.JobID}}{{else}}null{{end}};
+            const jobID = jobIDOverride !== undefined ? jobIDOverride : templateJobID;
 
             if (!productID || !jobID) return;
 
@@ -2895,8 +2906,22 @@
                 const accData = await accRes.json();
                 const consData = await consRes.json();
 
-                const accessories = accData.accessories || [];
-                const consumables = consData.consumables || [];
+                const accessories = (accData.accessories || []).map(acc => {
+                    const baseQty = typeof acc.default_quantity === 'number' ? acc.default_quantity : 1;
+                    const scaled = Math.max(1, Math.round(baseQty * multiplier));
+                    return {
+                        ...acc,
+                        default_quantity: scaled
+                    };
+                });
+                const consumables = (consData.consumables || []).map(cons => {
+                    const baseQty = typeof cons.default_quantity === 'number' ? cons.default_quantity : 0;
+                    const scaled = baseQty * multiplier;
+                    return {
+                        ...cons,
+                        default_quantity: Number.isFinite(scaled) ? scaled : baseQty
+                    };
+                });
 
                 // Show modals if there are accessories or consumables
                 if (accessories.length > 0) {

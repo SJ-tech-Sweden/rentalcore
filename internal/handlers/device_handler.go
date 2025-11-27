@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -32,10 +33,6 @@ type TreeCache struct {
 
 var deviceCache = &DeviceCache{
 	timestamp: time.Time{}, // Force cache miss initially - CLEARED FOR CATEGORY RELATIONSHIP FIX
-}
-
-var treeCache = &TreeCache{
-	timestamp: time.Time{}, // Force cache miss initially - CLEARED FOR HIERARCHY FIX
 }
 
 type DeviceHandler struct {
@@ -834,10 +831,17 @@ type TreeSubbiercategory struct {
 }
 
 type TreeProduct struct {
-	ID             uint   `json:"id"`
-	Name           string `json:"name"`
-	DeviceCount    int    `json:"device_count"`
-	AvailableCount int    `json:"available_count"`
+	ID             uint     `json:"id"`
+	Name           string   `json:"name"`
+	DeviceCount    int      `json:"device_count"`
+	AvailableCount int      `json:"available_count"`
+	BrandName      string   `json:"brand_name,omitempty"`
+	Manufacturer   string   `json:"manufacturer_name,omitempty"`
+	GenericBarcode string   `json:"generic_barcode,omitempty"`
+	CountTypeAbbr  string   `json:"count_type_abbr,omitempty"`
+	StockQuantity  *float64 `json:"stock_quantity,omitempty"`
+	IsAccessory    bool     `json:"is_accessory,omitempty"`
+	IsConsumable   bool     `json:"is_consumable,omitempty"`
 }
 
 type TreeDevice struct {
@@ -855,86 +859,17 @@ type TreeDevice struct {
 // buildTreeData creates a hierarchical tree structure with categories, subcategories, subbiercategories, and devices
 // OPTIMIZED VERSION - Single query approach with caching to eliminate N+1 problem
 func (h *DeviceHandler) buildTreeData() ([]TreeCategory, error) {
-	// Check cache first
-	treeCache.mutex.RLock()
-	if time.Since(treeCache.timestamp) < 2*time.Minute && len(treeCache.data) > 0 {
-		defer treeCache.mutex.RUnlock()
-		return treeCache.data, nil
-	}
-	treeCache.mutex.RUnlock()
-
-	// Get all data in ONE optimized query with preloading
-	treeCategories, err := h.buildOptimizedTreeData()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build optimized tree: %v", err)
-	}
-
-	// Update cache
-	treeCache.mutex.Lock()
-	treeCache.data = treeCategories
-	treeCache.timestamp = time.Now()
-	treeCache.mutex.Unlock()
-
-	return treeCategories, nil
+	return h.buildProductTreeData(nil, nil, "")
 }
 
 // buildTreeDataWithAvailability creates tree structure with device availability for date range
 // buildTreeDataWithAllAvailable returns tree data with all devices marked as available
 func (h *DeviceHandler) buildTreeDataWithAllAvailable(excludeJobID string) ([]TreeCategory, error) {
-	// Get tree data without checking availability
-	treeCategories, err := h.buildOptimizedTreeData()
-	if err != nil {
-		return nil, err
-	}
-
-	// Mark all devices as available
-	emptyConflicts := make(map[string]string)
-	h.updateTreeAvailability(treeCategories, emptyConflicts)
-	h.populateProductAggregates(treeCategories)
-
-	return treeCategories, nil
+	return h.buildProductTreeData(nil, nil, excludeJobID)
 }
 
 func (h *DeviceHandler) buildTreeDataWithAvailability(startDate, endDate time.Time, excludeJobID string) ([]TreeCategory, error) {
-	// Get conflicting jobs for the date range first (more efficient)
-	var conflictingJobs []struct {
-		JobID    string `json:"job_id" gorm:"column:jobID"`
-		DeviceID string `json:"device_id" gorm:"column:deviceID"`
-	}
-
-	query := h.deviceRepo.GetDB().
-		Table("jobdevices jd").
-		Select("j.jobID, jd.deviceID").
-		Joins("JOIN jobs j ON jd.jobID = j.jobID").
-		Where("NOT (COALESCE(j.endDate, j.startDate) < ? OR j.startDate > ?)", startDate, endDate)
-
-	// Exclude current job if provided
-	if excludeJobID != "" {
-		query = query.Where("j.jobID != ?", excludeJobID)
-	}
-
-	err := query.Scan(&conflictingJobs).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to check device availability: %v", err)
-	}
-
-	// Create a map for quick conflict lookup
-	conflicts := make(map[string]string) // deviceID -> jobID
-	for _, conflict := range conflictingJobs {
-		conflicts[conflict.DeviceID] = conflict.JobID
-	}
-
-	// Now get tree data (after we have conflicts for better performance)
-	treeCategories, err := h.buildOptimizedTreeData()
-	if err != nil {
-		return nil, err
-	}
-
-	// Update availability information in tree
-	h.updateTreeAvailability(treeCategories, conflicts)
-	h.populateProductAggregates(treeCategories)
-
-	return treeCategories, nil
+	return h.buildProductTreeData(&startDate, &endDate, excludeJobID)
 }
 
 // updateTreeAvailability recursively updates availability info in tree structure
@@ -1111,6 +1046,334 @@ func (h *DeviceHandler) buildOptimizedTreeData() ([]TreeCategory, error) {
 
 	// Build the tree structure from the single result set
 	return h.buildTreeFromDevices(devices)
+}
+
+type productAvailability struct {
+	total     int
+	available int
+}
+
+// buildProductTreeData builds a hierarchy that always includes the latest categories/products (even without devices)
+// and applies availability based on date range conflicts.
+func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excludeJobID string) ([]TreeCategory, error) {
+	conflicts := make(map[string]bool)
+	if startDate != nil && endDate != nil {
+		conflictMap, err := h.getConflictingDevices(*startDate, *endDate, excludeJobID)
+		if err != nil {
+			return nil, err
+		}
+		conflicts = conflictMap
+	}
+
+	availabilityByProduct, err := h.buildProductAvailabilityMap(conflicts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preload hierarchy
+	var categories []models.Category
+	if err := h.productRepo.GetDB().Find(&categories).Error; err != nil {
+		return nil, fmt.Errorf("failed to load categories: %v", err)
+	}
+
+	var subcategories []models.Subcategory
+	if err := h.productRepo.GetDB().Find(&subcategories).Error; err != nil {
+		return nil, fmt.Errorf("failed to load subcategories: %v", err)
+	}
+
+	var subbiercategories []models.Subbiercategory
+	if err := h.productRepo.GetDB().Find(&subbiercategories).Error; err != nil {
+		return nil, fmt.Errorf("failed to load subbiercategories: %v", err)
+	}
+
+	var products []models.Product
+	if err := h.productRepo.GetDB().
+		Preload("Category").
+		Preload("Subcategory").
+		Preload("Subbiercategory").
+		Preload("Brand").
+		Preload("Manufacturer").
+		Preload("CountType").
+		Find(&products).Error; err != nil {
+		return nil, fmt.Errorf("failed to load products: %v", err)
+	}
+
+	catMap := make(map[uint]*TreeCategory)
+	for _, cat := range categories {
+		catCopy := TreeCategory{
+			ID:            cat.CategoryID,
+			Name:          cat.Name,
+			DirectDevices: []TreeDevice{},
+			Products:      []TreeProduct{},
+			Subcategories: []TreeSubcategory{},
+		}
+		catMap[cat.CategoryID] = &catCopy
+	}
+
+	// Allow uncategorized bucket
+	if _, exists := catMap[0]; !exists {
+		catMap[0] = &TreeCategory{
+			ID:            0,
+			Name:          "Uncategorized",
+			DirectDevices: []TreeDevice{},
+			Products:      []TreeProduct{},
+			Subcategories: []TreeSubcategory{},
+		}
+	}
+
+	subMap := make(map[string]*TreeSubcategory)
+	for _, sub := range subcategories {
+		parent := catMap[sub.CategoryID]
+		if parent == nil {
+			parent = &TreeCategory{
+				ID:            sub.CategoryID,
+				Name:          "",
+				DirectDevices: []TreeDevice{},
+				Products:      []TreeProduct{},
+				Subcategories: []TreeSubcategory{},
+			}
+			catMap[sub.CategoryID] = parent
+		}
+
+		subCopy := TreeSubcategory{
+			ID:                sub.SubcategoryID,
+			Name:              sub.Name,
+			DirectDevices:     []TreeDevice{},
+			Products:          []TreeProduct{},
+			Subbiercategories: []TreeSubbiercategory{},
+		}
+		parent.Subcategories = append(parent.Subcategories, subCopy)
+		subMap[sub.SubcategoryID] = &parent.Subcategories[len(parent.Subcategories)-1]
+	}
+
+	subBierMap := make(map[string]*TreeSubbiercategory)
+	for _, subbier := range subbiercategories {
+		parent := subMap[subbier.SubcategoryID]
+		if parent == nil {
+			// Create missing subcategory placeholder on uncategorized bucket
+			uncat := catMap[0]
+			placeholder := TreeSubcategory{
+				ID:                subbier.SubcategoryID,
+				Name:              subbier.Name,
+				DirectDevices:     []TreeDevice{},
+				Products:          []TreeProduct{},
+				Subbiercategories: []TreeSubbiercategory{},
+			}
+			uncat.Subcategories = append(uncat.Subcategories, placeholder)
+			parent = &uncat.Subcategories[len(uncat.Subcategories)-1]
+			subMap[subbier.SubcategoryID] = parent
+		}
+
+		subBier := TreeSubbiercategory{
+			ID:             subbier.SubbiercategoryID,
+			Name:           subbier.Name,
+			Devices:        []TreeDevice{},
+			Products:       []TreeProduct{},
+			DeviceCount:    0,
+			AvailableCount: 0,
+		}
+		parent.Subbiercategories = append(parent.Subbiercategories, subBier)
+		subBierMap[subbier.SubbiercategoryID] = &parent.Subbiercategories[len(parent.Subbiercategories)-1]
+	}
+
+	for _, product := range products {
+		catID := uint(0)
+		catName := "Uncategorized"
+		if product.Category != nil {
+			catID = product.Category.CategoryID
+			catName = product.Category.Name
+		}
+
+		category := catMap[catID]
+		if category == nil {
+			category = &TreeCategory{
+				ID:            catID,
+				Name:          catName,
+				DirectDevices: []TreeDevice{},
+				Products:      []TreeProduct{},
+				Subcategories: []TreeSubcategory{},
+			}
+			catMap[catID] = category
+		} else if category.Name == "" {
+			category.Name = catName
+		}
+
+		counts := availabilityByProduct[product.ProductID]
+		total := counts.total
+		available := counts.available
+
+		if (product.IsConsumable || product.IsAccessory) && product.StockQuantity != nil {
+			rounded := int(math.Round(*product.StockQuantity))
+			total = rounded
+			available = rounded
+		}
+
+		treeProduct := TreeProduct{
+			ID:             product.ProductID,
+			Name:           product.Name,
+			DeviceCount:    total,
+			AvailableCount: available,
+			IsAccessory:    product.IsAccessory,
+			IsConsumable:   product.IsConsumable,
+			StockQuantity:  product.StockQuantity,
+		}
+
+		if product.Brand != nil {
+			treeProduct.BrandName = product.Brand.Name
+		}
+		if product.Manufacturer != nil {
+			treeProduct.Manufacturer = product.Manufacturer.Name
+		}
+		if product.GenericBarcode != nil {
+			treeProduct.GenericBarcode = *product.GenericBarcode
+		}
+		if product.CountType != nil {
+			treeProduct.CountTypeAbbr = product.CountType.Abbreviation
+		}
+
+		applyCounts := func(cat *TreeCategory, sub *TreeSubcategory, subbier *TreeSubbiercategory) {
+			cat.DeviceCount += total
+			cat.AvailableCount += available
+			if sub != nil {
+				sub.DeviceCount += total
+				sub.AvailableCount += available
+			}
+			if subbier != nil {
+				subbier.DeviceCount += total
+				subbier.AvailableCount += available
+			}
+		}
+
+		if product.Subcategory != nil {
+			sub := subMap[product.Subcategory.SubcategoryID]
+			if sub == nil {
+				placeholder := TreeSubcategory{
+					ID:                product.Subcategory.SubcategoryID,
+					Name:              product.Subcategory.Name,
+					DirectDevices:     []TreeDevice{},
+					Products:          []TreeProduct{},
+					Subbiercategories: []TreeSubbiercategory{},
+				}
+				category.Subcategories = append(category.Subcategories, placeholder)
+				sub = &category.Subcategories[len(category.Subcategories)-1]
+				subMap[product.Subcategory.SubcategoryID] = sub
+			}
+
+			if product.Subbiercategory != nil {
+				subBier := subBierMap[product.Subbiercategory.SubbiercategoryID]
+				if subBier == nil {
+					newSubbier := TreeSubbiercategory{
+						ID:             product.Subbiercategory.SubbiercategoryID,
+						Name:           product.Subbiercategory.Name,
+						Devices:        []TreeDevice{},
+						Products:       []TreeProduct{},
+						DeviceCount:    0,
+						AvailableCount: 0,
+					}
+					sub.Subbiercategories = append(sub.Subbiercategories, newSubbier)
+					subBier = &sub.Subbiercategories[len(sub.Subbiercategories)-1]
+					subBierMap[product.Subbiercategory.SubbiercategoryID] = subBier
+				}
+
+				subBier.Products = append(subBier.Products, treeProduct)
+				applyCounts(category, sub, subBier)
+			} else {
+				sub.Products = append(sub.Products, treeProduct)
+				applyCounts(category, sub, nil)
+			}
+		} else {
+			category.Products = append(category.Products, treeProduct)
+			applyCounts(category, nil, nil)
+		}
+	}
+
+	// Convert map to sorted slice
+	treeCategories := make([]TreeCategory, 0, len(catMap))
+	for _, cat := range catMap {
+		// Sort nested collections for consistency
+		sort.Slice(cat.Subcategories, func(i, j int) bool {
+			return strings.ToLower(cat.Subcategories[i].Name) < strings.ToLower(cat.Subcategories[j].Name)
+		})
+		for si := range cat.Subcategories {
+			sub := &cat.Subcategories[si]
+			sort.Slice(sub.Subbiercategories, func(i, j int) bool {
+				return strings.ToLower(sub.Subbiercategories[i].Name) < strings.ToLower(sub.Subbiercategories[j].Name)
+			})
+			for bi := range sub.Subbiercategories {
+				subBier := &sub.Subbiercategories[bi]
+				sort.Slice(subBier.Products, func(i, j int) bool {
+					return strings.ToLower(subBier.Products[i].Name) < strings.ToLower(subBier.Products[j].Name)
+				})
+			}
+			sort.Slice(sub.Products, func(i, j int) bool {
+				return strings.ToLower(sub.Products[i].Name) < strings.ToLower(sub.Products[j].Name)
+			})
+		}
+		sort.Slice(cat.Products, func(i, j int) bool {
+			return strings.ToLower(cat.Products[i].Name) < strings.ToLower(cat.Products[j].Name)
+		})
+		treeCategories = append(treeCategories, *cat)
+	}
+
+	sort.Slice(treeCategories, func(i, j int) bool {
+		return strings.ToLower(treeCategories[i].Name) < strings.ToLower(treeCategories[j].Name)
+	})
+
+	return treeCategories, nil
+}
+
+func (h *DeviceHandler) getConflictingDevices(startDate, endDate time.Time, excludeJobID string) (map[string]bool, error) {
+	var conflicts []struct {
+		DeviceID string `json:"device_id" gorm:"column:deviceID"`
+	}
+
+	query := h.deviceRepo.GetDB().
+		Table("jobdevices jd").
+		Select("jd.deviceID").
+		Joins("JOIN jobs j ON jd.jobID = j.jobID").
+		Where("NOT (COALESCE(j.endDate, j.startDate) < ? OR j.startDate > ?)", startDate, endDate)
+
+	if excludeJobID != "" {
+		query = query.Where("j.jobID != ?", excludeJobID)
+	}
+
+	if err := query.Scan(&conflicts).Error; err != nil {
+		return nil, fmt.Errorf("failed to check device availability: %v", err)
+	}
+
+	conflictMap := make(map[string]bool, len(conflicts))
+	for _, row := range conflicts {
+		conflictMap[row.DeviceID] = true
+	}
+
+	return conflictMap, nil
+}
+
+func (h *DeviceHandler) buildProductAvailabilityMap(conflicts map[string]bool) (map[uint]productAvailability, error) {
+	type deviceRow struct {
+		DeviceID  string `gorm:"column:deviceID"`
+		ProductID uint   `gorm:"column:productID"`
+	}
+
+	var rows []deviceRow
+	if err := h.productRepo.GetDB().
+		Table("devices").
+		Select("deviceID, productID").
+		Where("productID IS NOT NULL").
+		Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("failed to load devices for availability: %v", err)
+	}
+
+	availability := make(map[uint]productAvailability)
+	for _, row := range rows {
+		counts := availability[row.ProductID]
+		counts.total++
+		if !conflicts[row.DeviceID] {
+			counts.available++
+		}
+		availability[row.ProductID] = counts
+	}
+	return availability, nil
 }
 
 // buildTreeFromDevices constructs the hierarchical tree from a flat list of devices
