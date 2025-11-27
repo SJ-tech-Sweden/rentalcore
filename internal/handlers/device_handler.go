@@ -1130,9 +1130,9 @@ func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excl
 		product *TreeProduct
 	}
 
-	catProducts := make(map[uint]map[uint]*productRef)
-	subProducts := make(map[string]map[uint]*productRef)
-	subBierProducts := make(map[string]map[uint]*productRef)
+	catProducts := make(map[uint]map[uint]*TreeProduct)
+	subProducts := make(map[string]map[uint]*TreeProduct)
+	subBierProducts := make(map[string]map[uint]*TreeProduct)
 
 	for rows.Next() {
 		var r row
@@ -1208,28 +1208,25 @@ func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excl
 			continue
 		}
 
-		containerKey := fmt.Sprintf("cat-%d", r.CategoryID)
 		productMap := catProducts[r.CategoryID]
 		productSlice := &cat.Products
 		if sub != nil {
-			containerKey = fmt.Sprintf("sub-%s", sub.ID)
 			productMap = subProducts[sub.ID]
 			productSlice = &sub.Products
 			if subbier != nil {
-				containerKey = fmt.Sprintf("subbier-%s", subbier.ID)
 				productMap = subBierProducts[subbier.ID]
 				productSlice = &subbier.Products
 			}
 		}
 		if productMap == nil {
-			productMap = make(map[uint]*productRef)
+			productMap = make(map[uint]*TreeProduct)
 			switch {
-			case strings.HasPrefix(containerKey, "cat-"):
-				catProducts[r.CategoryID] = productMap
-			case strings.HasPrefix(containerKey, "subbier-"):
+			case subbier != nil:
 				subBierProducts[subbier.ID] = productMap
-			default:
+			case sub != nil:
 				subProducts[sub.ID] = productMap
+			default:
+				catProducts[r.CategoryID] = productMap
 			}
 		}
 
@@ -1257,25 +1254,25 @@ func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excl
 			if r.Unit.Valid {
 				tp.CountTypeAbbr = r.Unit.String
 			}
-			productMap[pid] = &productRef{product: &tp}
 			*productSlice = append(*productSlice, tp)
-			ref = productMap[pid]
+			ref = &(*productSlice)[len(*productSlice)-1]
+			productMap[pid] = ref
 		}
 
 		// Update counts from stock for accessories/consumables
 		if (r.IsAccessory == 1 || r.IsConsumable == 1) && r.StockQuantity.Valid {
 			stockCount := int(math.Round(r.StockQuantity.Float64))
-			if stockCount > ref.product.DeviceCount {
-				ref.product.DeviceCount = stockCount
-				ref.product.AvailableCount = stockCount
+			if stockCount > ref.DeviceCount {
+				ref.DeviceCount = stockCount
+				ref.AvailableCount = stockCount
 			}
 		}
 
 		// Update counts per device for availability
 		if r.DeviceID.Valid && r.DeviceID.String != "" {
-			ref.product.DeviceCount++
+			ref.DeviceCount++
 			if !conflicts[r.DeviceID.String] {
-				ref.product.AvailableCount++
+				ref.AvailableCount++
 			}
 		}
 	}
