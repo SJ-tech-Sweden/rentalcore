@@ -1824,20 +1824,13 @@
     function renderEditCategoryNode(category, nodeId) {
         const node = document.createElement('div');
         node.className = 'wc-node';
-        if (editProductTreeExpanded.has(nodeId)) node.classList.add('open');
+        node.dataset.nodeId = nodeId;
+        const isExpanded = editProductTreeExpanded.has(nodeId);
+        if (isExpanded) node.classList.add('open');
 
         const header = document.createElement('div');
         header.className = 'wc-node-header';
-        const childIds = [];
-        (category.subcategories || []).forEach(sub => {
-            const subId = `edit-sub-${sub.id}`;
-            childIds.push(subId);
-            (sub.subbiercategories || []).forEach(sb => childIds.push(`edit-subbier-${sb.id}`));
-        });
-        if (Array.isArray(category.products) && category.products.length > 0) {
-            childIds.push(`edit-cat-${category.id}-products`);
-        }
-        header.addEventListener('click', () => toggleEditNode(nodeId, childIds));
+        header.addEventListener('click', () => toggleEditNode(editProductTreeExpanded, nodeId, node));
 
         const title = document.createElement('div');
         title.className = 'wc-node-title';
@@ -1857,29 +1850,37 @@
         const body = document.createElement('div');
         body.className = 'wc-node-body';
 
-        (category.subcategories || []).forEach(sub => body.appendChild(renderEditSubcategoryNode(sub, `edit-sub-${sub.id}`)));
-        const catProductsGroup = renderEditProductGroup(category.products, `edit-cat-${category.id}-products`, 'Produkte');
-        if (catProductsGroup) {
-            body.appendChild(catProductsGroup);
+        // Only render children if this node is expanded
+        if (isExpanded) {
+            (category.subcategories || []).forEach(sub => body.appendChild(renderEditSubcategoryNode(sub, `edit-sub-${sub.id}`)));
+            const catProductsGroup = renderEditProductGroup(category.products, `edit-cat-${category.id}-products`, 'Produkte');
+            if (catProductsGroup) {
+                body.appendChild(catProductsGroup);
+            }
         }
 
         node.appendChild(header);
         node.appendChild(body);
+
+        // Store category data for lazy rendering on toggle
+        node._categoryData = category;
+
         return node;
     }
 
     function renderEditSubcategoryNode(subcategory, nodeId) {
         const node = document.createElement('div');
         node.className = 'wc-node';
-        if (editProductTreeExpanded.has(nodeId)) node.classList.add('open');
+        node.dataset.nodeId = nodeId;
+        const isExpanded = editProductTreeExpanded.has(nodeId);
+        if (isExpanded) node.classList.add('open');
 
         const header = document.createElement('div');
         header.className = 'wc-node-header';
-        const childIds = (subcategory.subbiercategories || []).map(sb => `edit-subbier-${sb.id}`);
-        if (Array.isArray(subcategory.products) && subcategory.products.length > 0) {
-            childIds.push(`edit-sub-${subcategory.id}-products`);
-        }
-        header.addEventListener('click', () => toggleEditNode(nodeId, childIds));
+        header.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleEditNode(editProductTreeExpanded, nodeId, node);
+        });
 
         const title = document.createElement('div');
         title.className = 'wc-node-title';
@@ -1899,25 +1900,34 @@
         const body = document.createElement('div');
         body.className = 'wc-node-body';
 
-        (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderEditSubbiercategoryNode(sb, `edit-subbier-${sb.id}`)));
-        const subProductsGroup = renderEditProductGroup(subcategory.products, `edit-sub-${subcategory.id}-products`, 'Produkte');
-        if (subProductsGroup) {
-            body.appendChild(subProductsGroup);
+        // Only render children if this node is expanded
+        if (isExpanded) {
+            (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderEditSubbiercategoryNode(sb, `edit-subbier-${sb.id}`)));
+            const subProductsGroup = renderEditProductGroup(subcategory.products, `edit-sub-${subcategory.id}-products`, 'Produkte');
+            if (subProductsGroup) {
+                body.appendChild(subProductsGroup);
+            }
         }
 
         node.appendChild(header);
         node.appendChild(body);
+
+        // Store subcategory data for lazy rendering on toggle
+        node._subcategoryData = subcategory;
+
         return node;
     }
 
     function renderEditSubbiercategoryNode(subbiercategory, nodeId) {
         const node = document.createElement('div');
         node.className = 'wc-node';
-        if (editProductTreeExpanded.has(nodeId)) node.classList.add('open');
+        node.dataset.nodeId = nodeId;
+        const isExpanded = editProductTreeExpanded.has(nodeId);
+        if (isExpanded) node.classList.add('open');
 
         const header = document.createElement('div');
         header.className = 'wc-node-header';
-        header.addEventListener('click', () => toggleEditNode(nodeId, []));
+        header.addEventListener('click', () => toggleEditNode(editProductTreeExpanded, nodeId, node));
 
         const title = document.createElement('div');
         title.className = 'wc-node-title';
@@ -1936,10 +1946,18 @@
 
         const body = document.createElement('div');
         body.className = 'wc-node-body';
-        (subbiercategory.products || []).forEach(product => body.appendChild(renderEditProductCard(product)));
+
+        // Only render children if this node is expanded
+        if (isExpanded) {
+            (subbiercategory.products || []).forEach(product => body.appendChild(renderEditProductCard(product)));
+        }
 
         node.appendChild(header);
         node.appendChild(body);
+
+        // Store subbiercategory data for lazy rendering on toggle
+        node._subbiercategoryData = subbiercategory;
+
         return node;
     }
 
@@ -1949,12 +1967,14 @@
         }
         const node = document.createElement('div');
         node.className = 'wc-node';
-        if (editProductTreeExpanded.has(nodeId)) node.classList.add('open');
+        node.dataset.nodeId = nodeId;
+        const isExpanded = editProductTreeExpanded.has(nodeId);
+        if (isExpanded) node.classList.add('open');
 
         const header = document.createElement('div');
         header.className = 'wc-node-header';
         const stats = collectProductsStats(products);
-        header.addEventListener('click', () => toggleEditNode(nodeId, []));
+        header.addEventListener('click', () => toggleEditNode(editProductTreeExpanded, nodeId, node));
 
         const title = document.createElement('div');
         title.className = 'wc-node-title';
@@ -1972,10 +1992,18 @@
 
         const body = document.createElement('div');
         body.className = 'wc-node-body';
-        products.forEach(product => body.appendChild(renderEditProductCard(product)));
+
+        // Only render children if this node is expanded
+        if (isExpanded) {
+            products.forEach(product => body.appendChild(renderEditProductCard(product)));
+        }
 
         node.appendChild(header);
         node.appendChild(body);
+
+        // Store products for lazy rendering on toggle
+        node._productsData = products;
+
         return node;
     }
 
@@ -2050,17 +2078,61 @@
         return card;
     }
 
-    function toggleEditNode(id, childIds = []) {
-        if (editProductTreeExpanded.has(id)) {
-            editProductTreeExpanded.delete(id);
-            childIds.forEach(child => editProductTreeExpanded.delete(child));
+    function toggleEditNode(set, id, nodeElement) {
+        console.log('🔄 toggleEditNode called:', id, 'currently expanded:', set.has(id));
+        if (set.has(id)) {
+            // Collapse: remove from set, remove CSS class, clear children
+            set.delete(id);
+            if (nodeElement) {
+                nodeElement.classList.remove('open');
+                const body = nodeElement.querySelector('.wc-node-body');
+                if (body) {
+                    body.innerHTML = ''; // Clear children
+                }
+            }
+            console.log('➖ Collapsed:', id);
         } else {
-            editProductTreeExpanded.add(id);
+            // Expand: add to set, add CSS class, render children
+            set.add(id);
+            if (nodeElement) {
+                nodeElement.classList.add('open');
+                const body = nodeElement.querySelector('.wc-node-body');
+
+                // Render children based on node type
+                if (body && body.innerHTML === '') {
+                    if (nodeElement._categoryData) {
+                        const category = nodeElement._categoryData;
+                        (category.subcategories || []).forEach(sub => body.appendChild(renderEditSubcategoryNode(sub, `edit-sub-${sub.id}`)));
+                        const catProductsGroup = renderEditProductGroup(category.products, `edit-cat-${category.id}-products`, 'Produkte');
+                        if (catProductsGroup) body.appendChild(catProductsGroup);
+                    } else if (nodeElement._subcategoryData) {
+                        const subcategory = nodeElement._subcategoryData;
+                        (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderEditSubbiercategoryNode(sb, `edit-subbier-${sb.id}`)));
+                        const subProductsGroup = renderEditProductGroup(subcategory.products, `edit-sub-${subcategory.id}-products`, 'Produkte');
+                        if (subProductsGroup) body.appendChild(subProductsGroup);
+                    } else if (nodeElement._subbiercategoryData) {
+                        const subbiercategory = nodeElement._subbiercategoryData;
+                        (subbiercategory.products || []).forEach(product => body.appendChild(renderEditProductCard(product)));
+                    } else if (nodeElement._productsData) {
+                        const products = nodeElement._productsData;
+                        products.forEach(product => body.appendChild(renderEditProductCard(product)));
+                    }
+                }
+            }
+            console.log('➕ Expanded:', id);
         }
-        renderEditProductTree(editProductTreeData);
+        console.log('📊 Expanded nodes:', Array.from(set));
     }
 
     function toggleEditProductTreeNodes(open) {
+        if (!open) {
+            // Collapse all - just re-render the tree
+            editProductTreeExpanded = new Set();
+            renderEditProductTree(editProductTreeData);
+            return;
+        }
+
+        // Expand all - add ALL node IDs and re-render
         const ids = [];
         editProductTreeData.forEach(cat => {
             ids.push('edit-cat-' + cat.id);
@@ -2072,10 +2144,15 @@
                 if (Array.isArray(sub.products) && sub.products.length > 0) {
                     ids.push(`edit-sub-${sub.id}-products`);
                 }
-                (sub.subbiercategories || []).forEach(sb => ids.push('edit-subbier-' + sb.id));
+                (sub.subbiercategories || []).forEach(sb => {
+                    ids.push('edit-subbier-' + sb.id);
+                    if (Array.isArray(sb.products) && sb.products.length > 0) {
+                        ids.push(`edit-subbier-${sb.id}-products`);
+                    }
+                });
             });
         });
-        editProductTreeExpanded = new Set(open ? ids : []);
+        editProductTreeExpanded = new Set(ids);
         renderEditProductTree(editProductTreeData);
     }
 

@@ -241,7 +241,7 @@ func (h *JobHandler) renderJobFormWithError(c *gin.Context, job *models.Job, tit
 		h.rentalEquipRepo.GetJobRentalEquipment(job.JobID, &jobRentalEquipment)
 	}
 
-	c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+	c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 		"title":                 title,
 		"job":                   job,
 		"customers":             customers,
@@ -345,7 +345,7 @@ func (h *JobHandler) NewJobForm(c *gin.Context) {
 	c.Header("Pragma", "no-cache")
 	c.Header("Expires", "0")
 
-	c.HTML(http.StatusOK, "job_edit_v2.html", gin.H{
+	c.HTML(http.StatusOK, "job_form.html", gin.H{
 		"title":                 "New Job",
 		"job":                   &models.Job{},
 		"customers":             customers,
@@ -368,7 +368,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "New Job",
 			"customers":     customers,
 			"statuses":      statuses,
@@ -387,7 +387,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "New Job",
 			"customers":     customers,
 			"statuses":      statuses,
@@ -405,7 +405,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "New Job",
 			"customers":     customers,
 			"statuses":      statuses,
@@ -423,7 +423,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "New Job",
 			"customers":     customers,
 			"statuses":      statuses,
@@ -473,7 +473,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusInternalServerError, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusInternalServerError, "job_form.html", gin.H{
 			"title":         "New Job",
 			"job":           &job,
 			"customers":     customers,
@@ -540,62 +540,12 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 }
 
 func (h *JobHandler) EditJobForm(c *gin.Context) {
-	user, _ := GetCurrentUser(c)
-
 	jobID := strings.TrimSpace(c.Param("id"))
-	if jobID == "" {
-		c.Redirect(http.StatusFound, "/jobs")
-		return
+	target := "/jobs"
+	if jobID != "" {
+		target = fmt.Sprintf("/jobs?editJob=%s", jobID)
 	}
-
-	id, err := strconv.ParseUint(jobID, 10, 32)
-	if err != nil {
-		c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Invalid job ID", "user": user})
-		return
-	}
-
-	job, err := h.jobRepo.GetByID(uint(id))
-	if err != nil {
-		c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "Job not found", "user": user})
-		return
-	}
-
-	customers, err := h.customerRepo.List(&models.FilterParams{})
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	statuses, err := h.statusRepo.List()
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	jobCategories, err := h.jobCategoryRepo.List()
-	if err != nil {
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error(), "user": user})
-		return
-	}
-
-	// Fetch rental equipment from WarehouseCore
-	rentalEquipBySupplier, _ := h.warehouseClient.GetRentalEquipmentBySupplier()
-
-	// Force no-cache headers to prevent template caching issues
-	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
-	c.Header("Pragma", "no-cache")
-	c.Header("Expires", "0")
-
-	c.HTML(http.StatusOK, "job_edit_v2.html", gin.H{
-		"title":                 "Edit Job",
-		"job":                   job,
-		"customers":             customers,
-		"statuses":              statuses,
-		"jobCategories":         jobCategories,
-		"user":                  user,
-		"rentalEquipBySupplier": rentalEquipBySupplier,
-		"jobRentalEquipment":    []models.JobRentalEquipment{},
-	})
+	c.Redirect(http.StatusFound, target)
 }
 
 func (h *JobHandler) UpdateJob(c *gin.Context) {
@@ -629,7 +579,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "Edit Job",
 			"job":           job,
 			"customers":     customers,
@@ -648,7 +598,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "Edit Job",
 			"job":           job,
 			"customers":     customers,
@@ -666,7 +616,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "Edit Job",
 			"job":           job,
 			"customers":     customers,
@@ -684,7 +634,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusBadRequest, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusBadRequest, "job_form.html", gin.H{
 			"title":         "Edit Job",
 			"job":           job,
 			"customers":     customers,
@@ -730,7 +680,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		customers, _ := h.customerRepo.List(&models.FilterParams{})
 		statuses, _ := h.statusRepo.List()
 		jobCategories, _ := h.jobCategoryRepo.List()
-		c.HTML(http.StatusInternalServerError, "job_edit_v2.html", gin.H{
+		c.HTML(http.StatusInternalServerError, "job_form.html", gin.H{
 			"title":         "Edit Job",
 			"job":           job,
 			"customers":     customers,

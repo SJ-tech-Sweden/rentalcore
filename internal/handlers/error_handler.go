@@ -225,7 +225,7 @@ func TemplateExistsCheck(templateName string) bool {
 		"device_form_new.html":            true,
 		"device_detail.html":              true,
 		"jobs_new.html":                   true,
-		"job_edit_v2.html":               true,
+		"job_form.html":               true,
 		"job_detail.html":                 true,
 		"equipment_packages_standalone.html": true,
 		"equipment_package_form.html":     true,
