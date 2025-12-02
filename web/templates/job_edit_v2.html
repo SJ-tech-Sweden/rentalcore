@@ -1,0 +1,3375 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-template-version="20251202-fix-v3">
+<head>
+    <script>
+        try{document.documentElement.setAttribute("data-theme",localStorage.getItem("rc-theme")||"dark")}catch(e){}
+        console.log('🔄 Template Version: 20251202-fix-v3');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{.title}} - RentalCore</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+    
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RentalCore">
+    <link rel="apple-touch-icon" href="/static/images/icon-180.png">
+    
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#030712">
+    <meta name="msapplication-TileColor" content="#030712">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="rc-animate-fade-in">
+    <!-- Navigation -->
+    <nav class="rc-navbar">
+        <div class="rc-container">
+            <div class="rc-navbar-content">
+                <a href="/" class="rc-navbar-brand">
+                    <i class="bi bi-gear-wide-connected"></i>
+                    RentalCore
+                </a>
+                
+                <!-- Mobile toggle -->
+                <button class="rc-navbar-toggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                
+                <!-- Main navigation -->
+                <ul class="rc-navbar-nav">
+                    <li><a href="/jobs" class="rc-nav-link active">
+                        <i class="bi bi-briefcase"></i> Jobs
+                    </a></li>
+                    <li><a href="/devices" class="rc-nav-link">
+                        <i class="bi bi-cpu"></i> Devices
+                    </a></li>
+                    <li><a href="/customers" class="rc-nav-link">
+                        <i class="bi bi-people"></i> Customers
+                    </a></li>
+                    
+                    <!-- Tools Dropdown -->
+                    <li class="rc-dropdown">
+                        <a href="#" class="rc-nav-link rc-dropdown-toggle">
+                            <i class="bi bi-tools"></i> Tools
+                        </a>
+                        <div class="rc-dropdown-menu">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-folder"></i> Management
+                            </div>
+                            </a>
+                            <a href="/workflow/packages" class="rc-dropdown-item">
+                                <i class="bi bi-box-seam"></i> Equipment Packages
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-building"></i> Business
+                            </div>
+                            <a href="/invoices" class="rc-dropdown-item">
+                                <i class="bi bi-file-text"></i> Invoices
+                            </a>
+                            <a href="/analytics" class="rc-dropdown-item">
+                                <i class="bi bi-graph-up"></i> Analytics
+                            </a>
+                            <a href="/financial" class="rc-dropdown-item">
+                                <i class="bi bi-calculator"></i> Financial
+                            </a>
+                        </div>
+                    </li>
+                    
+                    <!-- User Dropdown -->
+                    {{if .user}}
+                    <li class="rc-dropdown">
+                        <a href="#" class="rc-nav-link rc-dropdown-toggle">
+                            <i class="bi bi-person-circle"></i> {{.user.Username}}
+                        </a>
+                        <div class="rc-dropdown-menu">
+                            <div class="rc-dropdown-header">
+                                <i class="bi bi-person"></i> {{.user.FirstName}} {{.user.LastName}}
+                            </div>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">Personal</div>
+                            <a href="/profile/settings" class="rc-dropdown-item">
+                                <i class="bi bi-person-gear"></i> Profile Settings
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">Company</div>
+                            <a href="/settings/company" class="rc-dropdown-item">
+                                <i class="bi bi-building-gear"></i> Company Settings
+                            </a>
+                                <i class="bi bi-envelope-gear"></i> E-Mail Templates
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <div class="rc-dropdown-header">System</div>
+                            <a href="/users" class="rc-dropdown-item">
+                                <i class="bi bi-people-fill"></i> User Management
+                            </a>
+                            <a href="/security" class="rc-dropdown-item">
+                                <i class="bi bi-shield-check"></i> Security & Audit
+                            </a>
+                            <hr class="rc-dropdown-divider">
+                            <a href="/logout" class="rc-dropdown-item">
+                                <i class="bi bi-box-arrow-right"></i> Logout
+                            </a>
+                        </div>
+                    </li>
+                    {{else}}
+                    <li>
+                        <a href="/login" class="rc-btn rc-btn-primary rc-btn-sm">
+                            <i class="bi bi-box-arrow-in-right"></i> Login
+                        </a>
+                    </li>
+                    {{end}}
+                    
+                    <!-- Theme Toggle -->
+                    <li>
+                        <button class="rc-btn rc-btn-ghost rc-btn-sm" data-theme-toggle title="Toggle theme">
+                            <i class="bi bi-moon-fill"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="rc-container rc-mt-lg">
+        <!-- Page Header -->
+        <div class="rc-flex rc-flex-between rc-mb-xl">
+            <div>
+                <h1 class="rc-heading-2">
+                    <i class="bi bi-briefcase"></i> {{.title}}
+                </h1>
+                <p class="rc-text">{{if .job.JobID}}Update job details{{else}}Create a new rental job{{end}}</p>
+            </div>
+            <a href="/jobs" class="rc-btn rc-btn-ghost">
+                <i class="bi bi-arrow-left"></i> Back to Jobs
+            </a>
+        </div>
+
+
+        <!-- Job Form -->
+        <div class="rc-card">
+            <div class="rc-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 class="rc-card-title" style="margin-bottom: 0;">
+                        <i class="bi bi-pencil"></i> Job Details
+                    </h3>
+                    {{if .job.JobID}}
+                    {{if .job.UpdatedAt}}
+                    <div class="rc-text-xs rc-text-secondary" style="margin-top: 0.25rem;">
+                        <i class="bi bi-clock-history"></i>
+                        Last edited: {{.job.UpdatedAt.Format "02.01.2006 15:04"}}
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{if .job.JobID}}
+                <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="showJobHistoryModal()">
+                    <i class="bi bi-list-ul"></i> View History
+                </button>
+                {{end}}
+            </div>
+            <div class="rc-card-body">
+                {{if .error}}
+                <div class="rc-alert rc-alert-error rc-mb-lg">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    {{.error}}
+                </div>
+                {{end}}
+
+                <!-- PDF Upload Banner -->
+                <div class="rc-alert rc-alert-info rc-mb-lg" style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <strong>Have an existing offer or invoice?</strong> Upload the PDF to automatically extract products and customer data.
+                    </div>
+                    <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="openPDFUploadModal()">
+                        <i class="bi bi-upload"></i> Upload PDF
+                    </button>
+                </div>
+
+                <form method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
+
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group" data-role="customer-section">
+                            <label class="rc-label">Customer *</label>
+                            <div class="rc-flex rc-flex-gap-sm rc-flex-wrap" style="align-items: center;">
+                                <select class="rc-select" name="customer_id" required data-role="customer-select">
+                                    <option value="">Select Customer</option>
+                                    {{range .customers}}
+                                    <option value="{{.CustomerID}}" {{if eq .CustomerID $.job.CustomerID}}selected{{end}}>
+                                        {{.GetDisplayName}}
+                                    </option>
+                                    {{end}}
+                                </select>
+                                <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" data-action="open-new-customer">
+                                    <i class="bi bi-person-plus"></i> New Customer
+                                </button>
+                            </div>
+                            <p class="rc-text-xs rc-text-muted rc-mt-xs">
+                                Need a new customer? Create it without leaving this form.
+                            </p>
+                        </div>
+                        
+                        <div class="rc-form-group">
+                            <label class="rc-label">Status *</label>
+                            <select class="rc-select" name="status_id" required>
+                                <option value="">Select Status</option>
+                                {{range .statuses}}
+                                <option value="{{.StatusID}}" {{if eq .StatusID $.job.StatusID}}selected{{end}}>
+                                    {{.Status}}
+                                </option>
+                                {{end}}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group">
+                            <label class="rc-label">Start Date *</label>
+                            <input type="date" class="rc-input" name="start_date" value="{{if .job.StartDate}}{{.job.StartDate.Format "2006-01-02"}}{{end}}" required>
+                        </div>
+                        
+                        <div class="rc-form-group">
+                            <label class="rc-label">End Date *</label>
+                            <input type="date" class="rc-input" name="end_date" value="{{if .job.EndDate}}{{.job.EndDate.Format "2006-01-02"}}{{end}}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group">
+                            <label class="rc-label">Job Category</label>
+                            <select class="rc-select" name="job_category_id">
+                                <option value="">Select Category</option>
+                                {{range .jobCategories}}
+                                <option value="{{.JobCategoryID}}" {{if eq .JobCategoryID (deref $.job.JobCategoryID)}}selected{{end}}>
+                                    {{.Name}}
+                                </option>
+                                {{end}}
+                            </select>
+                        </div>
+                        
+                        <div class="rc-form-group">
+                            <label class="rc-label">Revenue (€)</label>
+                            <input type="number" class="rc-input" name="revenue" value="{{.job.Revenue}}" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    
+                    <!-- Discount Section -->
+                    <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title">
+                                <i class="bi bi-percent"></i> Discount Options
+                            </h4>
+                        </div>
+                        <div class="rc-card-body">
+                            <div class="rc-grid rc-grid-2">
+                                <div class="rc-form-group">
+                                    <label class="rc-label">Discount Amount</label>
+                                    <input type="number" class="rc-input" name="discount" value="{{.job.Discount}}" step="0.01" min="0" placeholder="0.00">
+                                </div>
+                                
+                                <div class="rc-form-group">
+                                    <label class="rc-label">Discount Type</label>
+                                    <select class="rc-select" name="discount_type">
+                                        <option value="amount" {{if eq .job.DiscountType "amount"}}selected{{end}}>Fixed Amount (€)</option>
+                                        <option value="percent" {{if eq .job.DiscountType "percent"}}selected{{end}}>Percentage (%)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Product Selection Section -->
+                    <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title">
+                                <i class="bi bi-box-seam"></i> Product Selection
+                            </h4>
+                            <div class="rc-text-sm rc-text-secondary">
+                                Select start and end dates to see real-time availability.
+                            </div>
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="productSelectionContainer">
+                                <div class="wc-tree-card">
+                                    <div class="wc-tree-header">
+                                        <div class="wc-title">
+                                            <i class="bi bi-stars"></i>
+                                            <span id="productTreeSummary">Produkte werden geladen…</span>
+                                        </div>
+                                        <div class="wc-actions">
+                                            <button type="button" class="rc-btn rc-btn-ghost rc-btn-xs" data-action="collapse-product-tree">
+                                                <i class="bi bi-chevron-up"></i> Collapse
+                                            </button>
+                                            <button type="button" class="rc-btn rc-btn-outline rc-btn-xs" data-action="expand-product-tree">
+                                                <i class="bi bi-arrows-expand"></i> Expand
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="rc-flex rc-flex-center rc-py-lg" id="productTreeLoading">
+                                        <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                        Loading products...
+                                    </div>
+                                    <div id="productTreeRoot" class="wc-tree-body" style="display: none;"></div>
+                                    <div id="productTreeEmpty" class="rc-alert rc-alert-info rc-mt-lg" style="display: none;">
+                                        <i class="bi bi-info-circle"></i> No products found.
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="productSelectionErrors" class="rc-alert rc-alert-error rc-mt-lg" style="display: none;"></div>
+                            <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
+                            <div>
+                                <h5>Selected Products</h5>
+                                <div id="selectedProductsEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                    No products selected yet.
+                                </div>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="selectedProductsTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th style="width: 120px;">Quantity</th>
+                                                <th style="width: 140px;">Available</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <input type="hidden" name="selected_products" id="selectedProductsInput" value="">
+                        </div>
+                    </div>
+
+                    <!-- Rental Equipment Section -->
+                    <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title" style="color: #8b5cf6;">
+                                <i class="bi bi-truck"></i> Rental Equipment (External Suppliers)
+                            </h4>
+                            <div class="rc-text-sm rc-text-secondary">
+                                Add equipment rented from external suppliers for this job.
+                            </div>
+                        </div>
+                        <div class="rc-card-body">
+                            {{if .rentalEquipBySupplier}}
+                            <div id="rentalEquipmentContainer">
+                                {{range $supplier, $items := .rentalEquipBySupplier}}
+                                <div class="rc-mb-lg">
+                                    <h5 style="color: #8b5cf6; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+                                        <i class="bi bi-building"></i> {{$supplier}}
+                                        <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; font-size: 0.7rem;">
+                                            {{len $items}} items
+                                        </span>
+                                    </h5>
+                                    <div class="rc-table-scroll">
+                                        <table class="rc-table rc-table-compact">
+                                            <thead>
+                                                <tr>
+                                                    <th>Product</th>
+                                                    <th style="width: 100px;">Category</th>
+                                                    <th style="width: 100px;">Rental</th>
+                                                    <th style="width: 100px;">Customer</th>
+                                                    <th style="width: 80px;">Qty</th>
+                                                    <th style="width: 80px;">Days</th>
+                                                    <th style="width: 150px;">Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {{range $items}}
+                                                <tr data-equipment-id="{{.EquipmentID}}">
+                                                    <td>
+                                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                            <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; font-size: 0.65rem; padding: 2px 6px;">
+                                                                Mietprodukt
+                                                            </span>
+                                                            <strong>{{.ProductName}}</strong>
+                                                        </div>
+                                                        {{if .Description}}
+                                                        <div class="rc-text-xs rc-text-secondary" style="margin-top: 2px;">{{.Description}}</div>
+                                                        {{end}}
+                                                    </td>
+                                                    <td>
+                                                        {{if .Category}}
+                                                        <span class="rc-chip rc-chip-neutral rc-chip-pill" style="font-size: 0.65rem;">{{.Category}}</span>
+                                                        {{else}}
+                                                        <span class="rc-text-muted">-</span>
+                                                        {{end}}
+                                                    </td>
+                                                    <td style="font-family: 'JetBrains Mono', monospace; color: #f97316;">
+                                                        {{printf "%.2f" .RentalPrice}} EUR
+                                                    </td>
+                                                    <td style="font-family: 'JetBrains Mono', monospace; color: #22c55e;">
+                                                        {{printf "%.2f" .CustomerPrice}} EUR
+                                                    </td>
+                                                    <td>
+                                                        <input type="number"
+                                                               class="rc-input rental-qty-input"
+                                                               name="rental_qty_{{.EquipmentID}}"
+                                                               min="0"
+                                                               value="0"
+                                                               style="width: 70px; padding: 4px 8px; text-align: center;"
+                                                               data-equipment-id="{{.EquipmentID}}"
+                                                               data-rental-price="{{.RentalPrice}}"
+                                                               data-customer-price="{{.CustomerPrice}}">
+                                                    </td>
+                                                    <td>
+                                                        <input type="number"
+                                                               class="rc-input rental-days-input"
+                                                               name="rental_days_{{.EquipmentID}}"
+                                                               min="1"
+                                                               value="1"
+                                                               style="width: 70px; padding: 4px 8px; text-align: center;"
+                                                               data-equipment-id="{{.EquipmentID}}">
+                                                    </td>
+                                                    <td>
+                                                        <input type="text"
+                                                               class="rc-input rental-notes-input"
+                                                               name="rental_notes_{{.EquipmentID}}"
+                                                               placeholder="Notes..."
+                                                               style="padding: 4px 8px; font-size: 0.85rem;"
+                                                               data-equipment-id="{{.EquipmentID}}">
+                                                    </td>
+                                                </tr>
+                                                {{end}}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                {{end}}
+                            </div>
+
+                            <!-- Summary of selected rental equipment -->
+                            <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
+                            <div>
+                                <h5 style="color: #8b5cf6;">Selected Rental Equipment</h5>
+                                <div id="selectedRentalEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                    No rental equipment selected yet.
+                                </div>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="selectedRentalTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Supplier</th>
+                                                <th style="width: 60px;">Qty</th>
+                                                <th style="width: 60px;">Days</th>
+                                                <th style="width: 100px;">Cost</th>
+                                                <th style="width: 100px;">Revenue</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedRentalBody"></tbody>
+                                        <tfoot>
+                                            <tr style="font-weight: 600; background: var(--surface-3);">
+                                                <td colspan="4">Total Rental</td>
+                                                <td id="totalRentalCost" style="color: #f97316;">0.00 EUR</td>
+                                                <td id="totalRentalRevenue" style="color: #22c55e;">0.00 EUR</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                            {{else}}
+                            <div class="rc-alert rc-alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                No rental equipment available from WarehouseCore. Make sure WarehouseCore is running and has rental equipment configured.
+                            </div>
+                            {{end}}
+                            <input type="hidden" name="selected_rental_equipment" id="selectedRentalInput" value="">
+                        </div>
+                    </div>
+
+                    <div class="rc-form-group rc-mb-xl">
+                        <label class="rc-label">Description</label>
+                        <textarea class="rc-textarea" name="description" rows="4" placeholder="Additional job details and notes...">{{derefString .job.Description}}</textarea>
+                    </div>
+
+                    <!-- File Attachments Section -->
+                    {{if .job.JobID}}
+                    <div class="rc-card rc-mb-xl" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title">
+                                <i class="bi bi-paperclip"></i> File Attachments
+                            </h4>
+                        </div>
+                        <div class="rc-card-body">
+                            <div class="rc-form-group rc-mb-md">
+                                <label class="rc-label">Upload Files</label>
+                                <div class="file-upload-area" style="border: 2px dashed var(--surface-3); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer;"
+                                     onclick="document.getElementById('jobFileInput').click();">
+                                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 8px;"></i>
+                                    <p style="margin: 0; color: var(--text-muted);">Click to select files or drag and drop</p>
+                                    <small style="color: var(--text-muted); font-size: 12px;">Maximum file size: 50MB per file</small>
+                                </div>
+                                <input type="file" id="jobFileInput" multiple accept="*/*" style="display: none;" onchange="handleJobFileSelection(this)">
+
+                                <div id="selectedFilesList" style="margin-top: 12px; display: none;">
+                                    <h6 style="margin-bottom: 8px; font-size: 14px;">Selected Files:</h6>
+                                    <div id="selectedFilesContainer"></div>
+                                </div>
+                            </div>
+
+                            <div id="existingAttachments" style="margin-top: 16px;">
+                                <h6 style="margin-bottom: 8px; font-size: 14px;">Current Attachments:</h6>
+                                <div id="attachmentsList">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+
+                    <div class="rc-flex rc-flex-between" style="align-items: center;">
+                        <a href="/jobs" class="rc-btn rc-btn-secondary">
+                            <i class="bi bi-x-lg"></i> Cancel
+                        </a>
+                        <button type="submit" class="rc-btn rc-btn-primary">
+                            {{if .job.JobID}}
+                                <i class="bi bi-check-lg"></i> Update Job
+                            {{else}}
+                                <i class="bi bi-plus-lg"></i> Create Job
+                            {{end}}
+                        </button>
+                    </div>
+
+                    <!-- Inline Customer Creation Modal -->
+                    <div class="rc-modal" data-role="customer-modal" style="display: none;">
+                        <div class="rc-modal-overlay" data-action="close-customer-modal"></div>
+                        <div class="rc-modal-content" style="max-width: 620px;">
+                            <div class="rc-modal-header">
+                                <h3 class="rc-modal-title">
+                                    <i class="bi bi-person-plus"></i> New Customer
+                                </h3>
+                                <button type="button" class="rc-modal-close" data-action="close-customer-modal">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            <div class="rc-modal-body">
+                                <div class="rc-alert rc-alert-error rc-alert-sm" data-role="customer-error" style="display: none;"></div>
+                                <div class="rc-alert rc-alert-success rc-alert-sm" data-role="customer-success" style="display: none;"></div>
+                                <div class="rc-grid rc-grid-2 rc-grid-gap-md rc-mt-md">
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Company Name</label>
+                                        <input type="text" class="rc-input" data-field="company_name" placeholder="Company (optional)">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Customer Type</label>
+                                        <select class="rc-select" data-field="customer_type" data-default-value="Kunde">
+                                            <option value="Kunde" selected>Customer</option>
+                                            <option value="Lieferant">Supplier</option>
+                                        </select>
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">First Name</label>
+                                        <input type="text" class="rc-input" data-field="first_name" placeholder="First name">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Last Name</label>
+                                        <input type="text" class="rc-input" data-field="last_name" placeholder="Last name">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Email</label>
+                                        <input type="email" class="rc-input" data-field="email" placeholder="email@example.com">
+                                    </div>
+                                    <div class="rc-form-group">
+                                        <label class="rc-label">Phone</label>
+                                        <input type="text" class="rc-input" data-field="phone_number" placeholder="+49 ...">
+                                    </div>
+                                </div>
+                                <div class="rc-form-group rc-mt-md">
+                                    <label class="rc-label">Notes</label>
+                                    <textarea class="rc-input" rows="3" data-field="notes" placeholder="Additional information"></textarea>
+                                </div>
+                            </div>
+                            <div class="rc-flex rc-flex-between rc-flex-wrap" style="gap: var(--space-sm); padding: var(--space-md); border-top: 1px solid var(--surface-3); background: var(--surface-1);">
+                                <button type="button" class="rc-btn rc-btn-secondary rc-btn-sm" data-action="close-customer-modal">
+                                    <i class="bi bi-x-lg"></i> Cancel
+                                </button>
+                                <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" data-action="submit-new-customer">
+                                    <i class="bi bi-check2-circle"></i> Create Customer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer style="margin-top: var(--space-3xl); padding: var(--space-xl) 0; border-top: 1px solid var(--surface-3);">
+        <div class="rc-container">
+            <div class="rc-flex rc-flex-between" style="align-items: center;">
+                <div class="rc-text-sm" style="color: var(--text-muted);">
+                    <i class="bi bi-gear-wide-connected"></i>
+                    RentalCore - Advanced Equipment Management System
+                </div>
+                <div class="rc-flex" style="gap: var(--space-lg);">
+                    <a href="/help" class="rc-text-sm" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="bi bi-question-circle"></i> Help
+                    </a>
+                    <a href="/about" class="rc-text-sm" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="bi bi-info-circle"></i> About
+                    </a>
+                    <a href="/contact" class="rc-text-sm" style="color: var(--text-muted); text-decoration: none;">
+                        <i class="bi bi-envelope"></i> Contact
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Product Tree Styles -->
+    <style>
+        .pdf-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 20, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            z-index: 10000;
+        }
+
+        .pdf-modal-overlay.is-visible {
+            display: flex;
+        }
+
+        .pdf-modal-panel {
+            width: min(640px, 92vw);
+            background: var(--rc-bg-card);
+            border-radius: 20px;
+            box-shadow: 0 25px 80px rgba(3, 7, 18, 0.65);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pdf-modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 28px 32px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .pdf-modal-header h3 {
+            margin: 4px 0 0;
+            font-size: 24px;
+        }
+
+        .pdf-modal-header .eyebrow {
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.3em;
+            color: var(--rc-text-secondary);
+            margin: 0;
+        }
+
+        .pdf-modal-subtitle {
+            margin: 6px 0 0;
+            color: var(--rc-text-secondary);
+            font-size: 14px;
+        }
+
+        .pdf-modal-body {
+            padding: 24px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .pdf-upload-card {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 20px;
+            border: 1px dashed rgba(255,255,255,0.25);
+            border-radius: 16px;
+            padding: 20px;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .pdf-upload-illustration {
+            width: 100px;
+            height: 100px;
+            border-radius: 14px;
+            background: radial-gradient(circle at 30% 30%, rgba(95,65,40,0.55), rgba(12,14,26,0.85));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            color: #fff;
+        }
+
+        .pdf-upload-hints {
+            display: grid;
+            gap: 8px;
+        }
+
+        .pdf-upload-hints span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--rc-text-secondary);
+        }
+
+        .pdf-modal-footer {
+            padding: 20px 32px 32px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Warehouse-style Tree Card (theme-aligned) */
+        .wc-tree-card {
+            background: linear-gradient(145deg, var(--rc-card-bg), var(--surface-1));
+            border: 1px solid var(--rc-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--rc-shadow-sm);
+            color: var(--text-primary);
+        }
+        .wc-tree-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-sm);
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            background: linear-gradient(145deg, var(--surface-1), var(--surface-2));
+            border: 1px solid var(--rc-border);
+            margin-bottom: var(--space-md);
+        }
+        .wc-tree-header .wc-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .wc-tree-header .wc-title i {
+            color: var(--rc-primary);
+        }
+        .wc-tree-header .wc-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+        .wc-tree-body {
+            max-height: 560px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        .wc-node {
+            position: relative;
+            border: 1px solid var(--rc-border);
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--surface-1), var(--surface-0));
+            padding: var(--space-md);
+            transition: background var(--transition-fast), border var(--transition-fast), box-shadow var(--transition-fast);
+            overflow: visible;
+            z-index: 1;
+        }
+        .wc-node::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            width: 3px;
+            background: transparent;
+            transition: background var(--transition-fast);
+        }
+        .wc-node:hover {
+            border-color: rgba(192, 85, 44, 0.35);
+            background: var(--surface-2);
+        }
+        .wc-node.open {
+            box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+            z-index: 2;
+        }
+        .wc-node.open::before {
+            background: linear-gradient(180deg, var(--rc-primary), transparent);
+        }
+        .wc-node-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-sm);
+            cursor: pointer;
+        }
+        .wc-node-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .wc-node-title i {
+            color: var(--text-secondary);
+        }
+        .wc-node-chevron {
+            transition: transform var(--transition-fast);
+        }
+        .wc-node.open > .wc-node-header .wc-node-chevron {
+            transform: rotate(90deg);
+        }
+        .wc-node-body {
+            margin-top: var(--space-sm);
+            padding-left: var(--space-md);
+            border-left: 1px solid var(--rc-border);
+            display: none !important;
+            gap: var(--space-sm);
+            flex-direction: column;
+        }
+        .wc-node.open > .wc-node-body {
+            display: flex !important;
+        }
+        .wc-product {
+            border: 1px solid var(--rc-border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            background: linear-gradient(135deg, var(--surface-0), var(--surface-1));
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: var(--space-sm);
+            align-items: center;
+        }
+        .wc-product-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .wc-product-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+        }
+        .wc-product-title i {
+            color: var(--rc-primary);
+        }
+        .wc-product-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .wc-product-meta span {
+            background: var(--surface-2);
+            border: 1px solid var(--rc-border);
+            border-radius: 6px;
+            padding: 2px 6px;
+        }
+        .wc-product-inputs {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .wc-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            background: rgba(192, 85, 44, 0.16);
+            color: var(--rc-accent-200);
+            border: 1px solid rgba(192, 85, 44, 0.3);
+        }
+        .wc-chip.success { background: rgba(34, 197, 94, 0.18); color: var(--rc-success); border-color: rgba(34, 197, 94, 0.25); }
+        .wc-chip.danger { background: rgba(208, 2, 27, 0.18); color: var(--accent-red); border-color: rgba(208, 2, 27, 0.25); }
+        .wc-chip.muted { background: rgba(148, 163, 184, 0.12); color: var(--text-secondary); border-color: var(--surface-4); }
+        .wc-qty-input {
+            width: 90px;
+            background: var(--surface-2);
+            border: 1px solid var(--rc-border);
+            color: var(--text-primary);
+            padding: 6px 8px;
+            border-radius: 8px;
+            transition: all var(--transition-fast);
+        }
+        .wc-qty-input:focus {
+            outline: 1px solid var(--rc-primary);
+            box-shadow: 0 0 0 3px rgba(192, 85, 44, 0.25);
+        }
+        .rc-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: var(--space-xs) var(--space-md);
+            border-radius: var(--radius-lg);
+            font-weight: 700;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            border: 1px solid transparent;
+            transition: all var(--transition-fast);
+        }
+
+        .rc-chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .rc-chip i {
+            font-size: 0.85rem;
+        }
+
+        .rc-chip-pill {
+            border-radius: 999px;
+        }
+
+        .rc-chip-neutral {
+            background: linear-gradient(135deg, var(--surface-3), var(--surface-2));
+            color: var(--text-primary);
+            border-color: var(--surface-4);
+        }
+
+        .rc-chip-success {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.15));
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .rc-chip-danger {
+            background: linear-gradient(135deg, rgba(208, 2, 27, 0.25), rgba(208, 2, 27, 0.15));
+            color: #ef4444;
+            border-color: rgba(208, 2, 27, 0.3);
+        }
+
+        .rc-chip-muted {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(148, 163, 184, 0.1));
+            color: var(--text-muted);
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        .rc-chip-accent {
+            background: linear-gradient(135deg, rgba(208, 2, 27, 0.2), rgba(208, 2, 27, 0.1));
+            color: var(--accent-red);
+            border-color: rgba(208, 2, 27, 0.3);
+        }
+
+        /* Node Body - Smooth Animation */
+        .rc-product-node-body {
+            padding: var(--space-md);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+            background: var(--surface-0);
+            animation: slideDown var(--transition-normal);
+            border-top: 1px solid var(--surface-3);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Nested Categories - Clear Hierarchy */
+        .rc-product-node-subcategory,
+        .rc-product-node-subbiercategory {
+            border: 1px solid var(--surface-4);
+            border-radius: var(--radius-md);
+            background: var(--surface-1);
+            padding: var(--space-sm) var(--space-md);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .rc-product-node-subcategory {
+            margin-left: var(--space-lg);
+        }
+
+        .rc-product-node-subbiercategory {
+            margin-left: var(--space-2xl);
+        }
+
+        /* Product List - Compact Layout */
+        .rc-product-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+            padding: var(--space-sm) 0;
+        }
+
+        /* Product Entry - Premium Card Design */
+        .rc-product-entry {
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+            padding: var(--space-sm) var(--space-md);
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, var(--surface-1), var(--surface-0));
+            border: 1px solid var(--surface-4);
+            box-shadow: var(--shadow-md);
+            transition: all var(--transition-fast);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rc-product-entry::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: transparent;
+            transition: background var(--transition-fast);
+        }
+
+        .rc-product-entry:hover {
+            border-color: rgba(208, 2, 27, 0.5);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 16px rgba(208, 2, 27, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .rc-product-entry:hover::before {
+            background: linear-gradient(180deg, var(--accent-red), transparent);
+        }
+
+        .rc-product-entry-selected {
+            border-color: rgba(208, 2, 27, 0.7);
+            box-shadow: 0 0 0 2px rgba(208, 2, 27, 0.2),
+                        0 8px 20px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, var(--surface-2), var(--surface-1));
+        }
+
+        .rc-product-entry-selected::before {
+            background: linear-gradient(180deg, var(--accent-red), rgba(208, 2, 27, 0.5));
+        }
+
+        .rc-product-entry-overbooked {
+            border-color: rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2),
+                        0 8px 20px rgba(239, 68, 68, 0.15);
+        }
+
+        .rc-product-entry-overbooked::before {
+            background: linear-gradient(180deg, #ef4444, rgba(239, 68, 68, 0.5));
+        }
+
+        .rc-product-entry-unavailable {
+            opacity: 0.6;
+            filter: grayscale(0.3);
+        }
+
+        /* Product Entry Content */
+        .rc-product-entry-name {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            min-width: 0;
+        }
+
+        .rc-product-entry-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .rc-product-entry-title i {
+            background: linear-gradient(135deg, var(--surface-4), var(--surface-3));
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            padding: var(--space-xs);
+            font-size: 0.9rem;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        .rc-product-entry-subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            opacity: 0.8;
+            margin-left: var(--space-sm);
+            white-space: nowrap;
+        }
+
+        /* Product Entry Input Section */
+        .rc-product-entry-input {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+
+        .rc-product-entry-quantity-label {
+            display: none;
+        }
+
+        .rc-product-entry-input input {
+            width: 80px;
+            padding: var(--space-sm) var(--space-md);
+            border: 2px solid var(--surface-4);
+            border-radius: var(--radius-md);
+            background: var(--surface-2);
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 700;
+            text-align: center;
+            transition: all var(--transition-fast);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .rc-product-entry-input input:focus {
+            outline: none;
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(208, 2, 27, 0.2),
+                        inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            background: var(--surface-1);
+            transform: scale(1.02);
+        }
+
+        .rc-product-entry-input input:hover {
+            border-color: rgba(208, 2, 27, 0.7);
+        }
+
+        .rc-product-entry-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        /* Progress Bar - Visual Stock Indicator */
+        .rc-product-entry-progress {
+            display: none;
+        }
+
+        .rc-product-entry-progress-track {
+            display: none;
+        }
+
+        .rc-product-entry-progress-bar {
+            display: none;
+        }
+
+        .rc-product-entry-progress-text {
+            display: none;
+        }
+
+        /* Table Warning Row */
+        .rc-table-row-warning {
+            background: rgba(239, 68, 68, 0.15);
+            border-left: 3px solid #ef4444;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .rc-product-tree-frame {
+                padding: var(--space-lg) var(--space-md);
+                margin: 0 calc(var(--space-sm) * -1);
+                border-radius: var(--radius-md);
+                overflow: visible;
+            }
+
+            .rc-product-tree {
+                max-height: none;
+                padding-right: 0;
+                margin-right: 0;
+            }
+
+            .rc-product-tree summary {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: var(--space-sm);
+            }
+
+            .rc-node-metrics {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .rc-product-entry {
+                flex-wrap: wrap;
+                gap: var(--space-sm);
+            }
+
+            .rc-product-entry-name {
+                flex: 1 1 100%;
+            }
+
+            .rc-product-entry-input {
+                flex: 1;
+                width: 100%;
+            }
+
+            .rc-product-entry-meta {
+                flex: 1;
+                justify-content: flex-start;
+                width: 100%;
+            }
+
+            .rc-product-tree-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .rc-product-tree-controls {
+                justify-content: stretch;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+        }
+    </style>
+
+    <!-- JavaScript -->
+    <script src="/static/js/rental-core-design.js"></script>
+    
+    <script>
+        if (typeof window.setupCustomerInlineCreation !== 'function') {
+            window.setupCustomerInlineCreation = function(rootElement) {
+                const root = rootElement || document;
+                const customerSection = root.querySelector('[data-role="customer-section"]');
+                const select = customerSection ? customerSection.querySelector('[data-role="customer-select"]') : null;
+                const openBtn = customerSection ? customerSection.querySelector('[data-action="open-new-customer"]') : null;
+                const modal = root.querySelector('[data-role="customer-modal"]');
+
+                if (!customerSection || !select || !openBtn || !modal || customerSection.dataset.customerInlineReady === 'true') {
+                    return;
+                }
+
+                customerSection.dataset.customerInlineReady = 'true';
+
+                const closeElements = modal.querySelectorAll('[data-action="close-customer-modal"]');
+                const submitButton = modal.querySelector('[data-action="submit-new-customer"]');
+                const errorBox = modal.querySelector('[data-role="customer-error"]');
+                const successBox = modal.querySelector('[data-role="customer-success"]');
+                const fieldInputs = modal.querySelectorAll('[data-field]');
+
+                if (!submitButton) {
+                    return;
+                }
+
+                const originalSubmitText = submitButton.innerHTML;
+
+                function clearMessages() {
+                    if (errorBox) {
+                        errorBox.style.display = 'none';
+                    }
+                    if (successBox) {
+                        successBox.style.display = 'none';
+                    }
+                }
+
+                function renderMessage(box, icon, message) {
+                    if (!box) return;
+                    box.innerHTML = `<i class="bi bi-${icon}"></i> ${message}`;
+                    box.style.display = 'block';
+                }
+
+                function resetFields() {
+                    fieldInputs.forEach(el => {
+                        if (el.tagName === 'SELECT') {
+                            const defaultValue = el.getAttribute('data-default-value');
+                            el.value = defaultValue || (el.options.length ? el.options[0].value : '');
+                        } else {
+                            el.value = '';
+                        }
+                    });
+                }
+
+                function valueOrNull(field) {
+                    const element = modal.querySelector(`[data-field="${field}"]`);
+                    if (!element) return null;
+                    const value = element.value.trim();
+                    return value ? value : null;
+                }
+
+                function openModal() {
+                    clearMessages();
+                    resetFields();
+                    modal.style.display = 'flex';
+                    setTimeout(() => {
+                        const focusField = modal.querySelector('[data-field="company_name"]') || modal.querySelector('[data-field="first_name"]');
+                        if (focusField) {
+                            focusField.focus();
+                        }
+                    }, 60);
+                }
+
+                function closeModal() {
+                    modal.style.display = 'none';
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalSubmitText;
+                    clearMessages();
+                }
+
+                function upsertCustomerOption(customerID, displayName) {
+                    let option = Array.from(select.options).find(opt => opt.value == customerID);
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = customerID;
+                        if (select.options.length > 0 && select.options[0].value === '') {
+                            select.insertBefore(option, select.options[1] || null);
+                        } else {
+                            select.appendChild(option);
+                        }
+                    }
+                    option.textContent = displayName;
+                    option.selected = true;
+                    select.value = customerID;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                openBtn.addEventListener('click', openModal);
+                closeElements.forEach(el => el.addEventListener('click', closeModal));
+                modal.addEventListener('click', event => {
+                    if (event.target === modal || event.target.dataset.action === 'close-customer-modal') {
+                        closeModal();
+                    }
+                });
+
+                submitButton.addEventListener('click', () => {
+                    if (submitButton.disabled) {
+                        return;
+                    }
+
+                    clearMessages();
+
+                    const payload = {
+                        companyname: valueOrNull('company_name'),
+                        firstname: valueOrNull('first_name'),
+                        lastname: valueOrNull('last_name'),
+                        email: valueOrNull('email'),
+                        phonenumber: valueOrNull('phone_number'),
+                        notes: valueOrNull('notes'),
+                        customertype: valueOrNull('customer_type') || 'Kunde',
+                    };
+
+                    if (!payload.companyname && !(payload.firstname && payload.lastname)) {
+                        renderMessage(errorBox, 'exclamation-triangle', 'Provide a company name or both first and last name.');
+                        return;
+                    }
+
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Creating...';
+
+                    fetch('/api/v1/customers', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify(payload),
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(data => {
+                                    throw new Error(data && data.error ? data.error : 'Failed to create customer');
+                                }).catch(() => {
+                                    throw new Error('Failed to create customer');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(customer => {
+                            const customerID = customer.customerID ?? customer.CustomerID;
+                            if (!customerID) {
+                                throw new Error('Customer created but ID missing');
+                            }
+
+                            const company = (customer.companyname ?? customer.CompanyName ?? payload.companyname) || '';
+                            const first = (customer.firstname ?? customer.FirstName ?? payload.firstname) || '';
+                            const last = (customer.lastname ?? customer.LastName ?? payload.lastname) || '';
+                            const displayName = company.trim() || `${first} ${last}`.trim() || 'New Customer';
+
+                            upsertCustomerOption(customerID, displayName);
+
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalSubmitText;
+                            renderMessage(successBox, 'check-circle', 'Customer created successfully.');
+
+                            setTimeout(() => {
+                                closeModal();
+                            }, 700);
+                        })
+                        .catch(error => {
+                            renderMessage(errorBox, 'exclamation-triangle', error.message || 'Failed to create customer.');
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalSubmitText;
+                        });
+                });
+            };
+        }
+
+                // Product selection functionality
+        const productSelections = new Map(); // productId -> { id, name, available, total, quantity }
+        const initialProductSelections = new Map();
+        let productTreeData = [];
+        let productValidationErrors = [];
+        let productTreeControlsBound = false;
+        let productTreeExpanded = new Set();
+
+        function getJobIdFromUrl() {
+            const path = window.location.pathname;
+            const matches = path.match(/\/jobs\/([^\/]+)\/edit/);
+            return matches ? matches[1] : null;
+        }
+
+        const currentJobId = getJobIdFromUrl();
+
+        function loadExistingProductSelections(jobID) {
+            return fetch(`/api/v1/jobs/${jobID}`, { credentials: 'include' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(job => {
+                    if (!job || !Array.isArray(job.jobDevices)) {
+                        return;
+                    }
+                    const counts = new Map();
+                    job.jobDevices.forEach(jd => {
+                        const device = jd.device || {};
+                        const product = device.product || {};
+                        const productID = product.productID || product.ProductID;
+                        const productName = product.name || product.Name;
+                        if (!productID) {
+                            return;
+                        }
+                        const current = counts.get(productID) || { id: productID, name: productName || `Product ${productID}`, quantity: 0 };
+                        current.quantity += 1;
+                        counts.set(productID, current);
+                    });
+                    counts.forEach(value => {
+                        initialProductSelections.set(String(value.id), value);
+                        productSelections.set(String(value.id), {
+                            id: value.id,
+                            name: value.name,
+                            available: 0,
+                            total: 0,
+                            quantity: value.quantity
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Failed to load existing product selections:', error);
+                });
+        }
+
+        function loadProductTree() {
+            const startDate = document.querySelector('input[name="start_date"]').value;
+            const endDate = document.querySelector('input[name="end_date"]').value;
+            const loading = document.getElementById('productTreeLoading');
+            const root = document.getElementById('productTreeRoot');
+            const empty = document.getElementById('productTreeEmpty');
+            const actions = document.getElementById('productTreeActions');
+            const summary = document.getElementById('productTreeSummary');
+            productTreeExpanded = new Set();
+
+            const jobId = getJobIdFromUrl();
+            let url = `/api/v1/devices/tree/availability`;
+
+            // Add dates to URL if provided (for availability checking)
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+                if (jobId) {
+                    url += `&job_id=${jobId}`;
+                }
+            } else if (jobId) {
+                url += `?job_id=${jobId}`;
+            }
+
+            if (loading) {
+                loading.style.display = 'flex';
+                loading.innerHTML = '<i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i> Loading products...';
+            }
+            if (root) root.style.display = 'none';
+            if (empty) empty.style.display = 'none';
+            if (actions) actions.style.display = 'none';
+            if (summary) summary.textContent = 'Loading the latest availability…';
+
+            fetch(url, { credentials: 'include' })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📦 API Response:', data);
+                    productTreeData = Array.isArray(data.treeData) ? data.treeData : [];
+                    console.log('🌲 Product Tree Data:', productTreeData);
+                    console.log('🌲 Categories count:', productTreeData.length);
+                    applyAvailabilityToSelections(productTreeData);
+                    renderProductTree(productTreeData);
+                })
+                .catch(error => {
+                    console.error('Error loading product tree:', error);
+                    if (loading) {
+                        loading.style.display = 'flex';
+                        loading.innerHTML = `<div style="color: var(--error);"><i class="bi bi-exclamation-triangle"></i> Error loading products: ${error.message}</div>`;
+                    }
+                    if (summary) {
+                        summary.textContent = 'Could not load products right now. Try again in a moment.';
+                    }
+                });
+        }
+
+        function applyAvailabilityToSelections(treeData) {
+            const availabilityMap = new Map();
+
+            function visitCategory(category) {
+                if (Array.isArray(category.products)) {
+                    category.products.forEach(product => {
+                        const productId = resolveProductId(product);
+                        if (productId === null || productId === undefined) return;
+                        const stats = extractProductStats(product);
+                        availabilityMap.set(String(productId), {
+                            available: stats.available,
+                            total: stats.total
+                        });
+                    });
+                }
+                if (Array.isArray(category.subcategories)) {
+                    category.subcategories.forEach(visitSubcategory);
+                }
+            }
+
+            function visitSubcategory(subcategory) {
+                if (Array.isArray(subcategory.products)) {
+                    subcategory.products.forEach(product => {
+                        const productId = resolveProductId(product);
+                        if (productId === null || productId === undefined) return;
+                        const stats = extractProductStats(product);
+                        availabilityMap.set(String(productId), {
+                            available: stats.available,
+                            total: stats.total
+                        });
+                    });
+                }
+                if (Array.isArray(subcategory.subbiercategories)) {
+                    subcategory.subbiercategories.forEach(visitSubbiercategory);
+                }
+            }
+
+            function visitSubbiercategory(subbiercategory) {
+                if (Array.isArray(subbiercategory.products)) {
+                    subbiercategory.products.forEach(product => {
+                        const productId = resolveProductId(product);
+                        if (productId === null || productId === undefined) return;
+                        const stats = extractProductStats(product);
+                        availabilityMap.set(String(productId), {
+                            available: stats.available,
+                            total: stats.total
+                        });
+                    });
+                }
+            }
+
+            treeData.forEach(visitCategory);
+
+            const idsToRemove = [];
+            productSelections.forEach((value, key) => {
+                const availability = availabilityMap.get(key);
+                if (!availability) {
+                    idsToRemove.push(key);
+                    return;
+                }
+                value.available = availability.available;
+                value.total = availability.total;
+                if (value.quantity > value.available) {
+                    value.quantity = value.available;
+                }
+                productSelections.set(key, value);
+            });
+
+            idsToRemove.forEach(id => productSelections.delete(id));
+        }
+
+        function resolveProductId(product) {
+            if (!product || typeof product !== 'object') {
+                return null;
+            }
+            return product.id ?? product.productID ?? product.ProductID ?? product.productId ?? product.Id ?? null;
+        }
+
+        function collectProductsStats(products) {
+            if (!Array.isArray(products)) {
+                return { products: 0, available: 0, total: 0 };
+            }
+            return products.reduce((acc, product) => {
+                const stats = extractProductStats(product);
+                acc.products += 1;
+                acc.available += stats.available;
+                acc.total += stats.total;
+                return acc;
+            }, { products: 0, available: 0, total: 0 });
+        }
+
+        function isConsumableProduct(product) {
+            const flag = product?.is_consumable ?? product?.IsConsumable ?? product?.isConsumable;
+            return flag === true || flag === 1 || flag === "1";
+        }
+
+        function getProductStock(product) {
+            const raw = product?.stock_quantity ?? product?.StockQuantity;
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function getProductUnit(product) {
+            return product?.count_type_abbr ?? product?.CountTypeAbbr ?? product?.countTypeAbbr ?? '';
+        }
+
+        function toNumber(value, fallback = 0) {
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : fallback;
+        }
+
+        function extractProductStats(product) {
+            if (!product || typeof product !== 'object') {
+                return { available: 0, total: 0 };
+            }
+            let availableSource = 0;
+            if (product.available_count !== undefined) {
+                availableSource = product.available_count;
+            } else if (product.availableCount !== undefined) {
+                availableSource = product.availableCount;
+            } else if (product.AvailableCount !== undefined) {
+                availableSource = product.AvailableCount;
+            }
+
+            let totalSource = 0;
+            if (product.device_count !== undefined) {
+                totalSource = product.device_count;
+            } else if (product.deviceCount !== undefined) {
+                totalSource = product.deviceCount;
+            } else if (product.DeviceCount !== undefined) {
+                totalSource = product.DeviceCount;
+            }
+
+            return {
+                available: toNumber(availableSource),
+                total: toNumber(totalSource)
+            };
+        }
+
+        function mergeStats(target, addition) {
+            return {
+                products: (target.products || 0) + (addition.products || 0),
+                available: (target.available || 0) + (addition.available || 0),
+                total: (target.total || 0) + (addition.total || 0)
+            };
+        }
+
+        function collectNodeStats(node) {
+            if (!node || typeof node !== 'object') {
+                return { products: 0, available: 0, total: 0 };
+            }
+
+            let stats = { products: 0, available: 0, total: 0 };
+
+            if (Array.isArray(node.products)) {
+                node.products.forEach(product => {
+                    const productStats = extractProductStats(product);
+                    stats.products += 1;
+                    stats.available += productStats.available;
+                    stats.total += productStats.total;
+                });
+            }
+
+            if (Array.isArray(node.subcategories)) {
+                node.subcategories.forEach(sub => {
+                    stats = mergeStats(stats, collectNodeStats(sub));
+                });
+            }
+
+            if (Array.isArray(node.subbiercategories)) {
+                node.subbiercategories.forEach(sub => {
+                    stats = mergeStats(stats, collectNodeStats(sub));
+                });
+            }
+
+            return stats;
+        }
+
+        function collectTreeStats(tree) {
+            if (!Array.isArray(tree)) {
+                return { products: 0, available: 0, total: 0 };
+            }
+            return tree.reduce((acc, node) => mergeStats(acc, collectNodeStats(node)), { products: 0, available: 0, total: 0 });
+        }
+
+        function buildNodeHeader(level, name, stats) {
+            const icons = {
+                category: 'bi-diagram-3',
+                subcategory: 'bi-diagram-2',
+                subbiercategory: 'bi-layers'
+            };
+            const availabilityClass = stats.total === 0
+                ? 'rc-chip-muted'
+                : stats.available > 0
+                    ? 'rc-chip-success'
+                    : 'rc-chip-danger';
+            const availabilityText = stats.total === 0
+                ? 'No devices yet'
+                : `${stats.available}/${stats.total} ready`;
+            const productLabel = `${stats.products} ${stats.products === 1 ? 'Product' : 'Products'}`;
+
+            return `
+                <div class="rc-node-header">
+                    <div class="rc-node-title">
+                        <i class="bi ${icons[level] || icons.category}"></i>
+                        <span>${escapeHtml(name || 'Untitled')}</span>
+                    </div>
+                    <div class="rc-node-metrics">
+                        <span class="rc-chip rc-chip-neutral">${productLabel}</span>
+                        <span class="rc-chip ${availabilityClass}">${availabilityText}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateProductTreeSummary(stats, categoryCount) {
+            const summary = document.getElementById('productTreeSummary');
+            if (!summary) {
+                return;
+            }
+
+            if (!categoryCount) {
+                summary.textContent = 'No products available for this timeframe.';
+                return;
+            }
+
+            const parts = [
+                `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}`,
+                `${stats.products} ${stats.products === 1 ? 'product' : 'products'}`
+            ];
+
+            if (stats.total > 0) {
+                const percent = Math.round((stats.available / Math.max(stats.total, 1)) * 100);
+                parts.push(`${stats.available}/${stats.total} devices free (${percent}% open)`);
+            }
+
+            summary.textContent = parts.join(' • ');
+        }
+
+        // Warehouse-style product tree rendering
+        function renderProductTree(treeData) {
+            const loading = document.getElementById('productTreeLoading');
+            const root = document.getElementById('productTreeRoot');
+            const empty = document.getElementById('productTreeEmpty');
+            const summary = document.getElementById('productTreeSummary');
+
+            if (!root) return;
+
+            root.innerHTML = '';
+            if (loading) loading.style.display = 'none';
+
+            if (!Array.isArray(treeData) || treeData.length === 0) {
+                if (empty) empty.style.display = 'block';
+                root.style.display = 'none';
+                if (summary) summary.textContent = 'Keine Produkte gefunden.';
+                updateProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
+                updateSelectedProductsSummary();
+                updateHiddenProductInput();
+                validateProductSelections();
+                return;
+            }
+
+            if (empty) empty.style.display = 'none';
+            root.style.display = 'flex';
+
+            const totals = collectTreeStats(treeData);
+            updateProductTreeSummary(totals, treeData.length);
+
+            treeData.forEach(category => {
+                root.appendChild(renderCategoryNode(category, 'cat-' + category.id));
+            });
+
+            updateSelectedProductsSummary();
+            updateHiddenProductInput();
+            validateProductSelections();
+        }
+
+        function renderCategoryNode(category, nodeId) {
+            const node = document.createElement('div');
+            node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
+            const isExpanded = productTreeExpanded.has(nodeId);
+            if (isExpanded) node.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'wc-node-header';
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
+
+            const title = document.createElement('div');
+            title.className = 'wc-node-title';
+            title.innerHTML = `<i class="bi bi-chevron-right wc-node-chevron"></i><span>${escapeHtml(category.name || 'Kategorie')}</span>`;
+
+            const stats = collectNodeStats(category);
+            const chips = document.createElement('div');
+            chips.className = 'rc-node-metrics';
+            chips.innerHTML = `
+                <span class="wc-chip">${stats.products} Produkte</span>
+                <span class="wc-chip ${stats.available > 0 ? 'success' : stats.total === 0 ? 'muted' : 'danger'}">${stats.available}/${stats.total} frei</span>
+            `;
+
+            header.appendChild(title);
+            header.appendChild(chips);
+
+            const body = document.createElement('div');
+            body.className = 'wc-node-body';
+
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
+                const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+                if (catProductsGroup) {
+                    body.appendChild(catProductsGroup);
+                }
+            }
+
+            node.appendChild(header);
+            node.appendChild(body);
+
+            // Store category data for lazy rendering on toggle
+            node._categoryData = category;
+
+            return node;
+        }
+
+        function renderSubcategoryNode(subcategory, nodeId) {
+            const node = document.createElement('div');
+            node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
+            const isExpanded = productTreeExpanded.has(nodeId);
+            console.log('🔵 renderSubcategoryNode:', nodeId, 'isExpanded:', isExpanded);
+            if (isExpanded) node.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'wc-node-header';
+            header.addEventListener('click', (e) => {
+                console.log('🖱️ Click on subcategory header:', nodeId);
+                e.stopPropagation();
+                toggleNode(productTreeExpanded, nodeId, node);
+            });
+
+            const title = document.createElement('div');
+            title.className = 'wc-node-title';
+            title.innerHTML = `<i class="bi bi-chevron-right wc-node-chevron"></i><span>${escapeHtml(subcategory.name || 'Subcategory')}</span>`;
+
+            const stats = collectNodeStats(subcategory);
+            const chips = document.createElement('div');
+            chips.className = 'rc-node-metrics';
+            chips.innerHTML = `
+                <span class="wc-chip">${stats.products} Produkte</span>
+                <span class="wc-chip ${stats.available > 0 ? 'success' : stats.total === 0 ? 'muted' : 'danger'}">${stats.available}/${stats.total} frei</span>
+            `;
+
+            header.appendChild(title);
+            header.appendChild(chips);
+
+            const body = document.createElement('div');
+            body.className = 'wc-node-body';
+
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
+                const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+                if (subProductsGroup) {
+                    body.appendChild(subProductsGroup);
+                }
+            }
+
+            node.appendChild(header);
+            node.appendChild(body);
+
+            // Store subcategory data for lazy rendering on toggle
+            node._subcategoryData = subcategory;
+
+            return node;
+        }
+
+        function renderSubbiercategoryNode(subbiercategory, nodeId) {
+            const node = document.createElement('div');
+            node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
+            const isExpanded = productTreeExpanded.has(nodeId);
+            if (isExpanded) node.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'wc-node-header';
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
+
+            const title = document.createElement('div');
+            title.className = 'wc-node-title';
+            title.innerHTML = `<i class="bi bi-chevron-right wc-node-chevron"></i><span>${escapeHtml(subbiercategory.name || 'Group')}</span>`;
+
+            const stats = collectNodeStats(subbiercategory);
+            const chips = document.createElement('div');
+            chips.className = 'rc-node-metrics';
+            chips.innerHTML = `
+                <span class="wc-chip">${stats.products} Produkte</span>
+                <span class="wc-chip ${stats.available > 0 ? 'success' : stats.total === 0 ? 'muted' : 'danger'}">${stats.available}/${stats.total} frei</span>
+            `;
+
+            header.appendChild(title);
+            header.appendChild(chips);
+
+            const body = document.createElement('div');
+            body.className = 'wc-node-body';
+
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+            }
+
+            node.appendChild(header);
+            node.appendChild(body);
+
+            // Store subbiercategory data for lazy rendering on toggle
+            node._subbiercategoryData = subbiercategory;
+
+            return node;
+        }
+
+        function renderProductGroup(products, nodeId, label) {
+            if (!Array.isArray(products) || products.length === 0) {
+                return null;
+            }
+            const node = document.createElement('div');
+            node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
+            const isExpanded = productTreeExpanded.has(nodeId);
+            if (isExpanded) node.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'wc-node-header';
+            const stats = collectProductsStats(products);
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
+
+            const title = document.createElement('div');
+            title.className = 'wc-node-title';
+            title.innerHTML = `<i class="bi bi-chevron-right wc-node-chevron"></i><span>${escapeHtml(label || 'Produkte')}</span>`;
+
+            const chips = document.createElement('div');
+            chips.className = 'rc-node-metrics';
+            chips.innerHTML = `
+                <span class="wc-chip">${stats.products} Produkte</span>
+                <span class="wc-chip ${stats.available > 0 ? 'success' : stats.total === 0 ? 'muted' : 'danger'}">${stats.available}/${stats.total} frei</span>
+            `;
+
+            header.appendChild(title);
+            header.appendChild(chips);
+
+            const body = document.createElement('div');
+            body.className = 'wc-node-body';
+
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                products.forEach(product => body.appendChild(renderProductCard(product)));
+            }
+
+            node.appendChild(header);
+            node.appendChild(body);
+
+            // Store products for lazy rendering on toggle
+            node._productsData = products;
+
+            return node;
+        }
+
+        function renderProductCard(product) {
+            const stats = extractProductStats(product);
+            const available = stats.available;
+            const total = stats.total;
+            const productId = resolveProductId(product);
+
+            const card = document.createElement('div');
+            card.className = 'wc-product';
+            card.dataset.productId = productId !== null && productId !== undefined ? String(productId) : 'unknown';
+
+            const info = document.createElement('div');
+            info.className = 'wc-product-info';
+
+            const title = document.createElement('div');
+            title.className = 'wc-product-title';
+            title.innerHTML = `<i class="bi bi-box-seam"></i><span>${escapeHtml(product.name)}</span>`;
+            info.appendChild(title);
+
+            const meta = document.createElement('div');
+            meta.className = 'wc-product-meta';
+            const brand = product.brand_name || product.brandName || product.BrandName;
+            const manufacturer = product.manufacturer_name || product.manufacturerName || product.ManufacturerName;
+            const barcode = product.generic_barcode || product.GenericBarcode;
+            if (brand) meta.innerHTML += `<span>${escapeHtml(brand)}</span>`;
+            if (manufacturer) meta.innerHTML += `<span>${escapeHtml(manufacturer)}</span>`;
+            if (barcode) meta.innerHTML += `<span class="wc-chip muted">${escapeHtml(barcode)}</span>`;
+            if (meta.innerHTML === '') meta.innerHTML = '<span style="color: var(--text-secondary);">Keine Zusatzinfos</span>';
+            info.appendChild(meta);
+
+            const inputs = document.createElement('div');
+            inputs.className = 'wc-product-inputs';
+
+            const availChip = document.createElement('span');
+            const availClass = total === 0 ? 'muted' : available > 0 ? 'success' : 'danger';
+            availChip.className = `wc-chip ${availClass}`;
+            availChip.innerHTML = `<i class="bi bi-lightning-charge"></i> ${available} / ${total || 0} frei`;
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.value = getCurrentQuantity(productId);
+            input.className = 'wc-qty-input';
+            input.addEventListener('input', () => {
+                const value = Math.max(0, parseInt(input.value || '0', 10));
+                input.value = value;
+                setProductSelection(product, value);
+            });
+            if (productId === null || productId === undefined) {
+                input.disabled = true;
+                input.title = 'Produkt-ID fehlt, Auswahl nicht möglich';
+            }
+
+            if (isConsumableProduct(product)) {
+                const unit = escapeHtml(getProductUnit(product));
+                const stock = getProductStock(product);
+                const stockText = stock !== null ? `${stock}${unit ? ' ' + unit : ''}` : `0${unit ? ' ' + unit : ''}`;
+                const stockChip = document.createElement('span');
+                stockChip.className = 'wc-chip muted';
+                stockChip.innerHTML = `<i class="bi bi-archive"></i> Lager: ${stockText}`;
+                inputs.appendChild(stockChip);
+            }
+
+            inputs.appendChild(availChip);
+            inputs.appendChild(input);
+
+            card.appendChild(info);
+            card.appendChild(inputs);
+            return card;
+        }
+
+        function toggleNode(set, id, nodeElement) {
+            console.log('🔄 toggleNode called:', id, 'currently expanded:', set.has(id));
+            if (set.has(id)) {
+                // Collapse: remove from set, remove CSS class, clear children
+                set.delete(id);
+                if (nodeElement) {
+                    nodeElement.classList.remove('open');
+                    const body = nodeElement.querySelector('.wc-node-body');
+                    if (body) {
+                        body.innerHTML = ''; // Clear children
+                    }
+                }
+                console.log('➖ Collapsed:', id);
+            } else {
+                // Expand: add to set, add CSS class, render children
+                set.add(id);
+                if (nodeElement) {
+                    nodeElement.classList.add('open');
+                    const body = nodeElement.querySelector('.wc-node-body');
+
+                    // Render children based on node type
+                    if (body && body.innerHTML === '') {
+                        if (nodeElement._categoryData) {
+                            const category = nodeElement._categoryData;
+                            (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
+                            const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+                            if (catProductsGroup) body.appendChild(catProductsGroup);
+                        } else if (nodeElement._subcategoryData) {
+                            const subcategory = nodeElement._subcategoryData;
+                            (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
+                            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+                            if (subProductsGroup) body.appendChild(subProductsGroup);
+                        } else if (nodeElement._subbiercategoryData) {
+                            const subbiercategory = nodeElement._subbiercategoryData;
+                            (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+                        } else if (nodeElement._productsData) {
+                            const products = nodeElement._productsData;
+                            products.forEach(product => body.appendChild(renderProductCard(product)));
+                        }
+                    }
+                }
+                console.log('➕ Expanded:', id);
+            }
+            console.log('📊 Expanded nodes:', Array.from(set));
+        }
+
+        function toggleProductTreeNodes(open) {
+            if (!open) {
+                // Collapse all - just re-render the tree
+                productTreeExpanded = new Set();
+                renderProductTree(productTreeData);
+                return;
+            }
+
+            // Expand all - add ALL node IDs and re-render
+            const ids = [];
+            productTreeData.forEach(cat => {
+                ids.push('cat-' + cat.id);
+                if (Array.isArray(cat.products) && cat.products.length > 0) {
+                    ids.push(`cat-${cat.id}-products`);
+                }
+                (cat.subcategories || []).forEach(sub => {
+                    ids.push('sub-' + sub.id);
+                    if (Array.isArray(sub.products) && sub.products.length > 0) {
+                        ids.push(`sub-${sub.id}-products`);
+                    }
+                    (sub.subbiercategories || []).forEach(sb => {
+                        ids.push('subbier-' + sb.id);
+                        if (Array.isArray(sb.products) && sb.products.length > 0) {
+                            ids.push(`subbier-${sb.id}-products`);
+                        }
+                    });
+                });
+            });
+            productTreeExpanded = new Set(ids);
+            renderProductTree(productTreeData);
+        }
+
+        function getCurrentQuantity(productID) {
+            if (productID === null || productID === undefined) {
+                return 0;
+            }
+            const key = String(productID);
+            if (productSelections.has(key)) {
+                return productSelections.get(key).quantity;
+            }
+            if (initialProductSelections.has(key)) {
+                return initialProductSelections.get(key).quantity;
+            }
+            return 0;
+        }
+
+        function setProductSelection(product, quantity) {
+            const productId = resolveProductId(product);
+            if (productId === null || productId === undefined) {
+                return;
+            }
+            const key = String(productId);
+            const stats = extractProductStats(product);
+            const previousEntry = productSelections.get(key) || initialProductSelections.get(key);
+            const previousQuantity = previousEntry ? previousEntry.quantity || 0 : 0;
+            const entry = productSelections.get(key) || {
+                id: productId,
+                name: product.name,
+                available: stats.available,
+                total: stats.total,
+                quantity: 0
+            };
+
+            entry.available = stats.available;
+            entry.total = stats.total;
+            entry.quantity = quantity;
+
+            if (entry.quantity <= 0) {
+                productSelections.delete(key);
+            } else {
+                productSelections.set(key, entry);
+            }
+
+            const effectiveJobId = currentJobId || {{if .job.JobID}}{{.job.JobID}}{{else}}null{{end}};
+            const increase = quantity - previousQuantity;
+            if (increase > 0 && effectiveJobId) {
+                checkAndPromptAccessoriesConsumables(productId, null, increase, effectiveJobId);
+            }
+
+            updateSelectedProductsSummary();
+            updateHiddenProductInput();
+            validateProductSelections();
+        }
+
+        function updateSelectedProductsSummary() {
+            const table = document.getElementById('selectedProductsTable');
+            const empty = document.getElementById('selectedProductsEmpty');
+            if (!table || !empty) {
+                return;
+            }
+
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+
+            if (productSelections.size === 0) {
+                table.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            table.style.display = 'table';
+            empty.style.display = 'none';
+
+            Array.from(productSelections.values()).sort((a, b) => a.name.localeCompare(b.name)).forEach(entry => {
+                const row = document.createElement('tr');
+                const warn = entry.quantity > entry.available;
+                row.innerHTML = `
+                    <td>${escapeHtml(entry.name)}</td>
+                    <td>${entry.quantity}</td>
+                    <td>${entry.available} / ${entry.total}</td>
+                `;
+                if (warn) {
+                    row.classList.add('rc-table-row-warning');
+                }
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateHiddenProductInput() {
+            const input = document.getElementById('selectedProductsInput');
+            if (!input) {
+                return;
+            }
+            const payload = Array.from(productSelections.values())
+                .filter(entry => entry.quantity > 0)
+                .map(entry => ({ product_id: entry.id, quantity: entry.quantity }));
+            input.value = JSON.stringify(payload);
+        }
+
+        function validateProductSelections() {
+            productValidationErrors = [];
+            productSelections.forEach(entry => {
+                if (entry.quantity > entry.available) {
+                    productValidationErrors.push(`${entry.name}: requested ${entry.quantity}, available ${entry.available}`);
+                }
+            });
+
+            const errorBox = document.getElementById('productSelectionErrors');
+            if (!errorBox) {
+                return;
+            }
+
+            if (productValidationErrors.length === 0) {
+                errorBox.style.display = 'none';
+                errorBox.innerHTML = '';
+                return;
+            }
+
+            errorBox.style.display = 'block';
+            errorBox.innerHTML = `
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Adjust product quantities:</strong>
+                <ul style="margin-top: 8px; padding-left: 16px;">
+                    ${productValidationErrors.map(msg => `<li>${escapeHtml(msg)}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        function escapeHtml(text) {
+            if (text === undefined || text === null) {
+                return '';
+            }
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Rental Equipment Selection Functionality
+        const rentalSelections = new Map(); // equipmentId -> { equipmentId, productName, supplierName, quantity, days, rentalPrice, customerPrice, notes }
+
+        function initializeRentalEquipment() {
+            const qtyInputs = document.querySelectorAll('.rental-qty-input');
+            const daysInputs = document.querySelectorAll('.rental-days-input');
+            const notesInputs = document.querySelectorAll('.rental-notes-input');
+
+            qtyInputs.forEach(input => {
+                input.addEventListener('change', updateRentalSelection);
+                input.addEventListener('input', updateRentalSelection);
+            });
+
+            daysInputs.forEach(input => {
+                input.addEventListener('change', updateRentalSelection);
+                input.addEventListener('input', updateRentalSelection);
+            });
+
+            notesInputs.forEach(input => {
+                input.addEventListener('change', updateRentalSelection);
+                input.addEventListener('input', updateRentalSelection);
+            });
+
+            // Load existing selections if editing
+            loadExistingRentalSelections();
+        }
+
+        function loadExistingRentalSelections() {
+            // Check if we have pre-loaded job rental equipment
+            {{if .jobRentalEquipment}}
+            {{range .jobRentalEquipment}}
+            const equipmentId = '{{.EquipmentID}}';
+            const qtyInput = document.querySelector(`input[name="rental_qty_${equipmentId}"]`);
+            const daysInput = document.querySelector(`input[name="rental_days_${equipmentId}"]`);
+            const notesInput = document.querySelector(`input[name="rental_notes_${equipmentId}"]`);
+
+            if (qtyInput) {
+                qtyInput.value = {{.Quantity}};
+                qtyInput.dispatchEvent(new Event('change'));
+            }
+            if (daysInput) {
+                daysInput.value = {{.DaysUsed}};
+            }
+            if (notesInput && '{{.Notes}}') {
+                notesInput.value = '{{.Notes}}';
+            }
+            {{end}}
+            {{end}}
+        }
+
+        function updateRentalSelection(event) {
+            const input = event.target;
+            const equipmentId = input.dataset.equipmentId;
+            const row = input.closest('tr');
+
+            if (!row) return;
+
+            const qtyInput = row.querySelector('.rental-qty-input');
+            const daysInput = row.querySelector('.rental-days-input');
+            const notesInput = row.querySelector('.rental-notes-input');
+
+            const qty = parseInt(qtyInput.value) || 0;
+            const days = parseInt(daysInput.value) || 1;
+            const notes = notesInput ? notesInput.value : '';
+            const rentalPrice = parseFloat(qtyInput.dataset.rentalPrice) || 0;
+            const customerPrice = parseFloat(qtyInput.dataset.customerPrice) || 0;
+
+            // Get product name and supplier from the row
+            const productName = row.querySelector('strong')?.textContent?.trim() || 'Unknown';
+            const supplierHeader = row.closest('.rc-mb-lg')?.querySelector('h5 i.bi-building')?.parentElement;
+            const supplierName = supplierHeader ? supplierHeader.childNodes[1]?.textContent?.trim() : 'Unknown';
+
+            if (qty > 0) {
+                rentalSelections.set(equipmentId, {
+                    equipmentId: parseInt(equipmentId),
+                    productName: productName,
+                    supplierName: supplierName,
+                    quantity: qty,
+                    days: days,
+                    rentalPrice: rentalPrice,
+                    customerPrice: customerPrice,
+                    notes: notes,
+                    totalCost: rentalPrice * qty * days,
+                    totalRevenue: customerPrice * qty * days
+                });
+            } else {
+                rentalSelections.delete(equipmentId);
+            }
+
+            updateRentalSummary();
+            updateRentalHiddenInput();
+        }
+
+        function updateRentalSummary() {
+            const emptyMsg = document.getElementById('selectedRentalEmpty');
+            const table = document.getElementById('selectedRentalTable');
+            const tbody = document.getElementById('selectedRentalBody');
+            const totalCostEl = document.getElementById('totalRentalCost');
+            const totalRevenueEl = document.getElementById('totalRentalRevenue');
+
+            if (!tbody) return;
+
+            if (rentalSelections.size === 0) {
+                if (emptyMsg) emptyMsg.style.display = 'block';
+                if (table) table.style.display = 'none';
+                return;
+            }
+
+            if (emptyMsg) emptyMsg.style.display = 'none';
+            if (table) table.style.display = 'table';
+
+            let html = '';
+            let totalCost = 0;
+            let totalRevenue = 0;
+
+            rentalSelections.forEach(selection => {
+                const cost = selection.totalCost;
+                const revenue = selection.totalRevenue;
+                totalCost += cost;
+                totalRevenue += revenue;
+
+                html += `
+                    <tr>
+                        <td>
+                            <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; font-size: 0.6rem; padding: 2px 6px; margin-right: 4px;">
+                                Miet
+                            </span>
+                            ${escapeHtml(selection.productName)}
+                        </td>
+                        <td style="font-size: 0.85rem;">${escapeHtml(selection.supplierName)}</td>
+                        <td style="text-align: center;">${selection.quantity}</td>
+                        <td style="text-align: center;">${selection.days}</td>
+                        <td style="font-family: 'JetBrains Mono', monospace; color: #f97316; font-size: 0.85rem;">${cost.toFixed(2)} EUR</td>
+                        <td style="font-family: 'JetBrains Mono', monospace; color: #22c55e; font-size: 0.85rem;">${revenue.toFixed(2)} EUR</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+
+            if (totalCostEl) totalCostEl.textContent = totalCost.toFixed(2) + ' EUR';
+            if (totalRevenueEl) totalRevenueEl.textContent = totalRevenue.toFixed(2) + ' EUR';
+        }
+
+        function updateRentalHiddenInput() {
+            const input = document.getElementById('selectedRentalInput');
+            if (!input) return;
+
+            const selections = [];
+            rentalSelections.forEach(selection => {
+                selections.push({
+                    equipment_id: selection.equipmentId,
+                    quantity: selection.quantity,
+                    days_used: selection.days,
+                    notes: selection.notes
+                });
+            });
+
+            input.value = JSON.stringify(selections);
+        }
+
+        // Initialize job form - can be called manually from modal
+        function initializeJobForm() {
+            console.log('initializeJobForm called');
+
+            if (typeof window.setupCustomerInlineCreation === 'function') {
+                window.setupCustomerInlineCreation(document);
+            }
+
+            // Initialize rental equipment selection
+            initializeRentalEquipment();
+
+            const startDateInput = document.querySelector('input[name="start_date"]');
+            const endDateInput = document.querySelector('input[name="end_date"]');
+
+            function triggerReload() {
+                loadProductTree();
+            }
+
+            if (startDateInput) {
+                startDateInput.addEventListener('change', triggerReload);
+            }
+            if (endDateInput) {
+                endDateInput.addEventListener('change', triggerReload);
+            }
+
+            if (!productTreeControlsBound) {
+                const expandButton = document.querySelector('[data-action="expand-product-tree"]');
+                const collapseButton = document.querySelector('[data-action="collapse-product-tree"]');
+                if (expandButton) {
+                    expandButton.addEventListener('click', () => toggleProductTreeNodes(true));
+                }
+                if (collapseButton) {
+                    collapseButton.addEventListener('click', () => toggleProductTreeNodes(false));
+                }
+                productTreeControlsBound = true;
+            }
+
+            const jobID = getJobIdFromUrl();
+            const initialize = jobID ? loadExistingProductSelections(jobID) : Promise.resolve();
+
+            initialize.finally(() => {
+                loadProductTree();
+            });
+        }
+
+        // IMMEDIATELY expose function globally for modal (BEFORE DOMContentLoaded)
+        window.initializeJobForm = initializeJobForm;
+        console.log('✅ window.initializeJobForm exposed');
+
+        // Auto-initialize on page load
+        document.addEventListener('DOMContentLoaded', initializeJobForm);
+
+        const jobFormElement = document.getElementById('jobForm');
+        if (jobFormElement) {
+            jobFormElement.addEventListener('submit', function(event) {
+                updateHiddenProductInput();
+                validateProductSelections();
+                if (productValidationErrors.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    window.scrollTo({ top: document.getElementById('productSelectionContainer').offsetTop - 80, behavior: 'smooth' });
+                }
+            });
+        }
+
+        // Legacy device logic (selected_devices) removed in favor of product-based flow
+
+// File Upload Functions
+        let selectedFiles = [];
+
+        function handleJobFileSelection(input) {
+            const files = Array.from(input.files);
+            selectedFiles = selectedFiles.concat(files);
+            displaySelectedFiles();
+        }
+
+        function displaySelectedFiles() {
+            const container = document.getElementById('selectedFilesContainer');
+            const listDiv = document.getElementById('selectedFilesList');
+
+            if (selectedFiles.length === 0) {
+                listDiv.style.display = 'none';
+                return;
+            }
+
+            listDiv.style.display = 'block';
+
+            container.innerHTML = selectedFiles.map((file, index) => `
+                <div class="selected-file-item rc-flex rc-flex-between rc-flex-align-center rc-p-sm" style="border: 1px solid var(--surface-3); border-radius: 6px; margin-bottom: 6px; background: var(--surface-1);">
+                    <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                        <i class="bi bi-file-earmark" style="color: var(--primary);"></i>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 500;">${file.name}</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">${formatFileSize(file.size)}</div>
+                        </div>
+                    </div>
+                    <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm" onclick="removeSelectedFile(${index})" style="color: var(--error);">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeSelectedFile(index) {
+            selectedFiles.splice(index, 1);
+            displaySelectedFiles();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Load existing attachments for edit mode
+        document.addEventListener('DOMContentLoaded', function() {
+            const jobID = {{if .job.JobID}}{{.job.JobID}}{{else}}null{{end}};
+            if (jobID) {
+                loadExistingAttachments(jobID);
+            }
+
+            // Setup drag and drop
+            const uploadArea = document.querySelector('.file-upload-area');
+            if (uploadArea) {
+                uploadArea.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    uploadArea.style.backgroundColor = 'var(--surface-3)';
+                });
+
+                uploadArea.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    uploadArea.style.backgroundColor = '';
+                });
+
+                uploadArea.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    uploadArea.style.backgroundColor = '';
+
+                    const files = Array.from(e.dataTransfer.files);
+                    selectedFiles = selectedFiles.concat(files);
+                    displaySelectedFiles();
+                });
+            }
+        });
+
+        async function loadExistingAttachments(jobID) {
+            try {
+                const response = await fetch(`/api/jobs/${jobID}/attachments`);
+                const attachments = await response.json();
+
+                const container = document.getElementById('attachmentsList');
+                if (!attachments || attachments.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); font-style: italic; margin: 0;">No files attached yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = attachments.map(attachment => `
+                    <div class="attachment-item rc-flex rc-flex-between rc-flex-align-center rc-p-sm" style="border: 1px solid var(--surface-3); border-radius: 6px; margin-bottom: 6px; background: var(--surface-1);">
+                        <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                            <i class="bi ${getFileIcon(attachment.mimeType)}" style="color: var(--primary);"></i>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 500;">${attachment.originalFilename}</div>
+                                <div style="font-size: 12px; color: var(--text-muted);">
+                                    ${attachment.fileSizeFormatted}
+                                    ${attachment.uploader ? ` • by ${attachment.uploader.firstName} ${attachment.uploader.lastName}` : ''}
+                                </div>
+                                ${attachment.description ? `<div style="font-size: 12px; color: var(--text-muted); font-style: italic;">${attachment.description}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="rc-flex rc-flex-align-center rc-flex-gap-xs">
+                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="downloadAttachment(${attachment.attachmentID})" title="Download">
+                                <i class="bi bi-download"></i>
+                            </button>
+                            <button type="button" class="rc-btn rc-btn-outline rc-btn-sm" onclick="deleteAttachment(${attachment.attachmentID}, '${attachment.originalFilename}')" title="Delete" style="color: var(--error);">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading attachments:', error);
+                document.getElementById('attachmentsList').innerHTML = '<p style="color: var(--error); margin: 0;">Error loading attachments.</p>';
+            }
+        }
+
+        function getFileIcon(mimeType) {
+            if (mimeType.startsWith('image/')) return 'bi-image';
+            if (mimeType.startsWith('video/')) return 'bi-play-circle';
+            if (mimeType.startsWith('audio/')) return 'bi-music-note';
+            if (mimeType.includes('pdf')) return 'bi-file-pdf';
+            if (mimeType.includes('word') || mimeType.includes('document')) return 'bi-file-text';
+            if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'bi-file-spreadsheet';
+            if (mimeType.includes('zip') || mimeType.includes('archive')) return 'bi-file-zip';
+            return 'bi-file-earmark';
+        }
+
+        function downloadAttachment(attachmentID) {
+            window.open(`/api/jobs/attachments/${attachmentID}/download`, '_blank');
+        }
+
+        async function deleteAttachment(attachmentID, filename) {
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
+
+            try {
+                const response = await fetch(`/api/jobs/attachments/${attachmentID}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Reload attachments
+                    const jobID = {{if .job.JobID}}{{.job.JobID}}{{else}}null{{end}};
+                    if (jobID) loadExistingAttachments(jobID);
+                } else {
+                    alert('Failed to delete attachment: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error deleting attachment:', error);
+                alert('Error deleting attachment');
+            }
+        }
+
+        // Upload selected files when form is submitted
+        document.querySelector('form').addEventListener('submit', async function(e) {
+            if (selectedFiles.length > 0) {
+                const jobID = {{if .job.JobID}}{{.job.JobID}}{{else}}null{{end}};
+                if (jobID) {
+                    e.preventDefault();
+                    await uploadSelectedFiles(jobID);
+                    // Continue with form submission after upload
+                    this.submit();
+                }
+            }
+        });
+
+        async function uploadSelectedFiles(jobID) {
+            for (const file of selectedFiles) {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('jobID', jobID);
+
+                try {
+                    await fetch('/api/jobs/attachments/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                } catch (error) {
+                    console.error('Error uploading file:', file.name, error);
+                }
+            }
+            selectedFiles = [];
+            displaySelectedFiles();
+        }
+
+        // PDF Upload Modal Functions
+        function openPDFUploadModal() {
+            const modal = document.getElementById('pdfUploadModal');
+            if (modal) {
+                modal.classList.add('is-visible');
+            }
+        }
+
+        function closePDFUploadModal() {
+            const modal = document.getElementById('pdfUploadModal');
+            if (modal) {
+                modal.classList.remove('is-visible');
+                document.getElementById('pdfUploadInput').value = '';
+                document.getElementById('pdfUploadStatus').innerHTML = '';
+            }
+        }
+
+        async function uploadPDFFile() {
+            const fileInput = document.getElementById('pdfUploadInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a PDF file');
+                return;
+            }
+
+            if (file.type !== 'application/pdf') {
+                alert('Only PDF files are allowed');
+                return;
+            }
+
+            const statusDiv = document.getElementById('pdfUploadStatus');
+            statusDiv.innerHTML = '<div class="rc-alert rc-alert-info"><i class="bi bi-hourglass-split"></i> Uploading and processing PDF...</div>';
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                const response = await fetch('/api/pdf/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    statusDiv.innerHTML = '<div class="rc-alert rc-alert-success"><i class="bi bi-check-circle"></i> PDF uploaded successfully! Processing...</div>';
+
+                    // Poll for extraction results
+                    pollExtractionResults(result.upload_id);
+                } else {
+                    statusDiv.innerHTML = `<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Upload failed: ${result.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                console.error('PDF upload error:', error);
+                statusDiv.innerHTML = '<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Upload failed. Please try again.</div>';
+            }
+        }
+
+        async function pollExtractionResults(uploadID, attempts = 0) {
+            if (attempts > 20) { // Max 20 attempts (10 seconds)
+                document.getElementById('pdfUploadStatus').innerHTML = '<div class="rc-alert rc-alert-error"><i class="bi bi-x-circle"></i> Processing timeout. Please try again.</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/pdf/extraction/${uploadID}`);
+                const data = await response.json();
+
+                if (response.ok && data.extraction_id) {
+                    // Redirect to review page immediately after successful extraction
+                    document.getElementById('pdfUploadStatus').innerHTML = '<div class="rc-alert rc-alert-success"><i class="bi bi-check-circle"></i> PDF processed! Redirecting to review page...</div>';
+                    setTimeout(() => {
+                        window.location.href = `/pdf/review/${uploadID}`;
+                    }, 800);
+                } else {
+                    // Still processing, try again
+                    setTimeout(() => pollExtractionResults(uploadID, attempts + 1), 500);
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+                setTimeout(() => pollExtractionResults(uploadID, attempts + 1), 500);
+            }
+        }
+
+        function applyPDFDataToForm(data) {
+            // TODO: Implement form population with extracted data
+            alert('PDF data application coming soon! For now, please manually copy the data.');
+            closePDFUploadModal();
+        }
+
+        // ===== JOB HISTORY MODAL FUNCTIONS =====
+
+        function showJobHistoryModal() {
+            {{if .job.JobID}}
+            const modal = document.getElementById('jobHistoryModal');
+            modal.style.display = 'flex';
+            loadJobHistoryData();
+            {{end}}
+        }
+
+        function hideJobHistoryModal() {
+            const modal = document.getElementById('jobHistoryModal');
+            modal.style.display = 'none';
+        }
+
+        function loadJobHistoryData() {
+            const jobID = {{.job.JobID}};
+            const historyContent = document.getElementById('job-history-content');
+            const loadingIndicator = document.getElementById('loading-job-history');
+
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
+
+            fetch(`/api/v1/jobs/${jobID}/history`)
+                .then(response => response.json())
+                .then(data => {
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    if (data.success && data.history && data.history.length > 0) {
+                        displayJobHistoryData(data.history);
+                    } else {
+                        historyContent.innerHTML = `
+                            <div class="rc-text-center rc-p-lg">
+                                <i class="bi bi-clock-history" style="font-size: 3rem; color: var(--text-muted);"></i>
+                                <h4 class="rc-text-muted rc-mt-md">No History Available</h4>
+                                <p class="rc-text-secondary">No changes have been recorded for this job yet.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading job history:', error);
+                    if (loadingIndicator) loadingIndicator.style.display = 'none';
+                    historyContent.innerHTML = `
+                        <div class="rc-alert rc-alert-error">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Failed to load job history. Please try again.
+                        </div>
+                    `;
+                });
+        }
+
+        function displayJobHistoryData(history) {
+            const historyContent = document.getElementById('job-history-content');
+
+            let html = '<div class="history-timeline">';
+
+            history.forEach((entry, index) => {
+                const changeDate = new Date(entry.changed_at);
+                const formattedDate = changeDate.toLocaleDateString('de-DE', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+                const formattedTime = changeDate.toLocaleTimeString('de-DE', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const typeInfo = getHistoryChangeTypeInfo(entry.change_type);
+
+                html += `
+                    <div class="history-entry rc-mb-md rc-p-md" style="border-left: 3px solid ${typeInfo.color}; background: var(--background-elevated); border-radius: 6px;">
+                        <div class="rc-flex rc-flex-between rc-mb-sm">
+                            <div class="rc-flex rc-flex-gap-sm" style="align-items: center;">
+                                <i class="bi ${typeInfo.icon}" style="color: ${typeInfo.color}; font-size: 1.25rem;"></i>
+                                <span class="rc-badge ${typeInfo.badgeClass}">${typeInfo.label}</span>
+                            </div>
+                            <div class="rc-text-sm rc-text-secondary">
+                                ${formattedDate} ${formattedTime}
+                            </div>
+                        </div>
+                        <div class="rc-text-sm">
+                            <strong>${escapeHtmlText(entry.user_name || 'System')}</strong>
+                            ${entry.description ? `: ${escapeHtmlText(entry.description)}` : ''}
+                        </div>
+                        ${entry.field_name ? `
+                            <div class="rc-text-xs rc-text-secondary rc-mt-sm">
+                                <strong>Field:</strong> ${escapeHtmlText(formatHistoryFieldName(entry.field_name))}
+                            </div>
+                        ` : ''}
+                        ${entry.old_value || entry.new_value ? `
+                            <div class="rc-text-xs rc-mt-sm" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                ${entry.old_value ? `
+                                    <div style="background: var(--background); padding: 0.5rem; border-radius: 4px;">
+                                        <strong class="rc-text-secondary">Old:</strong><br>
+                                        <code>${escapeHtmlText(entry.old_value)}</code>
+                                    </div>
+                                ` : ''}
+                                ${entry.new_value ? `
+                                    <div style="background: var(--background); padding: 0.5rem; border-radius: 4px;">
+                                        <strong class="rc-text-accent">New:</strong><br>
+                                        <code>${escapeHtmlText(entry.new_value)}</code>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            historyContent.innerHTML = html;
+        }
+
+        function getHistoryChangeTypeInfo(changeType) {
+            const types = {
+                'created': {
+                    icon: 'bi-plus-circle',
+                    color: 'var(--success)',
+                    badgeClass: 'rc-badge-success',
+                    label: 'Created'
+                },
+                'updated': {
+                    icon: 'bi-pencil',
+                    color: 'var(--primary)',
+                    badgeClass: 'rc-badge-info',
+                    label: 'Updated'
+                },
+                'status_changed': {
+                    icon: 'bi-arrow-right-circle',
+                    color: 'var(--warning)',
+                    badgeClass: 'rc-badge-warning',
+                    label: 'Status Changed'
+                },
+                'device_added': {
+                    icon: 'bi-plus-square',
+                    color: 'var(--success)',
+                    badgeClass: 'rc-badge-success',
+                    label: 'Device Added'
+                },
+                'device_removed': {
+                    icon: 'bi-dash-square',
+                    color: 'var(--danger)',
+                    badgeClass: 'rc-badge-danger',
+                    label: 'Device Removed'
+                },
+                'deleted': {
+                    icon: 'bi-trash',
+                    color: 'var(--danger)',
+                    badgeClass: 'rc-badge-danger',
+                    label: 'Deleted'
+                }
+            };
+
+            return types[changeType] || {
+                icon: 'bi-info-circle',
+                color: 'var(--text-secondary)',
+                badgeClass: 'rc-badge-secondary',
+                label: changeType
+            };
+        }
+
+        function formatHistoryFieldName(fieldName) {
+            const fieldNames = {
+                'customerID': 'Customer',
+                'statusID': 'Status',
+                'jobcategoryID': 'Job Category',
+                'description': 'Description',
+                'discount': 'Discount',
+                'discount_type': 'Discount Type',
+                'startDate': 'Start Date',
+                'endDate': 'End Date'
+            };
+
+            return fieldNames[fieldName] || fieldName;
+        }
+
+        function escapeHtmlText(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ===== ACCESSORIES & CONSUMABLES SELECTION =====
+
+        // Check if product has dependencies and show selection modal
+        async function checkAndPromptAccessoriesConsumables(productID, deviceID, multiplier = 1, jobIDOverride) {
+            const templateJobID = {{if .job}}{{.job.JobID}}{{else}}null{{end}};
+            const jobID = jobIDOverride !== undefined ? jobIDOverride : templateJobID;
+
+            if (!productID || !jobID) return;
+
+            try {
+                // Fetch dependencies for this product from WarehouseCore integration
+                const depRes = await fetch(`/api/products/${productID}/dependencies`);
+
+                if (!depRes.ok) {
+                    console.log('No dependencies found for this product');
+                    return;
+                }
+
+                const depData = await depRes.json();
+                const dependencies = depData.dependencies || [];
+
+                if (dependencies.length === 0) {
+                    return;
+                }
+
+                // Separate dependencies into accessories and consumables
+                const accessories = dependencies
+                    .filter(dep => dep.is_accessory)
+                    .map(dep => {
+                        const baseQty = typeof dep.default_quantity === 'number' ? dep.default_quantity : 1;
+                        const scaled = Math.max(1, Math.round(baseQty * multiplier));
+                        return {
+                            accessory_product_id: dep.dependency_product_id,
+                            accessory_name: dep.dependency_name,
+                            accessory_stock: dep.stock_quantity,
+                            count_type_abbr: dep.count_type_abbr,
+                            generic_barcode: dep.generic_barcode,
+                            is_optional: dep.is_optional,
+                            default_quantity: scaled,
+                            notes: dep.notes
+                        };
+                    });
+
+                const consumables = dependencies
+                    .filter(dep => dep.is_consumable)
+                    .map(dep => {
+                        const baseQty = typeof dep.default_quantity === 'number' ? dep.default_quantity : 0;
+                        const scaled = baseQty * multiplier;
+                        return {
+                            consumable_product_id: dep.dependency_product_id,
+                            consumable_name: dep.dependency_name,
+                            consumable_stock: dep.stock_quantity,
+                            count_type: dep.count_type_abbr,
+                            count_type_abbr: dep.count_type_abbr,
+                            generic_barcode: dep.generic_barcode,
+                            default_quantity: Number.isFinite(scaled) ? scaled : baseQty,
+                            notes: dep.notes
+                        };
+                    });
+
+                // Show modals if there are accessories or consumables
+                if (accessories.length > 0) {
+                    await showAccessoriesSelectionModal(jobID, deviceID, accessories);
+                }
+
+                if (consumables.length > 0) {
+                    await showConsumablesInputModal(jobID, deviceID, consumables);
+                }
+            } catch (error) {
+                console.error('Error checking dependencies:', error);
+            }
+        }
+
+        // Show accessories selection modal
+        function showAccessoriesSelectionModal(jobID, deviceID, accessories) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('accessoriesSelectionModal');
+                const content = document.getElementById('accessoriesSelectionContent');
+
+                let html = `<div class="rc-mb-md"><h4>Select Accessories for Device</h4></div>`;
+
+                accessories.forEach((acc, index) => {
+                    const available = acc.accessory_stock || 0;
+                    const isOptional = acc.is_optional;
+
+                    html += `
+                        <div class="rc-flex rc-flex-between rc-p-md rc-mb-sm" style="background: var(--surface); border-radius: 8px;">
+                            <div class="rc-flex rc-flex-gap-md rc-flex-align-center">
+                                <input type="checkbox" id="acc_${index}" class="accessory-checkbox"
+                                       data-product-id="${acc.accessory_product_id}"
+                                       data-default-qty="${acc.default_quantity}"
+                                       data-price="${acc.accessory_price}"
+                                       ${!isOptional ? 'checked disabled' : ''}>
+                                <div>
+                                    <div class="rc-font-semibold">${acc.accessory_name}</div>
+                                    <div class="rc-text-sm rc-text-secondary">
+                                        ${available} ${acc.count_type_abbr} available
+                                        ${!isOptional ? ' • <strong>Required</strong>' : ' • Optional'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                                <label class="rc-text-sm">Qty:</label>
+                                <input type="number" id="qty_${index}" min="1" max="${available}"
+                                       value="${acc.default_quantity}" class="rc-input" style="width: 80px;"
+                                       ${!isOptional ? 'required' : ''}>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                content.innerHTML = html;
+                modal.style.display = 'flex';
+
+                // Store resolve function for later
+                window.__accessoriesModalResolve = resolve;
+                window.__accessoriesModalData = { jobID, deviceID };
+            });
+        }
+
+        async function submitAccessoriesSelection() {
+            const { jobID, deviceID } = window.__accessoriesModalData;
+            const checkboxes = document.querySelectorAll('.accessory-checkbox:checked');
+
+            const selections = [];
+            checkboxes.forEach((checkbox, index) => {
+                const productID = checkbox.dataset.productId;
+                const qtyInput = checkbox.parentElement.parentElement.querySelector('input[type="number"]');
+                const quantity = parseInt(qtyInput.value) || 1;
+                const price = parseFloat(checkbox.dataset.price) || 0;
+
+                selections.push({
+                    job_id: jobID,
+                    parent_device_id: deviceID,
+                    accessory_product_id: parseInt(productID),
+                    quantity_assigned: quantity,
+                    price_per_unit: price
+                });
+            });
+
+            // Submit each selection
+            try {
+                for (const selection of selections) {
+                    await fetch(`/api/jobs/${jobID}/accessories`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(selection)
+                    });
+                }
+
+                closeAccessoriesSelectionModal();
+                if (window.__accessoriesModalResolve) {
+                    window.__accessoriesModalResolve();
+                }
+            } catch (error) {
+                console.error('Error submitting accessories:', error);
+                alert('Error adding accessories');
+            }
+        }
+
+        function closeAccessoriesSelectionModal() {
+            document.getElementById('accessoriesSelectionModal').style.display = 'none';
+            if (window.__accessoriesModalResolve) {
+                window.__accessoriesModalResolve();
+            }
+        }
+
+        // Show consumables input modal
+        function showConsumablesInputModal(jobID, deviceID, consumables) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('consumablesInputModal');
+                const content = document.getElementById('consumablesInputContent');
+
+                let html = `<div class="rc-mb-md"><h4>Enter Consumable Quantities for Device</h4></div>`;
+
+                consumables.forEach((cons, index) => {
+                    const available = cons.consumable_stock || 0;
+
+                    html += `
+                        <div class="rc-p-md rc-mb-sm" style="background: var(--surface); border-radius: 8px;">
+                            <div class="rc-flex rc-flex-between rc-flex-align-center">
+                                <div>
+                                    <div class="rc-font-semibold">${cons.consumable_name}</div>
+                                    <div class="rc-text-sm rc-text-secondary">
+                                        ${available} ${cons.count_type_abbr} available
+                                    </div>
+                                </div>
+                                <div class="rc-flex rc-flex-align-center rc-flex-gap-sm">
+                                    <label class="rc-text-sm">Quantity:</label>
+                                    <input type="number" id="cons_qty_${index}"
+                                           min="0" max="${available}" step="0.001"
+                                           value="${cons.default_quantity}"
+                                           data-product-id="${cons.consumable_product_id}"
+                                           data-price="${cons.consumable_price}"
+                                           class="rc-input consumable-quantity" style="width: 100px;">
+                                    <span class="rc-text-sm">${cons.count_type_abbr}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                content.innerHTML = html;
+                modal.style.display = 'flex';
+
+                // Store resolve function for later
+                window.__consumablesModalResolve = resolve;
+                window.__consumablesModalData = { jobID, deviceID };
+            });
+        }
+
+        async function submitConsumablesInput() {
+            const { jobID, deviceID } = window.__consumablesModalData;
+            const inputs = document.querySelectorAll('.consumable-quantity');
+
+            const selections = [];
+            inputs.forEach(input => {
+                const quantity = parseFloat(input.value) || 0;
+                if (quantity > 0) {
+                    const productID = input.dataset.productId;
+                    const price = parseFloat(input.dataset.price) || 0;
+
+                    selections.push({
+                        job_id: jobID,
+                        parent_device_id: deviceID,
+                        consumable_product_id: parseInt(productID),
+                        quantity_assigned: quantity,
+                        price_per_unit: price
+                    });
+                }
+            });
+
+            // Submit each selection
+            try {
+                for (const selection of selections) {
+                    await fetch(`/api/jobs/${jobID}/consumables`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(selection)
+                    });
+                }
+
+                closeConsumablesInputModal();
+                if (window.__consumablesModalResolve) {
+                    window.__consumablesModalResolve();
+                }
+            } catch (error) {
+                console.error('Error submitting consumables:', error);
+                alert('Error adding consumables');
+            }
+        }
+
+        function closeConsumablesInputModal() {
+            document.getElementById('consumablesInputModal').style.display = 'none';
+            if (window.__consumablesModalResolve) {
+                window.__consumablesModalResolve();
+            }
+        }
+
+    </script>
+
+    <!-- Job History Modal -->
+    {{if .job.JobID}}
+    <div id="jobHistoryModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-backdrop" onclick="hideJobHistoryModal()"></div>
+        <div class="rc-modal-content" style="max-width: 900px;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title"><i class="bi bi-clock-history"></i> Job History</h3>
+                <button class="rc-modal-close" onclick="hideJobHistoryModal()">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="rc-modal-body">
+                <div id="job-history-content">
+                    <div class="rc-text-center rc-p-lg" id="loading-job-history">
+                        <i class="bi bi-arrow-clockwise" style="animation: spin 1s linear infinite; font-size: 2rem;"></i>
+                        <p class="rc-mt-md">Loading history...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="rc-modal-footer">
+                <button class="rc-btn rc-btn-secondary" onclick="hideJobHistoryModal()">Close</button>
+            </div>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- PDF Upload Modal -->
+    <div id="pdfUploadModal" class="pdf-modal-overlay" onclick="closePDFUploadModal()">
+        <div class="pdf-modal-panel" onclick="event.stopPropagation()">
+            <div class="pdf-modal-header">
+                <div>
+                    <p class="eyebrow">OCR Assistant</p>
+                    <h3>Upload Offer / Invoice PDF</h3>
+                    <p class="pdf-modal-subtitle">We extract customer info, products, and discounts for this job.</p>
+                </div>
+                <button class="rc-btn rc-btn-link" onclick="closePDFUploadModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="pdf-modal-body">
+                <div class="pdf-upload-card">
+                    <div class="pdf-upload-illustration">
+                        <i class="bi bi-cloud-arrow-up"></i>
+                    </div>
+                    <div>
+                        <label class="rc-label">Select PDF File</label>
+                        <input type="file" id="pdfUploadInput" accept=".pdf,application/pdf" class="sr-only">
+                        <p>Drag & drop your PDF here or click to browse.</p>
+                        <button class="rc-btn rc-btn-outline" onclick="document.getElementById('pdfUploadInput').click()">Choose File</button>
+                    </div>
+                </div>
+                <div class="pdf-upload-hints">
+                    <span><i class="bi bi-lightning-charge"></i> Auto-maps line items into your catalog.</span>
+                    <span><i class="bi bi-people"></i> Prefills customer and discount data.</span>
+                    <span><i class="bi bi-eye"></i> You stay in control—review everything before saving.</span>
+                </div>
+                <div id="pdfUploadStatus"></div>
+            </div>
+            <div class="pdf-modal-footer">
+                <button type="button" class="rc-btn rc-btn-outline" onclick="closePDFUploadModal()">Close</button>
+                <button type="button" class="rc-btn rc-btn-primary" onclick="uploadPDFFile()">
+                    <i class="bi bi-upload"></i> Upload & Process
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accessories Selection Modal -->
+    <div id="accessoriesSelectionModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-content" style="max-width: 600px;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title">
+                    <i class="bi bi-paperclip"></i> Select Accessories
+                </h3>
+                <button type="button" class="rc-modal-close" onclick="closeAccessoriesSelectionModal()">&times;</button>
+            </div>
+            <div class="rc-modal-body">
+                <div id="accessoriesSelectionContent"></div>
+            </div>
+            <div class="rc-modal-footer">
+                <button type="button" class="rc-btn rc-btn-ghost" onclick="closeAccessoriesSelectionModal()">Skip</button>
+                <button type="button" class="rc-btn rc-btn-primary" onclick="submitAccessoriesSelection()">
+                    <i class="bi bi-check-lg"></i> Add Selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consumables Input Modal -->
+    <div id="consumablesInputModal" class="rc-modal" style="display: none;">
+        <div class="rc-modal-content" style="max-width: 600px;">
+            <div class="rc-modal-header">
+                <h3 class="rc-modal-title">
+                    <i class="bi bi-droplet"></i> Enter Consumable Quantities
+                </h3>
+                <button type="button" class="rc-modal-close" onclick="closeConsumablesInputModal()">&times;</button>
+            </div>
+            <div class="rc-modal-body">
+                <div id="consumablesInputContent"></div>
+            </div>
+            <div class="rc-modal-footer">
+                <button type="button" class="rc-btn rc-btn-ghost" onclick="closeConsumablesInputModal()">Skip</button>
+                <button type="button" class="rc-btn rc-btn-primary" onclick="submitConsumablesInput()">
+                    <i class="bi bi-check-lg"></i> Add Quantities
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{if .scripts}}
+        {{range .scripts}}
+            <script src="{{.}}"></script>
+        {{end}}
+    {{end}}
+</body>
+</html>
