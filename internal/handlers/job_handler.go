@@ -340,6 +340,11 @@ func (h *JobHandler) NewJobForm(c *gin.Context) {
 	// Fetch rental equipment from WarehouseCore
 	rentalEquipBySupplier, _ := h.warehouseClient.GetRentalEquipmentBySupplier()
 
+	// Force no-cache headers to prevent template caching issues
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
 	c.HTML(http.StatusOK, "job_form.html", gin.H{
 		"title":                 "New Job",
 		"job":                   &models.Job{},
