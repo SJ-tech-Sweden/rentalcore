@@ -1828,12 +1828,13 @@
         function renderCategoryNode(category, nodeId) {
             const node = document.createElement('div');
             node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
             const isExpanded = productTreeExpanded.has(nodeId);
             if (isExpanded) node.classList.add('open');
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1853,13 +1854,11 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Only render children if this node is expanded
-            if (isExpanded) {
-                (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
-                const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
-                if (catProductsGroup) {
-                    body.appendChild(catProductsGroup);
-                }
+            // Always render children - CSS will hide them if not expanded
+            (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
+            const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+            if (catProductsGroup) {
+                body.appendChild(catProductsGroup);
             }
 
             node.appendChild(header);
@@ -1870,12 +1869,18 @@
         function renderSubcategoryNode(subcategory, nodeId) {
             const node = document.createElement('div');
             node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
             const isExpanded = productTreeExpanded.has(nodeId);
+            console.log('🔵 renderSubcategoryNode:', nodeId, 'isExpanded:', isExpanded);
             if (isExpanded) node.classList.add('open');
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
+            header.addEventListener('click', (e) => {
+                console.log('🖱️ Click on subcategory header:', nodeId);
+                e.stopPropagation();
+                toggleNode(productTreeExpanded, nodeId, node);
+            });
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1895,13 +1900,11 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Only render children if this node is expanded
-            if (isExpanded) {
-                (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
-                const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
-                if (subProductsGroup) {
-                    body.appendChild(subProductsGroup);
-                }
+            // Always render children - CSS will hide them if not expanded
+            (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
+            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+            if (subProductsGroup) {
+                body.appendChild(subProductsGroup);
             }
 
             node.appendChild(header);
@@ -1912,12 +1915,13 @@
         function renderSubbiercategoryNode(subbiercategory, nodeId) {
             const node = document.createElement('div');
             node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
             const isExpanded = productTreeExpanded.has(nodeId);
             if (isExpanded) node.classList.add('open');
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1937,10 +1941,9 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Only render children if this node is expanded
-            if (isExpanded) {
-                (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
-            }
+            // Always render children - CSS will hide them if not expanded
+            (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+
 
             node.appendChild(header);
             node.appendChild(body);
@@ -1953,13 +1956,14 @@
             }
             const node = document.createElement('div');
             node.className = 'wc-node';
+            node.dataset.nodeId = nodeId;
             const isExpanded = productTreeExpanded.has(nodeId);
             if (isExpanded) node.classList.add('open');
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
             const stats = collectProductsStats(products);
-            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId));
+            header.addEventListener('click', () => toggleNode(productTreeExpanded, nodeId, node));
 
             const title = document.createElement('div');
             title.className = 'wc-node-title';
@@ -1978,10 +1982,9 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Only render children if this node is expanded
-            if (isExpanded) {
-                products.forEach(product => body.appendChild(renderProductCard(product)));
-            }
+            // Always render children - CSS will hide them if not expanded
+            products.forEach(product => body.appendChild(renderProductCard(product)));
+
 
             node.appendChild(header);
             node.appendChild(body);
@@ -2059,20 +2062,33 @@
             return card;
         }
 
-        function toggleNode(set, id) {
+        function toggleNode(set, id, nodeElement) {
+            console.log('🔄 toggleNode called:', id, 'currently expanded:', set.has(id));
             if (set.has(id)) {
                 set.delete(id);
+                if (nodeElement) {
+                    nodeElement.classList.remove('open');
+                }
+                console.log('➖ Collapsed:', id);
             } else {
                 set.add(id);
+                if (nodeElement) {
+                    nodeElement.classList.add('open');
+                }
+                console.log('➕ Expanded:', id);
             }
-            renderProductTree(productTreeData);
+            console.log('📊 Expanded nodes:', Array.from(set));
+            // Don't re-render the entire tree, just toggle the CSS class
         }
 
         function toggleProductTreeNodes(open) {
+            // Get all node elements in the tree
+            const allNodes = document.querySelectorAll('#productTreeRoot .wc-node[data-node-id]');
+
             if (!open) {
                 // Collapse all
                 productTreeExpanded = new Set();
-                renderProductTree(productTreeData);
+                allNodes.forEach(node => node.classList.remove('open'));
                 return;
             }
 
@@ -2097,7 +2113,7 @@
                 });
             });
             productTreeExpanded = new Set(ids);
-            renderProductTree(productTreeData);
+            allNodes.forEach(node => node.classList.add('open'));
         }
 
         function getCurrentQuantity(productID) {
