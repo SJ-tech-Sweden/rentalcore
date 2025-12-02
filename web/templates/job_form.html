@@ -1854,15 +1854,21 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Always render children - CSS will hide them if not expanded
-            (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
-            const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
-            if (catProductsGroup) {
-                body.appendChild(catProductsGroup);
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
+                const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+                if (catProductsGroup) {
+                    body.appendChild(catProductsGroup);
+                }
             }
 
             node.appendChild(header);
             node.appendChild(body);
+
+            // Store category data for lazy rendering on toggle
+            node._categoryData = category;
+
             return node;
         }
 
@@ -1900,15 +1906,21 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Always render children - CSS will hide them if not expanded
-            (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
-            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
-            if (subProductsGroup) {
-                body.appendChild(subProductsGroup);
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
+                const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+                if (subProductsGroup) {
+                    body.appendChild(subProductsGroup);
+                }
             }
 
             node.appendChild(header);
             node.appendChild(body);
+
+            // Store subcategory data for lazy rendering on toggle
+            node._subcategoryData = subcategory;
+
             return node;
         }
 
@@ -1941,12 +1953,17 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Always render children - CSS will hide them if not expanded
-            (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
-
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+            }
 
             node.appendChild(header);
             node.appendChild(body);
+
+            // Store subbiercategory data for lazy rendering on toggle
+            node._subbiercategoryData = subbiercategory;
+
             return node;
         }
 
@@ -1982,12 +1999,17 @@
             const body = document.createElement('div');
             body.className = 'wc-node-body';
 
-            // Always render children - CSS will hide them if not expanded
-            products.forEach(product => body.appendChild(renderProductCard(product)));
-
+            // Only render children if this node is expanded
+            if (isExpanded) {
+                products.forEach(product => body.appendChild(renderProductCard(product)));
+            }
 
             node.appendChild(header);
             node.appendChild(body);
+
+            // Store products for lazy rendering on toggle
+            node._productsData = products;
+
             return node;
         }
 
@@ -2065,34 +2087,58 @@
         function toggleNode(set, id, nodeElement) {
             console.log('🔄 toggleNode called:', id, 'currently expanded:', set.has(id));
             if (set.has(id)) {
+                // Collapse: remove from set, remove CSS class, clear children
                 set.delete(id);
                 if (nodeElement) {
                     nodeElement.classList.remove('open');
+                    const body = nodeElement.querySelector('.wc-node-body');
+                    if (body) {
+                        body.innerHTML = ''; // Clear children
+                    }
                 }
                 console.log('➖ Collapsed:', id);
             } else {
+                // Expand: add to set, add CSS class, render children
                 set.add(id);
                 if (nodeElement) {
                     nodeElement.classList.add('open');
+                    const body = nodeElement.querySelector('.wc-node-body');
+
+                    // Render children based on node type
+                    if (body && body.innerHTML === '') {
+                        if (nodeElement._categoryData) {
+                            const category = nodeElement._categoryData;
+                            (category.subcategories || []).forEach(sub => body.appendChild(renderSubcategoryNode(sub, `sub-${sub.id}`)));
+                            const catProductsGroup = renderProductGroup(category.products, `cat-${category.id}-products`, 'Produkte');
+                            if (catProductsGroup) body.appendChild(catProductsGroup);
+                        } else if (nodeElement._subcategoryData) {
+                            const subcategory = nodeElement._subcategoryData;
+                            (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
+                            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Produkte');
+                            if (subProductsGroup) body.appendChild(subProductsGroup);
+                        } else if (nodeElement._subbiercategoryData) {
+                            const subbiercategory = nodeElement._subbiercategoryData;
+                            (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
+                        } else if (nodeElement._productsData) {
+                            const products = nodeElement._productsData;
+                            products.forEach(product => body.appendChild(renderProductCard(product)));
+                        }
+                    }
                 }
                 console.log('➕ Expanded:', id);
             }
             console.log('📊 Expanded nodes:', Array.from(set));
-            // Don't re-render the entire tree, just toggle the CSS class
         }
 
         function toggleProductTreeNodes(open) {
-            // Get all node elements in the tree
-            const allNodes = document.querySelectorAll('#productTreeRoot .wc-node[data-node-id]');
-
             if (!open) {
-                // Collapse all
+                // Collapse all - just re-render the tree
                 productTreeExpanded = new Set();
-                allNodes.forEach(node => node.classList.remove('open'));
+                renderProductTree(productTreeData);
                 return;
             }
 
-            // Expand all - add ALL node IDs
+            // Expand all - add ALL node IDs and re-render
             const ids = [];
             productTreeData.forEach(cat => {
                 ids.push('cat-' + cat.id);
@@ -2113,7 +2159,7 @@
                 });
             });
             productTreeExpanded = new Set(ids);
-            allNodes.forEach(node => node.classList.add('open'));
+            renderProductTree(productTreeData);
         }
 
         function getCurrentQuantity(productID) {
