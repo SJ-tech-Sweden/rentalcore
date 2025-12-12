@@ -4768,14 +4768,6 @@ function showToast(message, type) {
             display: flex;
             flex-direction: column;
             gap: var(--space-md);
-            max-height: min(65vh, 640px);
-            overflow-y: auto;
-            padding-right: var(--space-sm);
-            margin-right: calc(var(--space-sm) * -1);
-            scrollbar-width: thin;
-            scrollbar-color: var(--surface-3) transparent;
-            scroll-behavior: smooth;
-            scroll-padding-top: var(--space-lg);
             padding-bottom: var(--space-md);
         }
 
@@ -4896,8 +4888,6 @@ function showToast(message, type) {
             gap: var(--space-xs);
         }
         .wc-tree-body {
-            max-height: 560px;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: var(--space-sm);
