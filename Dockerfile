@@ -1,8 +1,8 @@
-# Build stage
+# Build stage - Using Alpine with CGO for SQLite support
 FROM golang:1.24-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git python3 py3-pip
+# Install build dependencies including GCC for CGO/SQLite
+RUN apk add --no-cache git python3 py3-pip gcc musl-dev sqlite-dev
 
 # Set working directory
 WORKDIR /app
@@ -25,14 +25,14 @@ RUN python3 -m venv /opt/ocr-venv && \
     /opt/ocr-venv/bin/pip install -r tools/ocr_parser/requirements.txt && \
     chmod +x tools/ocr_parser/parser.py
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server cmd/server/main.go
+# Build the application with CGO enabled for SQLite
+RUN CGO_ENABLED=1 GOOS=linux go build -o server cmd/server/main.go
 
 # Production stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests + python runtime
-RUN apk --no-cache add ca-certificates tzdata python3
+# Install ca-certificates for HTTPS requests + python runtime + SQLite
+RUN apk --no-cache add ca-certificates tzdata python3 sqlite
 
 # Create app directory
 WORKDIR /app
