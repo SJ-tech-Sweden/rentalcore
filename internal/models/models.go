@@ -209,7 +209,7 @@ type JobDevice struct {
 }
 
 func (JobDevice) TableName() string {
-	return "jobdevices"
+	return "job_devices"
 }
 
 // JobWithDetails represents a job with aggregated information
