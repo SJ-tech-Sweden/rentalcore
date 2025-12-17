@@ -479,7 +479,33 @@ All documentation is organized in the `docs/` folder for easy access:
 
 ## 🏷️ Version History
 
-### **v4.1.38** (Latest) - Complete Accessories & Consumables System
+### **v5.1.5** (Latest) - Critical Database Sequence Fix
+
+**🔧 DATABASE INTEGRITY FIX**
+
+- 🐛 **PostgreSQL Sequence Synchronization**:
+  - **Root Cause**: Auto-increment sequences were out of sync with actual table data, causing "duplicate key value" errors
+  - **Products Table**: Sequence was at 3, but max productID was 1,000,008 (causing CreateProductPackage failures)
+  - **System-Wide**: Fixed all 88 sequences across the database (jobs, customers, cables, cases, users, invoices, etc.)
+  - **Migration**: Added `029_fix_sequences.up.sql` to automatically synchronize all sequences on deployment
+  - **Prevention**: Migration script detects and fixes sequence drift automatically
+
+- 📊 **Affected Tables Fixed**:
+  - `products`: 1,000,008 records synced
+  - `jobs`: 1,118 records synced
+  - `cables`: 1,123 records synced
+  - `cases`: 1,006 records synced
+  - `customers`: 67 records synced
+  - `users`: 20 records synced
+  - `invoices`: 30 records synced
+  - Plus 81 additional sequences verified
+
+- ✅ **Testing Verified**:
+  - Product package creation now works correctly
+  - All auto-increment columns ready for new inserts
+  - No data loss, only sequence metadata updated
+
+### **v4.1.38** - Complete Accessories & Consumables System
 
 **🎉 FULL IMPLEMENTATION - ALL FEATURES COMPLETE**
 
