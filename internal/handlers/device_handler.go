@@ -1213,9 +1213,18 @@ func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excl
 		if !exists {
 			continue
 		}
-		
+
 		if parent, ok := subcategoryMap[sb.SubcategoryID]; ok {
-			parent.Subbiercategories = append(parent.Subbiercategories, *tsb)
+			// Deep copy to avoid shared slice references
+			tsbCopy := TreeSubbiercategory{
+				ID:             tsb.ID,
+				Name:           tsb.Name,
+				DeviceCount:    tsb.DeviceCount,
+				AvailableCount: tsb.AvailableCount,
+				Devices:        append([]TreeDevice{}, tsb.Devices...),
+				Products:       append([]TreeProduct{}, tsb.Products...),
+			}
+			parent.Subbiercategories = append(parent.Subbiercategories, tsbCopy)
 			parent.DeviceCount += tsb.DeviceCount
 			parent.AvailableCount += tsb.AvailableCount
 		}
@@ -1229,7 +1238,17 @@ func (h *DeviceHandler) buildProductTreeData(startDate, endDate *time.Time, excl
 		}
 
 		if parent, ok := categoryMap[s.CategoryID]; ok {
-			parent.Subcategories = append(parent.Subcategories, *ts)
+			// Deep copy to avoid shared slice references
+			tsCopy := TreeSubcategory{
+				ID:                ts.ID,
+				Name:              ts.Name,
+				DeviceCount:       ts.DeviceCount,
+				AvailableCount:    ts.AvailableCount,
+				DirectDevices:     append([]TreeDevice{}, ts.DirectDevices...),
+				Products:          append([]TreeProduct{}, ts.Products...),
+				Subbiercategories: append([]TreeSubbiercategory{}, ts.Subbiercategories...),
+			}
+			parent.Subcategories = append(parent.Subcategories, tsCopy)
 			parent.DeviceCount += ts.DeviceCount
 			parent.AvailableCount += ts.AvailableCount
 		}
