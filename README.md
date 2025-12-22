@@ -112,7 +112,7 @@ A comprehensive, enterprise-grade equipment rental management system built with 
 ### Prerequisites
 - Docker Engine 20.10+
 - Docker Compose 2.0+
-- External MySQL/MariaDB database
+- External PostgreSQL database
 - Domain with SSL certificate (production)
 
 ### 1. Get Configuration Files
@@ -155,18 +155,18 @@ docker-compose up -d
 docker-compose ps
 docker-compose logs -f rentalcore
 
-# Wait for MySQL to initialize (first run takes ~30 seconds)
+# Wait for PostgreSQL to initialize (first run takes ~30 seconds)
 # Watch the logs to see when initialization is complete
-docker-compose logs -f mysql
+docker-compose logs -f postgres
 
 # Access the application
 open http://localhost:8081
 ```
 
 **📝 How Auto-Initialization Works:**
-- On **first start**, MySQL automatically imports `/opt/dev/cores/RentalCore.sql`
+- On **first start**, PostgreSQL automatically imports `/opt/dev/cores/RentalCore.sql`
 - The database schema and default admin user are created automatically
-- This only happens when the `mysql-data` volume is empty (fresh install)
+- This only happens when the `postgres-data` volume is empty (fresh install)
 
 **🔄 To Reset Database (Fresh Install):**
 ```bash
@@ -180,19 +180,19 @@ docker-compose up -d
 **⚠️ Common Issues on Fresh System:**
 
 1. **Restart Loop on First Start?**
-   - **Normal!** MySQL needs 60-90 seconds to import the database
-   - Wait and monitor: `docker-compose logs -f mysql`
-   - Once you see "ready for connections", services will start automatically
+   - **Normal!** PostgreSQL needs 30-60 seconds to import the database
+   - Wait and monitor: `docker-compose logs -f postgres`
+   - Once you see "database system is ready to accept connections", services will start automatically
 
 2. **Can't Login with admin/admin?**
-   - You likely have an existing MySQL volume from a previous install
+   - You likely have an existing PostgreSQL volume from a previous install
    - **Solution:** `docker-compose down -v` then `docker-compose up -d`
    - This will delete all data and reinitialize the database
 
 3. **Services Won't Start?**
    - Check logs: `docker-compose logs --tail=100`
    - Pull images: `docker-compose pull`
-   - Check ports: `sudo lsof -i :8081 :3306`
+   - Check ports: `sudo lsof -i :8081 :5432`
 
 **📖 Detailed Troubleshooting:** See [DEPLOYMENT_GUIDE.md](../DEPLOYMENT_GUIDE.md) for complete deployment instructions and troubleshooting.
 
@@ -282,7 +282,7 @@ rentalcore/
 
 ### 🛠️ **Technology Stack**
 - **Backend**: Go 1.23+ with Gin web framework
-- **Database**: MySQL 8.0+ with GORM ORM
+- **Database**: PostgreSQL 17+ with GORM ORM
 - **Frontend**: HTML5, Bootstrap 5, Chart.js, vanilla JavaScript
 - **Authentication**: WebAuthn, 2FA, session management
 - **Deployment**: Docker with health checks and volume management
@@ -295,10 +295,11 @@ rentalcore/
 ```bash
 # Database Configuration
 DB_HOST=your-database-host.com
-DB_PORT=3306
+DB_PORT=5432
 DB_NAME=rentalcore
 DB_USERNAME=rentalcore_user
 DB_PASSWORD=secure_password
+DB_SSLMODE=disable
 
 # Security Settings
 ENCRYPTION_KEY=your-256-bit-encryption-key
@@ -834,9 +835,9 @@ All documentation is organized in the `docs/` folder for easy access:
 - ✅ **Clearer Alerts**: Editors now see “started to edit” when someone joins mid-session, keeping the order of events obvious.
 
 ### **v3.31** - Job Presence Schema Fix
-- ✅ **Migration Compatibility**: Aligns the new `job_edit_sessions` table with existing `jobs`/`users` column types so MySQL accepts the foreign keys without manual tweaks.
+- ✅ **Migration Compatibility**: Aligns the new `job_edit_sessions` table with existing `jobs`/`users` column types so PostgreSQL accepts the foreign keys without manual tweaks.
 - ✅ **Init SQL Updated**: Fresh installations now ship with the corrected schema.
-- ✅ **Applied in Production**: The running MySQL instance is already migrated via `026_add_job_edit_sessions.up.sql`.
+- ✅ **Applied in Production**: The running PostgreSQL instance is already migrated via `026_add_job_edit_sessions.up.sql`.
 
 ### **v3.30** - Live Job Editing Presence (Issue #21)
 - ✅ **Real-Time Presence Warnings**: Users now see immediate slide-in alerts when someone else starts editing the same job, preventing conflicting updates.

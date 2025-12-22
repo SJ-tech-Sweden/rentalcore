@@ -520,26 +520,123 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .user-management {
+        padding: var(--space-md) 0;
+    }
+    
+    .user-header {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-lg);
+        border-radius: var(--radius-md);
+    }
+    
     .user-header-content {
         flex-direction: column;
         text-align: center;
+        gap: var(--space-md);
+    }
+    
+    .user-header-info h1 {
+        font-size: 1.25rem;
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+    
+    .user-header-info p {
+        font-size: 0.875rem;
+    }
+    
+    .user-stats {
+        justify-content: center;
+        gap: var(--space-md);
+    }
+    
+    .user-stat {
+        min-width: 60px;
+    }
+    
+    .user-stat-number {
+        font-size: 1.25rem;
+    }
+    
+    .user-stat-label {
+        font-size: 0.75rem;
     }
     
     .users-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .user-card {
+        padding: var(--space-md);
     }
     
     .user-controls {
         flex-direction: column;
         align-items: stretch;
+        padding: var(--space-md);
+        gap: var(--space-md);
     }
     
     .search-input {
         min-width: auto;
+        width: 100%;
     }
     
     .filter-group {
-        justify-content: space-between;
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+    
+    .filter-group .rc-btn,
+    .add-user-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .filter-select {
+        width: 100%;
+    }
+    
+    /* Mobile Modal */
+    .modal-content {
+        min-width: auto;
+        width: calc(100% - var(--space-lg));
+        max-width: none;
+        margin: var(--space-md);
+        padding: var(--space-lg);
+        max-height: calc(100vh - var(--space-xl));
+    }
+    
+    .modal-header h3 {
+        font-size: 1.125rem;
+    }
+    
+    .user-actions {
+        flex-wrap: wrap;
+    }
+    
+    .user-actions .rc-btn {
+        flex: 1;
+        min-width: calc(50% - var(--space-xs));
+    }
+    
+    .rc-container {
+        padding: 0 var(--space-md);
+    }
+    
+    /* Table responsive */
+    .users-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .users-table th,
+    .users-table td {
+        white-space: nowrap;
+        padding: var(--space-sm);
+        font-size: 0.875rem;
     }
 }
     </style>

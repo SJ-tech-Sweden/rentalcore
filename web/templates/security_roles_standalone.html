@@ -326,26 +326,108 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .role-management {
+        padding: var(--space-md) 0;
+    }
+    
+    .role-header {
+        padding: var(--space-lg);
+        margin-bottom: var(--space-lg);
+        border-radius: var(--radius-md);
+    }
+    
     .role-header-content {
         flex-direction: column;
         text-align: center;
+        gap: var(--space-md);
+    }
+    
+    .role-header-info h1 {
+        font-size: 1.25rem;
+        flex-direction: column;
+        gap: var(--space-xs);
+    }
+    
+    .role-header-info p {
+        font-size: 0.875rem;
+    }
+    
+    .role-stats {
+        justify-content: center;
+        gap: var(--space-md);
+    }
+    
+    .role-stat {
+        min-width: 60px;
+    }
+    
+    .role-stat-number {
+        font-size: 1.25rem;
+    }
+    
+    .role-stat-label {
+        font-size: 0.75rem;
     }
     
     .roles-grid {
         grid-template-columns: 1fr;
+        gap: var(--space-md);
+    }
+    
+    .role-card {
+        padding: var(--space-md);
     }
     
     .role-controls {
         flex-direction: column;
         align-items: stretch;
+        padding: var(--space-md);
+        gap: var(--space-md);
     }
     
     .search-input {
         min-width: auto;
+        width: 100%;
     }
     
     .filter-group {
-        justify-content: space-between;
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+    
+    .filter-group .rc-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .filter-select {
+        width: 100%;
+    }
+    
+    /* Mobile Modal */
+    .modal-content {
+        min-width: auto;
+        width: calc(100% - var(--space-lg));
+        max-width: none;
+        margin: var(--space-md);
+        padding: var(--space-lg);
+        max-height: calc(100vh - var(--space-xl));
+    }
+    
+    .modal-header h3 {
+        font-size: 1.125rem;
+    }
+    
+    .permission-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .permission-category {
+        padding: var(--space-sm);
+    }
+    
+    .rc-container {
+        padding: 0 var(--space-md);
     }
 }
 
