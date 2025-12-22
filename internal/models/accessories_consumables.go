@@ -137,25 +137,6 @@ func (JobConsumable) TableName() string {
 	return "job_consumables"
 }
 
-// InventoryTransaction tracks inventory movements
-type InventoryTransaction struct {
-	TransactionID   uint64    `json:"transaction_id" gorm:"primaryKey;column:transaction_id;autoIncrement"`
-	ProductID       uint      `json:"product_id" gorm:"not null;column:product_id;index"`
-	TransactionType string    `json:"transaction_type" gorm:"not null;column:transaction_type;type:enum('in','out','adjustment','initial')"`
-	Quantity        float64   `json:"quantity" gorm:"not null;column:quantity;type:decimal(10,3)"`
-	ReferenceType   *string   `json:"reference_type" gorm:"column:reference_type;index:idx_inventory_trans_reference,priority:1"`
-	ReferenceID     *uint     `json:"reference_id" gorm:"column:reference_id;index:idx_inventory_trans_reference,priority:2"`
-	Notes           *string   `json:"notes" gorm:"column:notes;type:text"`
-	UserID          *uint64   `json:"user_id" gorm:"column:user_id"`
-	CreatedAt       time.Time `json:"created_at" gorm:"column:created_at;default:CURRENT_TIMESTAMP;index"`
-
-	// Relations
-	Product *Product `json:"product,omitempty" gorm:"foreignKey:ProductID;references:ProductID"`
-}
-
-func (InventoryTransaction) TableName() string {
-	return "inventory_transactions"
-}
 
 // View Models - These represent the database views for easier querying
 

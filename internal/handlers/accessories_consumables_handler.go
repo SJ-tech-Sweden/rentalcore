@@ -21,19 +21,7 @@ func NewAccessoriesConsumablesHandler(repo *repository.AccessoriesConsumablesRep
 }
 
 // ============================================================================
-// Web UI Handlers
-// ============================================================================
 
-func (h *AccessoriesConsumablesHandler) InventoryDashboard(c *gin.Context) {
-	user, _ := GetCurrentUser(c)
-	SafeHTML(c, http.StatusOK, "inventory_dashboard.html", gin.H{
-		"title":       "Inventory Management",
-		"user":        user,
-		"currentPage": "inventory",
-	})
-}
-
-// ============================================================================
 // Count Types API
 // ============================================================================
 
@@ -382,73 +370,7 @@ func (h *AccessoriesConsumablesHandler) DeleteJobConsumableAPI(c *gin.Context) {
 }
 
 // ============================================================================
-// Inventory Management API
-// ============================================================================
 
-func (h *AccessoriesConsumablesHandler) GetLowStockAlertsAPI(c *gin.Context) {
-	alerts, err := h.repo.GetLowStockAlerts()
-	if err != nil {
-		log.Printf("❌ Error fetching low stock alerts: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch low stock alerts"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"alerts": alerts})
-}
-
-func (h *AccessoriesConsumablesHandler) AdjustStockAPI(c *gin.Context) {
-	var req struct {
-		ProductID uint    `json:"product_id" binding:"required"`
-		Quantity  float64 `json:"quantity" binding:"required"`
-		Reason    string  `json:"reason" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Invalid data: %v", err)})
-		return
-	}
-
-	// Get current user ID (if available)
-	var userID *uint64
-	if user, exists := c.Get("user"); exists {
-		if u, ok := user.(*models.User); ok {
-			uid := uint64(u.UserID)
-			userID = &uid
-		}
-	}
-
-	if err := h.repo.AdjustStock(req.ProductID, req.Quantity, req.Reason, userID); err != nil {
-		log.Printf("❌ Error adjusting stock: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to adjust stock"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Stock adjusted successfully"})
-}
-
-func (h *AccessoriesConsumablesHandler) GetInventoryTransactionsAPI(c *gin.Context) {
-	productIDStr := c.Query("product_id")
-	limitStr := c.DefaultQuery("limit", "50")
-
-	productID, err := strconv.ParseUint(productIDStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
-		return
-	}
-
-	limit, _ := strconv.Atoi(limitStr)
-
-	transactions, err := h.repo.GetInventoryTransactions(uint(productID), limit)
-	if err != nil {
-		log.Printf("❌ Error fetching inventory transactions: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch transactions"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"transactions": transactions})
-}
-
-// ============================================================================
 // Scanning API (for WarehouseCore integration)
 // ============================================================================
 

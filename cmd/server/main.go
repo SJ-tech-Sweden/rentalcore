@@ -1226,11 +1226,6 @@ func setupRoutes(r *gin.Engine,
 			}
 		}
 
-		// Inventory Management routes
-		inventory := protected.Group("/inventory")
-		{
-			inventory.GET("", accessoriesConsumablesHandler.InventoryDashboard)
-		}
 
 		// Profile Settings routes (moved to end to avoid potential conflicts)
 		profile := protected.Group("/profile")
@@ -1389,13 +1384,6 @@ func setupRoutes(r *gin.Engine,
 				apiJobAccessories.DELETE("/consumables/:id", accessoriesConsumablesHandler.DeleteJobConsumableAPI)
 			}
 
-			// Inventory Management API
-			apiInventory := api.Group("/inventory")
-			{
-				apiInventory.GET("/low-stock", accessoriesConsumablesHandler.GetLowStockAlertsAPI)
-				apiInventory.POST("/adjust", accessoriesConsumablesHandler.AdjustStockAPI)
-				apiInventory.GET("/transactions", accessoriesConsumablesHandler.GetInventoryTransactionsAPI)
-			}
 
 			// Scanning API (for WarehouseCore integration)
 			apiScan := api.Group("/scan")

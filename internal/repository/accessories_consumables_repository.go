@@ -197,17 +197,8 @@ func (r *AccessoriesConsumablesRepository) ScanAccessoryOut(jobAccessoryID uint6
 			return err
 		}
 
-		// Log transaction
-		transaction := models.InventoryTransaction{
-			ProductID:       ja.AccessoryProductID,
-			TransactionType: "out",
-			Quantity:        float64(quantity),
-			ReferenceType:   strPtr("job"),
-			ReferenceID:     &ja.JobID,
-			Notes:           strPtr(fmt.Sprintf("Scanned out for job accessory ID %d", jobAccessoryID)),
-			UserID:          userID,
-		}
-		return tx.Create(&transaction).Error
+		// Transaction logging removed with inventory system
+		return nil
 	})
 }
 
@@ -238,17 +229,8 @@ func (r *AccessoriesConsumablesRepository) ScanAccessoryIn(jobAccessoryID uint64
 			return err
 		}
 
-		// Log transaction
-		transaction := models.InventoryTransaction{
-			ProductID:       ja.AccessoryProductID,
-			TransactionType: "in",
-			Quantity:        float64(quantity),
-			ReferenceType:   strPtr("job"),
-			ReferenceID:     &ja.JobID,
-			Notes:           strPtr(fmt.Sprintf("Scanned in from job accessory ID %d", jobAccessoryID)),
-			UserID:          userID,
-		}
-		return tx.Create(&transaction).Error
+		// Transaction logging removed with inventory system
+		return nil
 	})
 }
 
@@ -318,17 +300,8 @@ func (r *AccessoriesConsumablesRepository) ScanConsumableOut(jobConsumableID uin
 			return err
 		}
 
-		// Log transaction
-		transaction := models.InventoryTransaction{
-			ProductID:       jc.ConsumableProductID,
-			TransactionType: "out",
-			Quantity:        quantity,
-			ReferenceType:   strPtr("job"),
-			ReferenceID:     &jc.JobID,
-			Notes:           strPtr(fmt.Sprintf("Scanned out for job consumable ID %d", jobConsumableID)),
-			UserID:          userID,
-		}
-		return tx.Create(&transaction).Error
+		// Transaction logging removed with inventory system
+		return nil
 	})
 }
 
@@ -359,65 +332,11 @@ func (r *AccessoriesConsumablesRepository) ScanConsumableIn(jobConsumableID uint
 			return err
 		}
 
-		// Log transaction
-		transaction := models.InventoryTransaction{
-			ProductID:       jc.ConsumableProductID,
-			TransactionType: "in",
-			Quantity:        quantity,
-			ReferenceType:   strPtr("job"),
-			ReferenceID:     &jc.JobID,
-			Notes:           strPtr(fmt.Sprintf("Scanned in from job consumable ID %d", jobConsumableID)),
-			UserID:          userID,
-		}
-		return tx.Create(&transaction).Error
+		// Transaction logging removed with inventory system
+		return nil
 	})
 }
 
-// ============================================================================
-// Inventory Management
-// ============================================================================
-
-func (r *AccessoriesConsumablesRepository) GetLowStockAlerts() ([]models.LowStockAlert, error) {
-	var alerts []models.LowStockAlert
-	err := r.db.Find(&alerts).Error
-	return alerts, err
-}
-
-func (r *AccessoriesConsumablesRepository) AdjustStock(productID uint, quantity float64, reason string, userID *uint64) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
-		// Update stock
-		if err := tx.Model(&models.Product{}).
-			Where("productID = ?", productID).
-			Update("stock_quantity", gorm.Expr("stock_quantity + ?", quantity)).Error; err != nil {
-			return err
-		}
-
-		// Log transaction
-		transType := "adjustment"
-		if reason == "initial" {
-			transType = "initial"
-		}
-
-		transaction := models.InventoryTransaction{
-			ProductID:       productID,
-			TransactionType: transType,
-			Quantity:        quantity,
-			Notes:           &reason,
-			UserID:          userID,
-		}
-		return tx.Create(&transaction).Error
-	})
-}
-
-func (r *AccessoriesConsumablesRepository) GetInventoryTransactions(productID uint, limit int) ([]models.InventoryTransaction, error) {
-	var transactions []models.InventoryTransaction
-	query := r.db.Where("product_id = ?", productID).Order("created_at DESC")
-	if limit > 0 {
-		query = query.Limit(limit)
-	}
-	err := query.Find(&transactions).Error
-	return transactions, err
-}
 
 // ============================================================================
 // Barcode Operations
