@@ -133,3 +133,10 @@ build-and-push.sh
 docker-compose.yml
 favicon.ico
 favicon.svg
+
+# AI Agent Files - NEVER COMMIT
+GEMINI.md
+CLAUDE.md
+AGENTS.md
+.claude/
+.gemini/

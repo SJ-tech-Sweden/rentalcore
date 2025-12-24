@@ -1294,6 +1294,7 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.DELETE("/:id/editing", jobHandler.StopJobEditingSession)
 				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
 				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
+                                apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
 
 				// Job package routes
 				apiJobs.GET("/:id/packages", jobHandler.GetJobPackages)

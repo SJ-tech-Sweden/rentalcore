@@ -2007,3 +2007,116 @@ func (h *JobHandler) GetJobPackageReservations(c *gin.Context) {
 		"reservations": reservations,
 	})
 }
+
+// CablePlanningResponse represents the cable planning data for a job
+type CablePlanningResponse struct {
+	JobID             uint               `json:"job_id"`
+	TotalWattage      float64            `json:"total_wattage"`
+	TotalAmperage16A  float64            `json:"total_amperage_16a"`
+	TotalAmperage32A  float64            `json:"total_amperage_32a"`
+	DeviceCount       int                `json:"device_count"`
+	PowerRequirements []PowerRequirement `json:"power_requirements"`
+	CircuitSuggestion string             `json:"circuit_suggestion"`
+}
+
+// PowerRequirement represents power needs for a specific product
+type PowerRequirement struct {
+	ProductID        uint    `json:"product_id"`
+	ProductName      string  `json:"product_name"`
+	DeviceCount      int     `json:"device_count"`
+	WattagePerDevice float64 `json:"wattage_per_device"`
+	TotalWattage     float64 `json:"total_wattage"`
+}
+
+// GetJobCablePlanning handles GET /api/jobs/:id/cable-planning
+// Returns power consumption analysis and cable requirements for a job
+func (h *JobHandler) GetJobCablePlanning(c *gin.Context) {
+	jobIDStr := c.Param("id")
+	jobID, err := strconv.ParseUint(jobIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
+		return
+	}
+
+	// Get job with devices
+	job, err := h.jobRepo.GetByID(uint(jobID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+		return
+	}
+
+	// Get job devices
+	jobDevices, err := h.jobRepo.GetJobDevices(uint(jobID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get job devices"})
+		return
+	}
+
+	// Calculate power requirements per product
+	productWattage := make(map[uint]*PowerRequirement)
+	var totalWattage float64
+
+	for _, jd := range jobDevices {
+		if jd.Device.Product == nil {
+			continue
+		}
+
+		product := jd.Device.Product
+		productID := product.ProductID
+
+		if _, exists := productWattage[productID]; !exists {
+			wattage := 0.0
+			if product.PowerConsumption != nil {
+				wattage = *product.PowerConsumption
+			}
+			productWattage[productID] = &PowerRequirement{
+				ProductID:        productID,
+				ProductName:      product.Name,
+				WattagePerDevice: wattage,
+				DeviceCount:      0,
+				TotalWattage:     0,
+			}
+		}
+
+		productWattage[productID].DeviceCount++
+		productWattage[productID].TotalWattage = productWattage[productID].WattagePerDevice * float64(productWattage[productID].DeviceCount)
+		totalWattage += productWattage[productID].WattagePerDevice
+	}
+
+	// Convert map to slice
+	powerRequirements := make([]PowerRequirement, 0, len(productWattage))
+	for _, pr := range productWattage {
+		powerRequirements = append(powerRequirements, *pr)
+	}
+
+	// Calculate amperage (assuming 230V single phase)
+	// 16A circuit = max 3680W, 32A circuit = max 7360W, 63A = max 14490W
+	totalAmperage16A := totalWattage / 230.0
+	totalAmperage32A := totalWattage / 400.0 // 3-phase at 400V
+
+	// Suggest circuit type based on total wattage
+	var circuitSuggestion string
+	switch {
+	case totalWattage <= 3680:
+		circuitSuggestion = "1x 16A Schuko (Single Phase)"
+	case totalWattage <= 7360:
+		circuitSuggestion = "1x CEE 32A (3-Phase) or 2x 16A Schuko"
+	case totalWattage <= 14490:
+		circuitSuggestion = "1x CEE 63A (3-Phase) or 2x CEE 32A"
+	default:
+		circuitSuggestion = fmt.Sprintf("Multiple power distributions needed (%.0fW total)", totalWattage)
+	}
+
+	// Build response
+	response := CablePlanningResponse{
+		JobID:             job.JobID,
+		TotalWattage:      totalWattage,
+		TotalAmperage16A:  totalAmperage16A,
+		TotalAmperage32A:  totalAmperage32A,
+		DeviceCount:       len(jobDevices),
+		PowerRequirements: powerRequirements,
+		CircuitSuggestion: circuitSuggestion,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
