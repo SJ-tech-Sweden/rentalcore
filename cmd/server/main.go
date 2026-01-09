@@ -1226,7 +1226,6 @@ func setupRoutes(r *gin.Engine,
 			}
 		}
 
-
 		// Profile Settings routes (moved to end to avoid potential conflicts)
 		profile := protected.Group("/profile")
 		{
@@ -1294,14 +1293,14 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.DELETE("/:id/editing", jobHandler.StopJobEditingSession)
 				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
 				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
-                                apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
+				apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
 
 				// Job package routes
 				apiJobs.GET("/:id/packages", jobHandler.GetJobPackages)
 				apiJobs.POST("/:id/packages", jobHandler.AssignPackageToJob)
 
 				// Job Attachments routes (matching frontend expectations for /api/v1/jobs/...)
-				apiJobs.GET("/:jobid/attachments", jobAttachmentHandler.GetJobAttachments)
+				apiJobs.GET("/:id/attachments", jobAttachmentHandler.GetJobAttachments)
 				apiJobs.POST("/attachments/upload", jobAttachmentHandler.UploadAttachment)
 				apiJobs.GET("/attachments/:id/view", jobAttachmentHandler.ViewAttachment)
 				apiJobs.GET("/attachments/:id/download", jobAttachmentHandler.DownloadAttachment)
@@ -1392,7 +1391,6 @@ func setupRoutes(r *gin.Engine,
 				apiJobAccessories.PUT("/consumables/:id", accessoriesConsumablesHandler.UpdateJobConsumableAPI)
 				apiJobAccessories.DELETE("/consumables/:id", accessoriesConsumablesHandler.DeleteJobConsumableAPI)
 			}
-
 
 			// Scanning API (for WarehouseCore integration)
 			apiScan := api.Group("/scan")

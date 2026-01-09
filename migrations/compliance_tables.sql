@@ -68,22 +68,23 @@ CREATE TABLE IF NOT EXISTS document_signatures (
 
 -- Table: retention_policies (Data retention policy definitions)
 CREATE TABLE IF NOT EXISTS retention_policies (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    data_type VARCHAR(100) NOT NULL,
-    retention_period_days INT UNSIGNED NOT NULL,
+    id SERIAL PRIMARY KEY,
+    document_type VARCHAR(100) NOT NULL,
+    retention_period_days INTEGER NOT NULL,
     legal_basis VARCHAR(200) NOT NULL,
     auto_delete BOOLEAN DEFAULT FALSE,
     policy_description TEXT,
     effective_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     effective_until TIMESTAMP NULL,
-    created_by BIGINT UNSIGNED,
+    created_by BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE KEY unique_active_policy (data_type, effective_until),
-    INDEX idx_retention_policies_type (data_type),
-    INDEX idx_retention_policies_effective (effective_from, effective_until)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE (document_type, effective_until)
+);
+
+CREATE INDEX idx_retention_policies_type ON retention_policies(document_type);
+CREATE INDEX idx_retention_policies_effective ON retention_policies(effective_from, effective_until);
 
 -- Table: consent_records (GDPR consent tracking)
 CREATE TABLE IF NOT EXISTS consent_records (

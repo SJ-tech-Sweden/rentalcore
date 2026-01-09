@@ -100,7 +100,7 @@ func ensurePackageMappingColumn(db *sql.DB) error {
 	const query = `
 		SELECT COUNT(*)
 		FROM information_schema.columns
-		WHERE table_schema = DATABASE()
+		WHERE table_schema = current_database()
 		  AND table_name = 'pdf_extraction_items'
 		  AND column_name = 'mapped_package_id'
 	`
@@ -119,7 +119,7 @@ func ensurePackageMappingIndex(db *sql.DB) error {
 	const query = `
 		SELECT COUNT(*)
 		FROM information_schema.statistics
-		WHERE table_schema = DATABASE()
+		WHERE table_schema = current_database()
 		  AND table_name = 'pdf_extraction_items'
 		  AND index_name = 'idx_pdf_items_package'
 	`
@@ -138,7 +138,7 @@ func ensurePackageMappingFK(db *sql.DB) error {
 	const query = `
 		SELECT COUNT(*)
 		FROM information_schema.table_constraints
-		WHERE table_schema = DATABASE()
+		WHERE table_schema = current_database()
 		  AND table_name = 'pdf_extraction_items'
 		  AND constraint_name = 'fk_pdf_items_package'
 	`
