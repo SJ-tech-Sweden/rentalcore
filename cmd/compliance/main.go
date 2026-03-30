@@ -29,43 +29,55 @@ var (
 )
 
 func init() {
-	// Initialize database connection
+	// NOTE: avoid performing heavy runtime initialization during package init
+	// because tests and other tools may import this package. Initialize
+	// resources in `main()` at runtime. Here we attempt a best-effort setup
+	// but log warnings instead of exiting the process on failure.
 	cfg, err := config.LoadConfig("config.json")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Printf("Warning: failed to load config in init(): %v", err)
+		return
 	}
+
 	dsn := cfg.Database.DSN()
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Printf("Warning: failed to connect to database in init(): %v", err)
+		db = nil
+		return
 	}
 
-	// Initialize compliance components
+	// Initialize compliance components (best-effort)
 	complianceSystem, err = compliance.NewComplianceMiddleware(db, "./archives", cfg.Security.EncryptionKey)
 	if err != nil {
-		log.Fatalf("Failed to create compliance middleware: %v", err)
+		log.Printf("Warning: failed to create compliance middleware in init(): %v", err)
+		complianceSystem = nil
 	}
 
 	gobdCompliance, err = compliance.NewGoBDCompliance(db, "./archives")
 	if err != nil {
-		log.Fatalf("Failed to create GoBD compliance: %v", err)
+		log.Printf("Warning: failed to create GoBD compliance in init(): %v", err)
+		gobdCompliance = nil
 	}
 
 	gdprCompliance = compliance.NewGDPRCompliance(db, cfg.Security.EncryptionKey)
 
 	auditLogger, err = compliance.NewAuditLogger(db)
 	if err != nil {
-		log.Fatalf("Failed to create audit logger: %v", err)
+		log.Printf("Warning: failed to create audit logger in init(): %v", err)
+		auditLogger = nil
 	}
 
 	retentionManager, err = compliance.NewRetentionManager(db)
 	if err != nil {
-		log.Fatalf("Failed to create retention manager: %v", err)
+		log.Printf("Warning: failed to create retention manager in init(): %v", err)
+		retentionManager = nil
 	}
 
 	digitalSignature, err = compliance.NewDigitalSignatureManager("./keys", "TS-Lager")
 	if err != nil {
-		log.Fatalf("Failed to create digital signature manager: %v", err)
+		log.Printf("Warning: failed to create digital signature manager in init(): %v", err)
+		digitalSignature = nil
 	}
 }
 
