@@ -1,0 +1,26 @@
+name: Require Release Label
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  require-label:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Verify version label exists
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+        run: |
+          if [[ "$LABELS" == *"major"* ]] || [[ "$LABELS" == *"minor"* ]] || [[ "$LABELS" == *"patch"* ]]; then
+            echo "Release label present."
+            exit 0
+          fi
+
+          echo "Missing one required label: patch, minor, or major."
+          exit 1
