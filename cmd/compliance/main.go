@@ -514,7 +514,7 @@ func addRetentionPolicy(cmd *cobra.Command, args []string) {
 		LegalBasis:      legalBasis,
 		Description:     "Added via CLI",
 		IsActive:        true,
-		AutoDeleteAfter: false,
+		AutoDeleteAfter: nil,
 	}
 
 	err = retentionManager.CreateRetentionPolicy(policy)
