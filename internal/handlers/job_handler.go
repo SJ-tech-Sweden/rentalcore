@@ -850,6 +850,19 @@ func (h *JobHandler) BulkScanDevices(c *gin.Context) {
 }
 
 // API handlers
+// ListJobsAPI godoc
+// @Summary      List jobs
+// @Description  Returns a paginated list of jobs
+// @Tags         jobs
+// @Produce      json
+// @Param        search    query    string  false  "Search term"
+// @Param        page      query    int     false  "Page number"
+// @Param        pageSize  query    int     false  "Page size"
+// @Success      200  {object}  map[string]interface{}  "List of jobs"
+// @Failure      400  {object}  map[string]string       "Invalid request"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /jobs [get]
 func (h *JobHandler) ListJobsAPI(c *gin.Context) {
 	params := &models.FilterParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
@@ -1070,6 +1083,18 @@ func (h *JobHandler) lookupProductLabel(productID uint, cache map[uint]string) s
 	return label
 }
 
+// CreateJobAPI godoc
+// @Summary      Create a job
+// @Description  Creates a new job with the provided data
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Param        job  body      map[string]interface{}  true  "Job data"
+// @Success      201  {object}  models.Job              "Created job"
+// @Failure      400  {object}  map[string]string       "Invalid request"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /jobs [post]
 func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 	// Use a map to capture raw JSON data
 	var requestData map[string]interface{}
@@ -1194,6 +1219,17 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 	c.JSON(http.StatusCreated, job)
 }
 
+// GetJobAPI godoc
+// @Summary      Get a job
+// @Description  Returns details of a specific job by ID
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      int                     true  "Job ID"
+// @Success      200  {object}  models.Job              "Job details"
+// @Failure      400  {object}  map[string]string       "Invalid ID"
+// @Failure      404  {object}  map[string]string       "Job not found"
+// @Security     SessionCookie
+// @Router       /jobs/{id} [get]
 func (h *JobHandler) GetJobAPI(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -1220,6 +1256,20 @@ func (h *JobHandler) GetJobAPI(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
+// UpdateJobAPI godoc
+// @Summary      Update a job
+// @Description  Updates an existing job with the provided data
+// @Tags         jobs
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int                     true  "Job ID"
+// @Param        job  body      map[string]interface{}  true  "Job update data"
+// @Success      200  {object}  models.Job              "Updated job"
+// @Failure      400  {object}  map[string]string       "Invalid request"
+// @Failure      404  {object}  map[string]string       "Job not found"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /jobs/{id} [put]
 func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -1345,6 +1395,17 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
+// DeleteJobAPI godoc
+// @Summary      Delete a job
+// @Description  Deletes a job by ID
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      int                     true  "Job ID"
+// @Success      200  {object}  map[string]string       "Success message"
+// @Failure      400  {object}  map[string]string       "Invalid ID"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /jobs/{id} [delete]
 func (h *JobHandler) DeleteJobAPI(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

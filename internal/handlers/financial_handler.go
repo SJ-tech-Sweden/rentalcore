@@ -611,6 +611,20 @@ func (h *FinancialHandler) calculateReportSummary(results []struct {
 // ================================================================
 
 // ListTransactionsAPI returns transactions as JSON
+// ListTransactionsAPI godoc
+// @Summary      List financial transactions
+// @Description  Returns a paginated list of financial transactions
+// @Tags         financial
+// @Produce      json
+// @Param        type        query    string  false  "Filter by transaction type"
+// @Param        status      query    string  false  "Filter by status"
+// @Param        customerid  query    int     false  "Filter by customer ID"
+// @Param        page        query    int     false  "Page number"
+// @Param        pageSize    query    int     false  "Page size (max 100)"
+// @Success      200  {object}  map[string]interface{}  "Paginated transactions"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /financial/transactions [get]
 func (h *FinancialHandler) ListTransactionsAPI(c *gin.Context) {
 	var transactions []models.FinancialTransaction
 
@@ -669,6 +683,15 @@ func (h *FinancialHandler) ListTransactionsAPI(c *gin.Context) {
 	})
 }
 
+// GetFinancialStatsAPI godoc
+// @Summary      Get financial statistics
+// @Description  Returns aggregated financial statistics
+// @Tags         financial
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}  "Financial statistics"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /financial/stats [get]
 // GetFinancialStatsAPI returns financial statistics as JSON
 func (h *FinancialHandler) GetFinancialStatsAPI(c *gin.Context) {
 	stats, err := h.getFinancialStats()
