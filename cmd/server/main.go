@@ -718,7 +718,6 @@ func main() {
 
 	// Routes
 	setupRoutes(r, cfg, jobHandler, jobHistoryHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, accessoriesConsumablesHandler, rbacMiddleware, complianceMiddleware)
-	registerDynamicDocs(r)
 
 	// Add dedicated error route
 	r.GET("/error", func(c *gin.Context) {

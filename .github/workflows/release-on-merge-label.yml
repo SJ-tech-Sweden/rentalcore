@@ -166,18 +166,6 @@ jobs:
             echo "Users endpoint returned HTTP $resp2"
           fi
 
-      - name: Add image info to release (upload small metadata asset)
-        if: steps.bump.outputs.should_release == 'true'
-        env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-        run: |
-          tag=${{ steps.version.outputs.new_version }}
-          echo "image:${IMAGE_NAME}:${tag}" > image-info.txt
-          echo "latest:${IMAGE_NAME}:latest" >> image-info.txt
-          echo "digest:${{ steps.build.outputs.digest }}" >> image-info.txt
-          echo "Uploading image-info.txt to release ${{ steps.version.outputs.new_tag }}"
-          gh release upload "${{ steps.version.outputs.new_tag }}" image-info.txt --clobber
-
       - name: Create GitHub release (generate notes via API)
         if: steps.bump.outputs.should_release == 'true'
         env:
@@ -197,3 +185,16 @@ jobs:
             cat /tmp/release_resp
             exit 1
           fi
+
+      - name: Add image info to release (upload small metadata asset)
+        if: steps.bump.outputs.should_release == 'true'
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=${{ steps.version.outputs.new_version }}
+          echo "image:${IMAGE_NAME}:${tag}" > image-info.txt
+          echo "latest:${IMAGE_NAME}:latest" >> image-info.txt
+          echo "digest:${{ steps.build.outputs.digest }}" >> image-info.txt
+          echo "Uploading image-info.txt to release ${{ steps.version.outputs.new_tag }}"
+          gh release upload "${{ steps.version.outputs.new_tag }}" image-info.txt --clobber
