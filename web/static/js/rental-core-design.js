@@ -419,11 +419,17 @@ class RentalCoreDesign {
 
 // Searchable Select Component
 class RCSearchableSelect {
+    // Fix 4: shared state for a single document-level click handler
+    static _instances = new Set();
+    static _docListenerRegistered = false;
+    static _idCounter = 0;
+
     constructor(selectEl) {
         if (selectEl._rcSearchable) return;
         selectEl._rcSearchable = this;
         this.select = selectEl;
         this.isOpen = false;
+        this._ignoreChange = false;
         this._build();
         this._observe();
     }
@@ -443,25 +449,56 @@ class RCSearchableSelect {
         this.display.setAttribute('aria-haspopup', 'listbox');
         this.display.setAttribute('aria-expanded', 'false');
 
+        // Fix 2 + Fix 3: re-associate any <label for="select.id"> with the custom button
+        if (select.id) {
+            const btnId = select.id + '-rcss-btn';
+            this.display.id = btnId;
+            try {
+                document.querySelectorAll(`label[for="${CSS.escape(select.id)}"]`).forEach(label => {
+                    label.setAttribute('for', btnId);
+                });
+            } catch (_) { /* CSS.escape not available in very old browsers */ }
+        }
+        if (select.getAttribute('aria-label')) {
+            this.display.setAttribute('aria-label', select.getAttribute('aria-label'));
+        }
+
         this.dropdown = document.createElement('div');
         this.dropdown.className = 'rc-searchable-select__dropdown';
-        this.dropdown.setAttribute('role', 'listbox');
+        // Note: no role here — the listbox role belongs on the options list only
 
         this.searchInput = document.createElement('input');
         this.searchInput.type = 'text';
         this.searchInput.className = 'rc-searchable-select__search';
         this.searchInput.placeholder = 'Search...';
         this.searchInput.setAttribute('autocomplete', 'off');
+        this.searchInput.setAttribute('aria-label', 'Search options');
 
+        // Fix 3: role="listbox" on the options container, not the enclosing dropdown div
+        const listboxId = 'rc-ss-lb-' + (++RCSearchableSelect._idCounter);
         this.optionsList = document.createElement('div');
         this.optionsList.className = 'rc-searchable-select__options';
+        this.optionsList.id = listboxId;
+        this.optionsList.setAttribute('role', 'listbox');
+        this.display.setAttribute('aria-controls', listboxId);
 
         this.dropdown.appendChild(this.searchInput);
         this.dropdown.appendChild(this.optionsList);
         this.wrapper.appendChild(this.display);
         this.wrapper.appendChild(this.dropdown);
 
-        select.style.display = 'none';
+        // Fix 2: visually hide the native select (not display:none) so label[for] clicks still work
+        select.style.position = 'absolute';
+        select.style.opacity = '0';
+        select.style.width = '1px';
+        select.style.height = '1px';
+        select.style.margin = '0';
+        select.style.padding = '0';
+        select.style.border = '0';
+        select.style.clip = 'rect(0 0 0 0)';
+        select.style.clipPath = 'inset(50%)';
+        select.style.overflow = 'hidden';
+
         select.parentNode.insertBefore(this.wrapper, select);
         this.wrapper.appendChild(select);
 
@@ -481,6 +518,8 @@ class RCSearchableSelect {
             item.className = 'rc-searchable-select__option';
             item.setAttribute('role', 'option');
             item.setAttribute('tabindex', '-1');
+            // Fix 3: proper aria-selected for screen readers
+            item.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
             item.dataset.index = i;
             if (opt.selected) item.classList.add('selected');
 
@@ -509,8 +548,11 @@ class RCSearchableSelect {
     }
 
     _selectOption(index) {
+        // Fix 1: guard flag so the external 'change' listener skips during internal selection
+        this._ignoreChange = true;
         this.select.selectedIndex = index;
         this.select.dispatchEvent(new Event('change', { bubbles: true }));
+        this._ignoreChange = false;
         this._updateDisplay();
         this._close();
     }
@@ -592,9 +634,33 @@ class RCSearchableSelect {
             }
         });
 
-        document.addEventListener('click', (e) => {
-            if (!this.wrapper.contains(e.target)) this._close();
+        // Fix 2: forward focus from the visually-hidden native select to the custom button
+        this.select.addEventListener('focus', () => {
+            this.display.focus();
         });
+
+        // Fix 1: sync display and option highlighting when external code changes the select value
+        this.select.addEventListener('change', () => {
+            if (this._ignoreChange) return;
+            this._updateDisplay();
+            if (this.isOpen) this._renderOptions(this.searchInput.value);
+        });
+
+        // Fix 4: register this instance in the shared set; ensure only one document handler exists
+        RCSearchableSelect._instances.add(this);
+        if (!RCSearchableSelect._docListenerRegistered) {
+            RCSearchableSelect._docListenerRegistered = true;
+            document.addEventListener('click', (e) => {
+                RCSearchableSelect._instances.forEach(inst => {
+                    // Clean up instances whose wrapper has been removed from the DOM
+                    if (!inst.wrapper.isConnected) {
+                        RCSearchableSelect._instances.delete(inst);
+                        return;
+                    }
+                    if (!inst.wrapper.contains(e.target)) inst._close();
+                });
+            });
+        }
     }
 
     _observe() {
