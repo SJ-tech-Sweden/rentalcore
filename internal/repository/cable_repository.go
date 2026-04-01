@@ -253,7 +253,7 @@ func applyCableFilters(query *gorm.DB, params *models.FilterParams) *gorm.DB {
 	}
 
 	if params.CableTypeID != nil {
-		query = query.Where("typ = ?", int(*params.CableTypeID))
+		query = query.Where("typ = ?", *params.CableTypeID)
 	}
 	if params.MinLength != nil {
 		query = query.Where("length >= ?", *params.MinLength)
