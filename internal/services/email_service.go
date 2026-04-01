@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"html/template"
+	"net/mail"
 	"net/smtp"
 	"strconv"
 	"strings"
@@ -16,6 +17,32 @@ import (
 
 type EmailService struct {
 	config *config.EmailConfig
+}
+
+// sanitizeEmail validates and normalizes an email address to prevent header injection.
+// It returns an empty string if the email is invalid or contains unsafe characters.
+func (s *EmailService) sanitizeEmail(addr string) string {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return ""
+	}
+	// Disallow CRLF to prevent header injection
+	if strings.ContainsAny(addr, "\r\n") {
+		return ""
+	}
+	parsed, err := mail.ParseAddress(addr)
+	if err != nil || parsed == nil {
+		return ""
+	}
+	// Use the parsed address which is normalized and safe for headers
+	return parsed.Address
+}
+
+// sanitizeHeaderValue removes CR and LF characters from a header value to prevent injection.
+func sanitizeHeaderValue(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
 }
 
 func NewEmailService(emailConfig *config.EmailConfig) *EmailService {
@@ -367,6 +394,18 @@ Best regards,
 
 // sendEmail sends an email with optional PDF attachment
 func (s *EmailService) sendEmail(to []string, subject, textBody, htmlBody string, attachment []byte, attachmentName string) error {
+	// Sanitize recipients first to prevent header/envelope injection
+	var safeTo []string
+	for _, addr := range to {
+		if cleaned := s.sanitizeEmail(addr); cleaned != "" {
+			safeTo = append(safeTo, cleaned)
+		}
+	}
+	if len(safeTo) == 0 {
+		return fmt.Errorf("no valid recipients")
+	}
+	to = safeTo
+
 	// Check if SMTP is configured
 	if s.config.SMTPHost == "localhost" && s.config.SMTPUsername == "" {
 		return fmt.Errorf("SMTP not configured - please set email configuration in config.json: smtp_host, smtp_port, smtp_username, smtp_password")
@@ -455,10 +494,17 @@ func (s *EmailService) createMIMEMessage(to []string, subject, textBody, htmlBod
 
 	var message strings.Builder
 
+	// Sanitize recipient addresses to prevent header injection
+	var safeTo []string
+	for _, addr := range to {
+		if cleaned := s.sanitizeEmail(addr); cleaned != "" {
+			safeTo = append(safeTo, cleaned)
+		}
+	}
 	// Headers
-	message.WriteString(fmt.Sprintf("From: %s <%s>\r\n", s.config.FromName, s.config.FromEmail))
-	message.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(to, ", ")))
-	message.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	message.WriteString(fmt.Sprintf("From: %s <%s>\r\n", sanitizeHeaderValue(s.config.FromName), s.config.FromEmail))
+	message.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(safeTo, ", ")))
+	message.WriteString(fmt.Sprintf("Subject: %s\r\n", sanitizeHeaderValue(subject)))
 	message.WriteString("MIME-Version: 1.0\r\n")
 
 	if attachment != nil {
