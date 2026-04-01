@@ -204,7 +204,7 @@
                         <div class="rc-form-group" data-role="customer-section">
                             <label class="rc-label">Customer *</label>
                             <div class="rc-flex rc-flex-gap-sm rc-flex-wrap" style="align-items: center;">
-                                <select class="rc-select" name="customer_id" required data-role="customer-select">
+                                <select class="rc-select" name="customer_id" required data-role="customer-select" data-searchable>
                                     <option value="">Select Customer</option>
                                     {{range .customers}}
                                     <option value="{{.CustomerID}}" {{if eq .CustomerID $.job.CustomerID}}selected{{end}}>
@@ -249,7 +249,7 @@
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
                         <div class="rc-form-group">
                             <label class="rc-label">Job Category</label>
-                            <select class="rc-select" name="job_category_id">
+                            <select class="rc-select" name="job_category_id" data-searchable>
                                 <option value="">Select Category</option>
                                 {{range .jobCategories}}
                                 <option value="{{.JobCategoryID}}" {{if eq .JobCategoryID (deref $.job.JobCategoryID)}}selected{{end}}>

@@ -2844,6 +2844,154 @@ label,
     background-color: rgba(255, 255, 255, 0.07);
 }
 
+/* -----------------------------------------------
+   Searchable Select Component
+----------------------------------------------- */
+.rc-searchable-select {
+    position: relative;
+    width: 100%;
+}
+
+.rc-searchable-select__display {
+    width: 100%;
+    padding: 12px 40px 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    outline: none;
+}
+
+.rc-searchable-select__display:hover {
+    border-color: rgba(136, 136, 136, 0.3);
+    background-color: rgba(255, 255, 255, 0.07);
+}
+
+.rc-searchable-select__display:focus,
+.rc-searchable-select.open .rc-searchable-select__display {
+    border-color: var(--accent-red);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 2px rgba(136, 136, 136, 0.2);
+    outline: none;
+}
+
+.rc-searchable-select__label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rc-searchable-select__label.placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.rc-searchable-select__chevron {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    transition: transform var(--transition-normal);
+}
+
+.rc-searchable-select.open .rc-searchable-select__chevron {
+    transform: rotate(180deg);
+}
+
+.rc-searchable-select__dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--surface-3, #1F1F1F);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    z-index: 1050;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.rc-searchable-select.open .rc-searchable-select__dropdown {
+    display: flex;
+    flex-direction: column;
+}
+
+.rc-searchable-select__search {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.rc-searchable-select__search::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.rc-searchable-select__search:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-bottom-color: var(--accent-red);
+}
+
+.rc-searchable-select__options {
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.rc-searchable-select__options::-webkit-scrollbar {
+    width: 4px;
+}
+.rc-searchable-select__options::-webkit-scrollbar-track {
+    background: transparent;
+}
+.rc-searchable-select__options::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+}
+
+.rc-searchable-select__option {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: background var(--transition-fast);
+    outline: none;
+}
+
+.rc-searchable-select__option:hover,
+.rc-searchable-select__option:focus {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.rc-searchable-select__option.selected {
+    background: rgba(208, 2, 27, 0.15);
+    color: #fff;
+    font-weight: 500;
+}
+
+.rc-searchable-select__option mark {
+    background: rgba(208, 2, 27, 0.35);
+    color: #fff;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+
 .rc-textarea {
     width: 100%;
     padding: 12px 16px;

@@ -47,7 +47,7 @@
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="category" class="form-label">Category</label>
-                                    <select class="form-select" id="category" name="category">
+                                    <select class="form-select" id="category" name="category" data-searchable>
                                         <option value="">Select Category...</option>
                                         {{range .categories}}
                                         <option value="{{.}}" {{if $.package}}{{if eq $.package.Category .}}selected{{end}}{{end}}>{{.}}</option>
@@ -148,7 +148,7 @@
                                     <div class="row align-items-center">
                                         <div class="col-md-4">
                                             <label class="form-label">Device</label>
-                                            <select class="form-select device-select" name="devices[{{$index}}][deviceID]" required>
+                                            <select class="form-select device-select" name="devices[{{$index}}][deviceID]" required data-searchable>
                                                 <option value="">Select a device...</option>
                                                 {{range $.availableDevices}}
                                                 <option value="{{.DeviceID}}" 
@@ -300,7 +300,7 @@
         <div class="row align-items-center">
             <div class="col-md-4">
                 <label class="form-label">Device</label>
-                <select class="form-select device-select" name="devices[__INDEX__][deviceID]" required>
+                <select class="form-select device-select" name="devices[__INDEX__][deviceID]" required data-searchable>
                     <option value="">Select a device...</option>
                     {{range .availableDevices}}
                     <option value="{{.DeviceID}}" 

@@ -16,6 +16,7 @@ class RentalCoreDesign {
         this.initTooltips();
         this.handleClickOutside();
         this.initThemeToggle();
+        this.initSearchableSelects();
     }
 
     // Dropdown functionality
@@ -388,6 +389,226 @@ class RentalCoreDesign {
                 icon.className = currentTheme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-fill';
             }
         }
+    }
+
+    // Searchable select initialization
+    initSearchableSelects() {
+        document.querySelectorAll('select[data-searchable]').forEach(sel => {
+            new RCSearchableSelect(sel);
+        });
+
+        // Watch for dynamically added searchable selects (e.g. cloned device rows)
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    if (node.matches && node.matches('select[data-searchable]')) {
+                        new RCSearchableSelect(node);
+                    }
+                    if (node.querySelectorAll) {
+                        node.querySelectorAll('select[data-searchable]').forEach(sel => {
+                            new RCSearchableSelect(sel);
+                        });
+                    }
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+}
+
+// Searchable Select Component
+class RCSearchableSelect {
+    constructor(selectEl) {
+        if (selectEl._rcSearchable) return;
+        selectEl._rcSearchable = this;
+        this.select = selectEl;
+        this.isOpen = false;
+        this._build();
+        this._observe();
+    }
+
+    _build() {
+        const select = this.select;
+
+        this.wrapper = document.createElement('div');
+        this.wrapper.className = 'rc-searchable-select';
+        // Inherit inline width/max-width from the original select
+        if (select.style.maxWidth) this.wrapper.style.maxWidth = select.style.maxWidth;
+        if (select.style.width) this.wrapper.style.width = select.style.width;
+
+        this.display = document.createElement('button');
+        this.display.type = 'button';
+        this.display.className = 'rc-searchable-select__display';
+        this.display.setAttribute('aria-haspopup', 'listbox');
+        this.display.setAttribute('aria-expanded', 'false');
+
+        this.dropdown = document.createElement('div');
+        this.dropdown.className = 'rc-searchable-select__dropdown';
+        this.dropdown.setAttribute('role', 'listbox');
+
+        this.searchInput = document.createElement('input');
+        this.searchInput.type = 'text';
+        this.searchInput.className = 'rc-searchable-select__search';
+        this.searchInput.placeholder = 'Search...';
+        this.searchInput.setAttribute('autocomplete', 'off');
+
+        this.optionsList = document.createElement('div');
+        this.optionsList.className = 'rc-searchable-select__options';
+
+        this.dropdown.appendChild(this.searchInput);
+        this.dropdown.appendChild(this.optionsList);
+        this.wrapper.appendChild(this.display);
+        this.wrapper.appendChild(this.dropdown);
+
+        select.style.display = 'none';
+        select.parentNode.insertBefore(this.wrapper, select);
+        this.wrapper.appendChild(select);
+
+        this._renderOptions();
+        this._updateDisplay();
+        this._bindEvents();
+    }
+
+    _renderOptions(filter = '') {
+        this.optionsList.innerHTML = '';
+        const lower = filter.toLowerCase();
+
+        Array.from(this.select.options).forEach((opt, i) => {
+            if (filter && !opt.text.toLowerCase().includes(lower)) return;
+
+            const item = document.createElement('div');
+            item.className = 'rc-searchable-select__option';
+            item.setAttribute('role', 'option');
+            item.setAttribute('tabindex', '-1');
+            item.dataset.index = i;
+            if (opt.selected) item.classList.add('selected');
+
+            if (filter) {
+                const text = opt.text;
+                const idx = text.toLowerCase().indexOf(lower);
+                if (idx >= 0) {
+                    item.innerHTML =
+                        this._escapeHtml(text.substring(0, idx)) +
+                        '<mark>' + this._escapeHtml(text.substring(idx, idx + filter.length)) + '</mark>' +
+                        this._escapeHtml(text.substring(idx + filter.length));
+                } else {
+                    item.textContent = text;
+                }
+            } else {
+                item.textContent = opt.text;
+            }
+
+            item.addEventListener('mousedown', (e) => { e.preventDefault(); this._selectOption(i); });
+            this.optionsList.appendChild(item);
+        });
+    }
+
+    _escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    _selectOption(index) {
+        this.select.selectedIndex = index;
+        this.select.dispatchEvent(new Event('change', { bubbles: true }));
+        this._updateDisplay();
+        this._close();
+    }
+
+    _updateDisplay() {
+        const sel = this.select.options[this.select.selectedIndex];
+        const text = sel ? sel.text : '';
+        const hasValue = sel && sel.value !== '';
+        this.display.innerHTML =
+            '<span class="rc-searchable-select__label' + (hasValue ? '' : ' placeholder') + '">' +
+            this._escapeHtml(text) + '</span>' +
+            '<i class="bi bi-chevron-down rc-searchable-select__chevron"></i>';
+    }
+
+    _open() {
+        if (this.isOpen) return;
+        // Close any other open searchable selects
+        document.querySelectorAll('.rc-searchable-select.open').forEach(w => {
+            if (w !== this.wrapper && w._rcss) w._rcss._close();
+        });
+        this.isOpen = true;
+        this.wrapper.classList.add('open');
+        this.display.setAttribute('aria-expanded', 'true');
+        this.searchInput.value = '';
+        this._renderOptions();
+        requestAnimationFrame(() => {
+            this.searchInput.focus();
+            const selected = this.optionsList.querySelector('.selected');
+            if (selected) selected.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    _close() {
+        if (!this.isOpen) return;
+        this.isOpen = false;
+        this.wrapper.classList.remove('open');
+        this.display.setAttribute('aria-expanded', 'false');
+    }
+
+    _bindEvents() {
+        this.wrapper._rcss = this;
+
+        this.display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.isOpen ? this._close() : this._open();
+        });
+
+        this.searchInput.addEventListener('input', () => {
+            this._renderOptions(this.searchInput.value);
+        });
+
+        this.searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { this._close(); this.display.focus(); }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const first = this.optionsList.querySelector('.rc-searchable-select__option');
+                if (first) first.focus();
+            }
+        });
+
+        this.optionsList.addEventListener('keydown', (e) => {
+            const focused = document.activeElement;
+            if (!focused.classList.contains('rc-searchable-select__option')) return;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const next = focused.nextElementSibling;
+                if (next) next.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prev = focused.previousElementSibling;
+                if (prev) prev.focus(); else this.searchInput.focus();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const idx = parseInt(focused.dataset.index, 10);
+                this._selectOption(idx);
+            } else if (e.key === 'Escape') {
+                this._close();
+                this.display.focus();
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!this.wrapper.contains(e.target)) this._close();
+        });
+    }
+
+    _observe() {
+        // Re-render when options are dynamically updated
+        this._observer = new MutationObserver(() => {
+            this._renderOptions(this.searchInput ? this.searchInput.value : '');
+            this._updateDisplay();
+        });
+        this._observer.observe(this.select, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['selected', 'disabled']
+        });
     }
 }
 

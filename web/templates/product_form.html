@@ -38,7 +38,7 @@
 
                             <div>
                                 <label for="category" class="rc-label">Category</label>
-                                <select id="category" name="category" class="rc-input">
+                                <select id="category" name="category" class="rc-input" data-searchable>
                                     <option value="">Select Category...</option>
                                     {{range .categories}}
                                     <option value="{{.}}" {{if $.product}}{{if eq $.product.Category .}}selected{{end}}{{end}}>{{.}}</option>
@@ -235,7 +235,7 @@
             <form id="addAccessoryForm">
                 <div class="rc-mb-md">
                     <label for="accessory_select" class="rc-label">Select Accessory Product</label>
-                    <select id="accessory_select" class="rc-input" required>
+                    <select id="accessory_select" class="rc-input" required data-searchable>
                         <option value="">Loading...</option>
                     </select>
                 </div>
@@ -273,7 +273,7 @@
             <form id="addConsumableForm">
                 <div class="rc-mb-md">
                     <label for="consumable_select" class="rc-label">Select Consumable Product</label>
-                    <select id="consumable_select" class="rc-input" required>
+                    <select id="consumable_select" class="rc-input" required data-searchable>
                         <option value="">Loading...</option>
                     </select>
                 </div>
