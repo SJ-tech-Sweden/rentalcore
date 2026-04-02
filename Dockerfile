@@ -4,8 +4,12 @@ FROM golang:1.25-alpine AS builder
 # Install build dependencies including GCC for CGO/SQLite
 RUN apk add --no-cache git python3 py3-pip gcc musl-dev sqlite-dev
 
-# Set working directory
-WORKDIR /app
+# Ensure Go modules are enabled inside the build container and set GOPATH
+ENV GO111MODULE=on
+ENV GOPATH=/go
+
+# Set working directory to module path inside GOPATH
+WORKDIR /go/src/go-barcode-webapp
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -26,7 +30,8 @@ RUN python3 -m venv /opt/ocr-venv && \
     chmod +x tools/ocr_parser/parser.py
 
 # Build the application with CGO enabled for SQLite
-RUN CGO_ENABLED=1 GOOS=linux go build -o server ./cmd/server
+# Output binary into /app so production stage can copy it from that path
+RUN CGO_ENABLED=1 GOOS=linux go build -o /app/server ./cmd/server
 
 # Production stage
 FROM alpine:latest
@@ -45,7 +50,7 @@ COPY --from=builder /app/server .
 
 # Copy python virtualenv and parser tool
 COPY --from=builder /opt/ocr-venv /opt/ocr-venv
-COPY --from=builder /app/tools/ocr_parser tools/ocr_parser
+COPY --from=builder /go/src/go-barcode-webapp/tools/ocr_parser tools/ocr_parser
 
 # Copy web assets
 COPY --chown=appuser:appgroup web/ web/
