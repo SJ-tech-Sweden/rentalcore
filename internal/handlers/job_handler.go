@@ -1015,48 +1015,21 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 	return target, nil
 }
 
+// applyProductSelections records the required product quantities for the job.
+// It does NOT auto-assign specific devices; actual device assignment is handled
+// by warehousecore when scanning devices or cases.
 func (h *JobHandler) applyProductSelections(job *models.Job, selections []JobProductSelection) error {
 	selections = normalizeProductSelections(selections)
 
-	currentDevices, err := h.jobRepo.GetJobDevices(job.JobID)
-	if err != nil {
-		return err
+	requirements := make([]models.JobProductRequirement, 0, len(selections))
+	for _, sel := range selections {
+		requirements = append(requirements, models.JobProductRequirement{
+			ProductID: sel.ProductID,
+			Quantity:  sel.Quantity,
+		})
 	}
 
-	targetByProduct, err := h.resolveProductSelections(job, selections, currentDevices)
-	if err != nil {
-		return err
-	}
-
-	currentDeviceSet := make(map[string]bool)
-	for _, jd := range currentDevices {
-		currentDeviceSet[jd.DeviceID] = true
-	}
-
-	targetDeviceSet := make(map[string]bool)
-	for _, devices := range targetByProduct {
-		for _, deviceID := range devices {
-			targetDeviceSet[deviceID] = true
-		}
-	}
-
-	for deviceID := range currentDeviceSet {
-		if !targetDeviceSet[deviceID] {
-			if err := h.jobRepo.RemoveDevice(job.JobID, deviceID); err != nil {
-				return err
-			}
-		}
-	}
-
-	for deviceID := range targetDeviceSet {
-		if !currentDeviceSet[deviceID] {
-			if err := h.jobRepo.AssignDevice(job.JobID, deviceID, 0); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return h.jobRepo.SetJobProductRequirements(job.JobID, requirements)
 }
 
 // ApplyProductSelections exposes product selection logic for programmatic consumers
@@ -1264,6 +1237,33 @@ func (h *JobHandler) GetJobAPI(c *gin.Context) {
 	jobDebugLog("🔧 DEBUG GetJobAPI: Full JSON response:\n%s\n", string(jsonData))
 
 	c.JSON(http.StatusOK, job)
+}
+
+// GetJobProductRequirementsAPI godoc
+// @Summary      Get job product requirements
+// @Description  Returns the list of product quantity requirements for a job. These are the products requested for the job; specific devices are assigned later in warehousecore.
+// @Tags         jobs
+// @Produce      json
+// @Param        id   path      int  true  "Job ID"
+// @Success      200  {array}   models.JobProductRequirement  "Product requirements"
+// @Failure      400  {object}  map[string]string             "Invalid ID"
+// @Failure      500  {object}  map[string]string             "Internal server error"
+// @Security     SessionCookie
+// @Router       /jobs/{id}/product-requirements [get]
+func (h *JobHandler) GetJobProductRequirementsAPI(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
+		return
+	}
+
+	requirements, err := h.jobRepo.GetJobProductRequirements(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, requirements)
 }
 
 // UpdateJobAPI godoc

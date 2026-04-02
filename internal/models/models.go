@@ -70,17 +70,18 @@ type Job struct {
 	UpdatedAt     *time.Time   `json:"updated_at" gorm:"column:updated_at;default:CURRENT_TIMESTAMP;index"`
 
 	// Relations
-	Creator      *User        `json:"creator,omitempty" gorm:"foreignKey:CreatedBy"`
-	Description  *string      `json:"description" gorm:"column:description"`
-	Discount     float64      `json:"discount" gorm:"column:discount;default:0"`
-	DiscountType string       `json:"discount_type" gorm:"column:discount_type;default:amount"`
-	Revenue      float64      `json:"revenue" gorm:"column:revenue;default:0"`
-	FinalRevenue *float64     `json:"final_revenue" gorm:"column:final_revenue"`
-	StartDate    *time.Time   `json:"startDate" gorm:"column:startdate;type:date"`
-	EndDate      *time.Time   `json:"endDate" gorm:"column:enddate;type:date"`
-	JobDevices   []JobDevice  `json:"job_devices,omitempty" gorm:"foreignKey:JobID"`
-	JobPackages  []JobPackage `json:"job_packages,omitempty" gorm:"foreignKey:JobID;references:JobID"`
-	DeviceCount  int          `json:"device_count" gorm:"-:all"`
+	Creator                *User                   `json:"creator,omitempty" gorm:"foreignKey:CreatedBy"`
+	Description            *string                 `json:"description" gorm:"column:description"`
+	Discount               float64                 `json:"discount" gorm:"column:discount;default:0"`
+	DiscountType           string                  `json:"discount_type" gorm:"column:discount_type;default:amount"`
+	Revenue                float64                 `json:"revenue" gorm:"column:revenue;default:0"`
+	FinalRevenue           *float64                `json:"final_revenue" gorm:"column:final_revenue"`
+	StartDate              *time.Time              `json:"startDate" gorm:"column:startdate;type:date"`
+	EndDate                *time.Time              `json:"endDate" gorm:"column:enddate;type:date"`
+	JobDevices             []JobDevice             `json:"job_devices,omitempty" gorm:"foreignKey:JobID"`
+	JobPackages            []JobPackage            `json:"job_packages,omitempty" gorm:"foreignKey:JobID;references:JobID"`
+	JobProductRequirements []JobProductRequirement `json:"job_product_requirements,omitempty" gorm:"foreignKey:JobID;references:JobID"`
+	DeviceCount            int                     `json:"device_count" gorm:"-:all"`
 }
 
 func (Job) TableName() string {
@@ -213,6 +214,20 @@ type JobDevice struct {
 
 func (JobDevice) TableName() string {
 	return "job_devices"
+}
+
+// JobProductRequirement stores the required quantity of a product for a job.
+// Specific device assignment is deferred to warehousecore (e.g. when scanning).
+type JobProductRequirement struct {
+	RequirementID uint     `json:"requirement_id" gorm:"primaryKey;autoIncrement;column:requirement_id"`
+	JobID         int      `json:"job_id" gorm:"column:job_id;not null;index"`
+	ProductID     uint     `json:"product_id" gorm:"column:product_id;not null"`
+	Quantity      int      `json:"quantity" gorm:"column:quantity;not null;default:1"`
+	Product       *Product `json:"product,omitempty" gorm:"foreignKey:ProductID;references:ProductID"`
+}
+
+func (JobProductRequirement) TableName() string {
+	return "job_product_requirements"
 }
 
 // JobWithDetails represents a job with aggregated information

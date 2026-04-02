@@ -1333,6 +1333,9 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.GET("/:id/packages", jobHandler.GetJobPackages)
 				apiJobs.POST("/:id/packages", jobHandler.AssignPackageToJob)
 
+				// Job product requirements routes
+				apiJobs.GET("/:id/product-requirements", jobHandler.GetJobProductRequirementsAPI)
+
 				// Job Attachments routes (matching frontend expectations for /api/v1/jobs/...)
 				apiJobs.GET("/:id/attachments", jobAttachmentHandler.GetJobAttachments)
 				apiJobs.POST("/attachments/upload", jobAttachmentHandler.UploadAttachment)
