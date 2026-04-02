@@ -96,7 +96,7 @@
                                 <label for="customerId" class="form-label required">Kunde</label>
                                 <div class="input-group">
                                     <select id="customerId" name="customerId" class="form-select" required 
-                                            aria-describedby="customerHelp">
+                                            aria-describedby="customerHelp" data-searchable>
                                         <option value="">Kunde auswählen...</option>
                                         {{range .customers}}
                                         <option value="{{.CustomerID}}"{{if and $.invoice (eq $.invoice.CustomerID .CustomerID)}} selected{{end}}>
@@ -120,7 +120,7 @@
                                 <label for="jobId" class="form-label">Auftrag (Optional)</label>
                                 <div class="input-group">
                                     <select id="jobId" name="jobId" class="form-select" 
-                                            aria-describedby="jobHelp">
+                                            aria-describedby="jobHelp" data-searchable>
                                         <option value="">Kein Auftrag verknüpfen</option>
                                         {{range .jobs}}
                                         <option value="{{.JobID}}"{{if and $.invoice $.invoice.JobID (eq $.invoice.JobID .JobID)}} selected{{end}}>
@@ -142,7 +142,7 @@
 
                             <div class="mb-3">
                                 <label for="templateId" class="form-label">Invoice Template</label>
-                                <select id="templateId" name="templateId" class="form-control">
+                                <select id="templateId" name="templateId" class="form-control" data-searchable>
                                     <option value="">Use Default Template</option>
                                     {{range .templates}}
                                     <option value="{{.TemplateID}}"{{if and $.invoice $.invoice.TemplateID (eq $.invoice.TemplateID .TemplateID)}} selected{{end}}>
@@ -203,7 +203,7 @@
                             <!-- Product Selection -->
                             <div class="mb-3">
                                 <label for="productSelect" class="form-label">Add Product</label>
-                                <select id="productSelect" class="form-control">
+                                <select id="productSelect" class="form-control" data-searchable>
                                     <option value="">Select a product to add...</option>
                                     {{range .products}}
                                     <option value="{{.ProductID}}">{{.Name}}{{if .ItemCostPerDay}} - €{{.ItemCostPerDay}}/day{{end}}</option>

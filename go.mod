@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/boombuler/barcode v1.0.1
 	github.com/gin-gonic/gin v1.9.1
+	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jung-kurt/gofpdf v1.16.2
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/makiuchi-d/gozxing v0.1.1
@@ -39,7 +40,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect

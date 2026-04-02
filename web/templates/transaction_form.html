@@ -134,7 +134,7 @@
                         <!-- Customer -->
                         <div class="col-md-6 mb-3">
                             <label for="customerID" class="form-label">Customer</label>
-                            <select class="form-select" id="customerID" name="customerID">
+                            <select class="form-select" id="customerID" name="customerID" data-searchable>
                                 <option value="">Select Customer (Optional)</option>
                                 {{range .customers}}
                                 <option value="{{.CustomerID}}">{{.GetDisplayName}}</option>
@@ -146,7 +146,7 @@
                         <!-- Job -->
                         <div class="col-md-6 mb-3">
                             <label for="jobID" class="form-label">Related Job</label>
-                            <select class="form-select" id="jobID" name="jobID">
+                            <select class="form-select" id="jobID" name="jobID" data-searchable>
                                 <option value="">Select Job (Optional)</option>
                                 {{range .jobs}}
                                 <option value="{{.JobID}}">Job #{{.JobID}}{{if .Description}} - {{derefString .Description}}{{end}}</option>
