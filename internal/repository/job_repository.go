@@ -106,6 +106,7 @@ func (r *JobRepository) GetByID(id uint) (*models.Job, error) {
 	err := r.db.
 		Preload("JobDevices.Device").
 		Preload("JobPackages.Package").
+		Preload("JobProductRequirements.Product").
 		Preload("Creator"). // Load the user who created the job
 		First(&job, id).Error
 	if err != nil {
@@ -238,6 +239,33 @@ func (r *JobRepository) GetProductName(productID uint) (string, error) {
 // RemoveAllDevicesFromJob removes all devices assigned to a specific job
 func (r *JobRepository) RemoveAllDevicesFromJob(jobID uint) error {
 	return r.db.Where("jobID = ?", jobID).Delete(&models.JobDevice{}).Error
+}
+
+// GetJobProductRequirements returns all product requirements for the given job.
+func (r *JobRepository) GetJobProductRequirements(jobID uint) ([]models.JobProductRequirement, error) {
+	var reqs []models.JobProductRequirement
+	err := r.db.
+		Preload("Product").
+		Where("job_id = ?", jobID).
+		Find(&reqs).Error
+	return reqs, err
+}
+
+// SetJobProductRequirements replaces all product requirements for the given job.
+// Passing an empty or nil slice removes all existing requirements.
+func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []models.JobProductRequirement) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("job_id = ?", jobID).Delete(&models.JobProductRequirement{}).Error; err != nil {
+			return err
+		}
+		if len(requirements) == 0 {
+			return nil
+		}
+		for i := range requirements {
+			requirements[i].JobID = int(jobID)
+		}
+		return tx.Create(&requirements).Error
+	})
 }
 
 func (r *JobRepository) Delete(id uint) error {
