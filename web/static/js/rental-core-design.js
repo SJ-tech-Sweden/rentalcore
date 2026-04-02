@@ -397,6 +397,11 @@ class RentalCoreDesign {
             new RCSearchableSelect(sel);
         });
 
+        // Guard: only register one MutationObserver per page, even if RentalCoreDesign
+        // is instantiated more than once (some templates do this).
+        if (RCSearchableSelect._bodyObserverRegistered) return;
+        RCSearchableSelect._bodyObserverRegistered = true;
+
         // Watch for dynamically added searchable selects (e.g. cloned device rows)
         const observer = new MutationObserver(mutations => {
             mutations.forEach(mutation => {
@@ -422,6 +427,7 @@ class RCSearchableSelect {
     // Fix 4: shared state for a single document-level click handler
     static _instances = new Set();
     static _docListenerRegistered = false;
+    static _bodyObserverRegistered = false;
     static _idCounter = 0;
 
     constructor(selectEl) {
@@ -461,6 +467,18 @@ class RCSearchableSelect {
         }
         if (select.getAttribute('aria-label')) {
             this.display.setAttribute('aria-label', select.getAttribute('aria-label'));
+        }
+        // Preserve additional accessibility metadata from the original <select>
+        const describedBy = select.getAttribute('aria-describedby');
+        if (describedBy) {
+            this.display.setAttribute('aria-describedby', describedBy);
+        }
+        if (select.required) {
+            this.display.setAttribute('aria-required', 'true');
+        }
+        if (select.disabled) {
+            this.display.disabled = true;
+            this.display.setAttribute('aria-disabled', 'true');
         }
 
         this.dropdown = document.createElement('div');

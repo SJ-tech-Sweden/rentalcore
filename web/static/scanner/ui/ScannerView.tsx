@@ -100,16 +100,20 @@ const ScannerView: React.FC<ScannerViewProps> = ({
         try {
             setState(prev => ({ ...prev, isInitializing: true, error: null }));
 
-            // Load required modules
+            // Load required modules — these are served as runtime URLs by the Go backend
             const [
                 { DecoderManager },
                 { CameraManager },
                 { GestureManager },
                 { CapabilitiesDetector }
             ] = await Promise.all([
+                // @ts-ignore - runtime URL import resolved by the Go static file server
                 import('/static/scanner/worker/decoder-manager.js'),
+                // @ts-ignore - runtime URL import resolved by the Go static file server
                 import('/static/scanner/ui/camera.js'),
+                // @ts-ignore - runtime URL import resolved by the Go static file server
                 import('/static/scanner/ui/gestures.js'),
+                // @ts-ignore - runtime URL import resolved by the Go static file server
                 import('/static/scanner/ui/capabilities.js')
             ]);
 

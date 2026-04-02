@@ -913,10 +913,9 @@ func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobP
 			return nil, err
 		}
 
-		// Debug: log availability details to help trace allocation issues
-		fmt.Printf("🔧 DEBUG GetProductAvailabilityForJob: product=%d rows=%d\n", productID, len(availability))
+		jobDebugLog("🔧 DEBUG GetProductAvailabilityForJob: product=%d rows=%d\n", productID, len(availability))
 		for _, av := range availability {
-			fmt.Printf("🔧 DEBUG Avail: DeviceID=%s Available=%v AssignedToJob=%v CaseID=%v Status=%s\n", av.DeviceID, av.Available, av.AssignedToJob, av.CaseID, av.Status)
+			jobDebugLog("🔧 DEBUG Avail: DeviceID=%s Available=%v AssignedToJob=%v CaseID=%v Status=%s\n", av.DeviceID, av.Available, av.AssignedToJob, av.CaseID, av.Status)
 		}
 
 		caseGroups := make(map[uint][]repository.ProductDeviceAvailability)

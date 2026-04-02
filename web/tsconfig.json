@@ -13,6 +13,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["static/**/*.ts", "static/**/*.tsx", "vite.config.ts"],
-  "exclude": ["static/scanner/**"]
+  "include": ["static/**/*.ts", "static/**/*.tsx", "vite.config.ts"]
 }

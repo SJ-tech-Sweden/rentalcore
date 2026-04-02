@@ -1,12 +1,13 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"go-barcode-webapp/internal/models"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -75,7 +76,8 @@ func (r *AccessoriesConsumablesRepository) GetProductAccessories(productID uint)
 	var accessories []models.ProductAccessoryView
 	err := r.db.Where("product_id = ?", productID).Order("sort_order ASC, accessory_name ASC").Find(&accessories).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
 			log.Printf("ℹ️ View vw_product_accessories missing, returning empty accessories for product %d: %v", productID, err)
 			return []models.ProductAccessoryView{}, nil
 		}
@@ -115,7 +117,8 @@ func (r *AccessoriesConsumablesRepository) GetProductConsumables(productID uint)
 	var consumables []models.ProductConsumableView
 	err := r.db.Where("product_id = ?", productID).Order("sort_order ASC, consumable_name ASC").Find(&consumables).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
 			log.Printf("ℹ️ View vw_product_consumables missing, returning empty consumables for product %d: %v", productID, err)
 			return []models.ProductConsumableView{}, nil
 		}

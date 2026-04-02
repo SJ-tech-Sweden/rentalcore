@@ -670,9 +670,10 @@ func (r *DeviceRepository) GetProductAvailabilityForJob(productID uint, jobID *u
 		return nil, err
 	}
 
-	// Debug: print scanned rows to help trace empty DeviceID issues
-	for _, r := range rows {
-		log.Printf("🔧 DEBUG scanned row: DeviceID='%s' ProductID=%d Status='%s' CaseID=%v AssignedToJob=%v\n", r.DeviceID, r.ProductID, r.Status, r.CaseID, r.AssignedToJob)
+	if deviceDebugLogsEnabled {
+		for _, row := range rows {
+			deviceDebugLog("🔧 DEBUG scanned row: DeviceID='%s' ProductID=%d Status='%s' CaseID=%v AssignedToJob=%v\n", row.DeviceID, row.ProductID, row.Status, row.CaseID, row.AssignedToJob)
+		}
 	}
 
 	conflicts := make(map[string]bool)

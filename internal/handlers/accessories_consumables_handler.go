@@ -10,7 +10,6 @@ import (
 	"go-barcode-webapp/internal/repository"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type AccessoriesConsumablesHandler struct {
@@ -82,11 +81,6 @@ func (h *AccessoriesConsumablesHandler) GetProductAccessoriesAPI(c *gin.Context)
 
 	accessories, err := h.repo.GetProductAccessories(uint(productID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Printf("ℹ️ No accessories found for product %d: %v", productID, err)
-			c.JSON(http.StatusOK, gin.H{"accessories": []models.ProductAccessoryView{}})
-			return
-		}
 		log.Printf("❌ Error fetching product accessories for product %d: %v", productID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product accessories"})
 		return
@@ -162,11 +156,6 @@ func (h *AccessoriesConsumablesHandler) GetProductConsumablesAPI(c *gin.Context)
 
 	consumables, err := h.repo.GetProductConsumables(uint(productID))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			log.Printf("ℹ️ No consumables found for product %d: %v", productID, err)
-			c.JSON(http.StatusOK, gin.H{"consumables": []models.ProductConsumableView{}})
-			return
-		}
 		log.Printf("❌ Error fetching product consumables for product %d: %v", productID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product consumables"})
 		return
