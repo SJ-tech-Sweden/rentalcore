@@ -145,6 +145,19 @@ func (h *ProductHandler) NewProductForm(c *gin.Context) {
 }
 
 // API handlers (existing)
+// ListProducts godoc
+// @Summary      List products
+// @Description  Returns a paginated list of products
+// @Tags         products
+// @Produce      json
+// @Param        search    query    string  false  "Search term"
+// @Param        page      query    int     false  "Page number"
+// @Param        pageSize  query    int     false  "Page size"
+// @Success      200  {object}  map[string]interface{}  "List of products"
+// @Failure      400  {object}  map[string]string       "Invalid request"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /products [get]
 func (h *ProductHandler) ListProducts(c *gin.Context) {
 	params := &models.FilterParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
@@ -161,6 +174,17 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"products": products})
 }
 
+// GetProductAPI godoc
+// @Summary      Get a product
+// @Description  Returns details of a specific product by ID
+// @Tags         products
+// @Produce      json
+// @Param        id   path      int                     true  "Product ID"
+// @Success      200  {object}  map[string]interface{}  "Product details"
+// @Failure      400  {object}  map[string]string       "Invalid ID"
+// @Failure      404  {object}  map[string]string       "Product not found"
+// @Security     SessionCookie
+// @Router       /products/{id} [get]
 func (h *ProductHandler) GetProductAPI(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

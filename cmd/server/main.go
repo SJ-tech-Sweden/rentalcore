@@ -1,3 +1,19 @@
+// @title           RentalCore API
+// @version         1.0
+// @description     RentalCore is a rental management system API for managing jobs, customers, devices, products, and more.
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   SJ Tech Sweden
+// @contact.url    https://github.com/sj-tech-sweden/rentalcore
+
+// @license.name  MIT
+
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey SessionCookie
+// @in cookie
+// @name session_id
+
 package main
 
 import (
@@ -13,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"go-barcode-webapp/docs"
 	"go-barcode-webapp/internal/cache"
 	"go-barcode-webapp/internal/compliance"
 	"go-barcode-webapp/internal/config"
@@ -26,6 +43,8 @@ import (
 	pdfsvc "go-barcode-webapp/internal/services/pdf"
 
 	"github.com/gin-gonic/gin"
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func buildWarehouseProductsURL(r *http.Request) string {
@@ -717,6 +736,18 @@ func main() {
 	}
 
 	// Routes
+	swaggerHost := os.Getenv("SWAGGER_PUBLIC_HOST")
+	if swaggerHost == "" {
+		switch cfg.Server.Host {
+		case "", "0.0.0.0", "::":
+			// Leave SwaggerInfo.Host unset so Swagger can fall back to the request host.
+		default:
+			swaggerHost = cfg.Server.Host + ":" + strconv.Itoa(cfg.Server.Port)
+		}
+	}
+	if swaggerHost != "" {
+		docs.SwaggerInfo.Host = swaggerHost
+	}
 	setupRoutes(r, cfg, jobHandler, jobHistoryHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, accessoriesConsumablesHandler, rbacMiddleware, complianceMiddleware)
 
 	// Add dedicated error route
@@ -805,6 +836,9 @@ func setupRoutes(r *gin.Engine,
 	accessoriesConsumablesHandler *handlers.AccessoriesConsumablesHandler,
 	rbacMiddleware *middleware.RBACMiddleware,
 	complianceMiddleware *compliance.ComplianceMiddleware) {
+
+	// Swagger UI route
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {

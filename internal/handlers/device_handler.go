@@ -613,6 +613,19 @@ func (h *DeviceHandler) GetDevicesBySubbiercategory(c *gin.Context) {
 }
 
 // API handlers
+// ListDevicesAPI godoc
+// @Summary      List devices
+// @Description  Returns a paginated list of devices
+// @Tags         devices
+// @Produce      json
+// @Param        search    query    string  false  "Search term"
+// @Param        page      query    int     false  "Page number"
+// @Param        pageSize  query    int     false  "Page size"
+// @Success      200  {object}  []models.Device         "List of devices"
+// @Failure      400  {object}  map[string]string       "Invalid request"
+// @Failure      500  {object}  map[string]string       "Internal server error"
+// @Security     SessionCookie
+// @Router       /devices [get]
 func (h *DeviceHandler) ListDevicesAPI(c *gin.Context) {
 	params := &models.FilterParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
@@ -645,6 +658,16 @@ func (h *DeviceHandler) CreateDeviceAPI(c *gin.Context) {
 	c.JSON(http.StatusCreated, device)
 }
 
+// GetDeviceAPI godoc
+// @Summary      Get a device
+// @Description  Returns details of a specific device by ID or serial number
+// @Tags         devices
+// @Produce      json
+// @Param        id   path      string                  true  "Device ID or serial number"
+// @Success      200  {object}  map[string]interface{}  "Device details"
+// @Failure      404  {object}  map[string]string       "Device not found"
+// @Security     SessionCookie
+// @Router       /devices/{id} [get]
 func (h *DeviceHandler) GetDeviceAPI(c *gin.Context) {
 	deviceID := c.Param("id")
 	device, err := h.deviceRepo.GetByID(deviceID)
