@@ -26,10 +26,16 @@ func newCachedSettingsService(symbol string, valid bool, expiry time.Time) *Sett
 // fully isolated.
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open in-memory sqlite: %v", err)
 	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get underlying sql DB: %v", err)
+	}
+	sqlDB.SetMaxOpenConns(1)
+	sqlDB.SetMaxIdleConns(1)
 	if err := db.AutoMigrate(&models.AppSetting{}); err != nil {
 		t.Fatalf("AutoMigrate failed: %v", err)
 	}
