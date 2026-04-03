@@ -23,10 +23,12 @@ func newCachedSettingsService(symbol string, valid bool, expiry time.Time) *Sett
 
 // newTestDB creates a transient in-memory SQLite database and auto-migrates the
 // AppSetting table.  Each call produces an independent database so tests are
-// fully isolated.
+// fully isolated.  Using ":memory:" with SetMaxOpenConns(1) ensures every GORM
+// operation uses the same underlying connection and therefore the same
+// private in-memory database — different from every other newTestDB call.
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open in-memory sqlite: %v", err)
 	}
@@ -34,6 +36,8 @@ func newTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("failed to get underlying sql DB: %v", err)
 	}
+	// A single connection guarantees all operations see the same private
+	// in-memory DB (":memory:" databases are connection-scoped in SQLite).
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 	if err := db.AutoMigrate(&models.AppSetting{}); err != nil {
