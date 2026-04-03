@@ -380,12 +380,13 @@
 
         // Helper: resolve a translation key with an English fallback.
         function _ct(key, fallback) {
-            return window.t ? window.t(key) : fallback;
+            return window.t ? window.t(key, fallback) : fallback;
         }
 
         if (currencyInput && currencyPreview) {
+            const _initialSymbol = (window.__APP_CONFIG__ && window.__APP_CONFIG__.currencySymbol) || '{{currencySymbol}}';
             currencyInput.addEventListener('input', function() {
-                currencyPreview.textContent = this.value || '€';
+                currencyPreview.textContent = this.value || _initialSymbol;
             });
 
             document.getElementById('currency-settings-form').addEventListener('submit', function(e) {

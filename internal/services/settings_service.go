@@ -26,6 +26,7 @@ type SettingsService struct {
 	db             *gorm.DB
 	mu             sync.RWMutex
 	cachedCurrency string
+	cacheValid     bool // true once the cache has been populated (even for empty-string values)
 	cacheExpiry    time.Time
 }
 
@@ -41,7 +42,7 @@ func NewSettingsService(db *gorm.DB) *SettingsService {
 // the default is returned without caching, to avoid masking transient errors.
 func (s *SettingsService) GetCurrencySymbol() string {
 	s.mu.RLock()
-	if s.cachedCurrency != "" && time.Now().Before(s.cacheExpiry) {
+	if s.cacheValid && time.Now().Before(s.cacheExpiry) {
 		defer s.mu.RUnlock()
 		return s.cachedCurrency
 	}
@@ -51,7 +52,7 @@ func (s *SettingsService) GetCurrencySymbol() string {
 	defer s.mu.Unlock()
 
 	// Double-check after acquiring write lock.
-	if s.cachedCurrency != "" && time.Now().Before(s.cacheExpiry) {
+	if s.cacheValid && time.Now().Before(s.cacheExpiry) {
 		return s.cachedCurrency
 	}
 
@@ -60,15 +61,17 @@ func (s *SettingsService) GetCurrencySymbol() string {
 	switch {
 	case err == nil:
 		s.cachedCurrency = setting.Value
+		s.cacheValid = true
 		s.cacheExpiry = time.Now().Add(currencyCacheTTL)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		// No row yet – use and cache the default.
 		s.cachedCurrency = defaultCurrencySymbol
+		s.cacheValid = true
 		s.cacheExpiry = time.Now().Add(currencyCacheTTL)
 	default:
 		// Transient DB error – do not overwrite a valid cached value.
 		log.Printf("SettingsService: failed to read %q: %v", AppCurrencyKey, err)
-		if s.cachedCurrency != "" {
+		if s.cacheValid {
 			return s.cachedCurrency
 		}
 		return defaultCurrencySymbol
@@ -94,6 +97,7 @@ func (s *SettingsService) UpdateCurrencySymbol(symbol string) error {
 
 	s.mu.Lock()
 	s.cachedCurrency = symbol
+	s.cacheValid = true
 	s.cacheExpiry = time.Now().Add(currencyCacheTTL)
 	s.mu.Unlock()
 	return nil

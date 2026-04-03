@@ -19,6 +19,11 @@ func NewSettingsHandler(settingsService *services.SettingsService) *SettingsHand
 	return &SettingsHandler{settingsService: settingsService}
 }
 
+// currencyRequest is the request body for updating the currency symbol.
+type currencyRequest struct {
+	CurrencySymbol string `json:"currencySymbol" binding:"required"`
+}
+
 // currencyResponse is the response body for currency endpoints.
 type currencyResponse struct {
 	Success        bool   `json:"success"`
@@ -54,16 +59,14 @@ func (h *SettingsHandler) GetCurrencySettings(c *gin.Context) {
 // @Tags        admin
 // @Accept      json
 // @Produce     json
-// @Param       body body map[string]string true "Currency payload"
+// @Param       body body currencyRequest true "Currency payload"
 // @Success     200 {object} currencyResponse
 // @Failure     400 {object} errorResponse
 // @Failure     500 {object} errorResponse
 // @Router      /admin/currency [put]
 // @Security    SessionCookie
 func (h *SettingsHandler) UpdateCurrencySettings(c *gin.Context) {
-	var req struct {
-		CurrencySymbol string `json:"currencySymbol" binding:"required"`
-	}
+	var req currencyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, errorResponse{Error: "currencySymbol is required"})
 		return
