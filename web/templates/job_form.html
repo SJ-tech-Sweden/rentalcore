@@ -1877,7 +1877,7 @@
                         productTreeExpanded.add('sub-' + sub.id);
                         if (sub.products && sub.products.length > 0) productTreeExpanded.add(`sub-${sub.id}-products`);
                         (sub.subbiercategories || []).forEach(sb => {
-                            productTreeExpanded.add('subbier-' + sb.id);
+                            if (sb.products && sb.products.length > 0) productTreeExpanded.add('subbier-' + sb.id);
                         });
                     });
                     if (filteredProducts.length > 0) productTreeExpanded.add(`cat-${category.id}-products`);

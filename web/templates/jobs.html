@@ -1888,7 +1888,6 @@
                 editProductTreeExpanded.add(nodeId);
                 filteredSubs.forEach(sub => {
                     editProductTreeExpanded.add('edit-sub-' + sub.id);
-                    if (filteredProducts.length > 0) editProductTreeExpanded.add(`edit-cat-${category.id}-products`);
                     if (sub.products && sub.products.length > 0) editProductTreeExpanded.add(`edit-sub-${sub.id}-products`);
                 });
                 if (filteredProducts.length > 0) editProductTreeExpanded.add(`edit-cat-${category.id}-products`);
