@@ -105,8 +105,11 @@ func (s *TwentyService) TestConnection() error {
 
 	// Use the metadata endpoint which returns the server's OpenAPI spec or a simple 200.
 	// A lightweight query is used instead so we don't rely on a specific REST endpoint.
-	query := `{"query":"{ __typename }"}`
-	resp, err := s.doRequest(cfg, []byte(query))
+	payload, err := json.Marshal(gqlRequest{Query: "{ __typename }"})
+	if err != nil {
+		return fmt.Errorf("failed to encode test query: %w", err)
+	}
+	resp, err := s.doRequest(cfg, payload)
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
@@ -180,7 +183,7 @@ type gqlResponse struct {
 }
 
 func (s *TwentyService) doRequest(cfg TwentyConfig, body []byte) (*http.Response, error) {
-	apiURL := strings.TrimRight(cfg.APIURL, "/") + "/api"
+	apiURL := cfg.APIURL + "/api"
 	req, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
