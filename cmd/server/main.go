@@ -442,7 +442,7 @@ func main() {
 	accessoriesConsumablesHandler := handlers.NewAccessoriesConsumablesHandler(accessoriesConsumablesRepo)
 	settingsHandler := handlers.NewSettingsHandler(settingsService)
 	twentyService := services.NewTwentyService(db.DB)
-	twentyHandler := handlers.NewTwentyHandler(twentyService)
+	twentyHandler := handlers.NewTwentyHandler(twentyService, db.DB)
 	jobHandler.SetTwentyService(twentyService)
 	customerHandler.SetTwentyService(twentyService)
 
@@ -878,6 +878,9 @@ func setupRoutes(r *gin.Engine,
 	r.POST("/login/2fa", authHandler.Login2FAVerify)
 	r.GET("/logout", authHandler.Logout)
 
+	// Twenty CRM inbound webhook (no session auth; protected by webhook token in payload header)
+	r.POST("/api/v1/integrations/twenty/webhook", twentyHandler.HandleTwentyWebhook)
+
 	// Passkey authentication routes (no auth required for login)
 	auth := r.Group("/auth")
 	{
@@ -1194,8 +1197,8 @@ func setupRoutes(r *gin.Engine,
 			settings.POST("/company/logo", companyHandler.UploadCompanyLogo)
 			settings.DELETE("/company/logo", companyHandler.DeleteCompanyLogo)
 
-			// Integrations: Twenty CRM
-			settings.GET("/integrations/twenty", twentyHandler.TwentySettingsForm)
+			// Integrations: Twenty CRM (admin only)
+			settings.GET("/integrations/twenty", rbacMiddleware.RequireAdmin(), twentyHandler.TwentySettingsForm)
 		}
 
 		// Security & Admin routes (PROTECTED - Admin only)

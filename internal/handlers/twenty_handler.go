@@ -4,27 +4,66 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
+	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // TwentyHandler handles the Twenty CRM integration settings pages and API.
 type TwentyHandler struct {
 	twentyService *services.TwentyService
+	db            *gorm.DB
 }
 
 // NewTwentyHandler creates a new TwentyHandler.
-func NewTwentyHandler(twentyService *services.TwentyService) *TwentyHandler {
-	return &TwentyHandler{twentyService: twentyService}
+func NewTwentyHandler(twentyService *services.TwentyService, db *gorm.DB) *TwentyHandler {
+	return &TwentyHandler{twentyService: twentyService, db: db}
+}
+
+// isAdmin checks whether the current user has the admin role.
+// System admin (username "admin") always returns true.
+// For other users, the user's active roles are checked against the DB.
+func (h *TwentyHandler) isAdmin(c *gin.Context) bool {
+	user, exists := GetCurrentUser(c)
+	if !exists || user == nil {
+		return false
+	}
+	if user.Username == "admin" {
+		return true
+	}
+	var userRoles []models.UserRole
+	if err := h.db.Preload("Role").Where(
+		"userID = ? AND is_active = ? AND (expires_at IS NULL OR expires_at > ?)",
+		user.UserID, true, time.Now(),
+	).Find(&userRoles).Error; err != nil {
+		return false
+	}
+	for _, ur := range userRoles {
+		if ur.Role != nil && ur.Role.IsActive && ur.Role.Name == "admin" {
+			return true
+		}
+	}
+	return false
 }
 
 // TwentySettingsForm renders the Twenty CRM integration settings page.
+// Defense-in-depth: admin role is required (the route is also protected by middleware).
 func (h *TwentyHandler) TwentySettingsForm(c *gin.Context) {
 	user, exists := GetCurrentUser(c)
 	if !exists {
 		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	}
+
+	if !h.isAdmin(c) {
+		c.HTML(http.StatusForbidden, "error.html", gin.H{
+			"error": "You do not have permission to access this page.",
+			"user":  user,
+		})
 		return
 	}
 
@@ -40,23 +79,26 @@ func (h *TwentyHandler) TwentySettingsForm(c *gin.Context) {
 		"user":        user,
 		"config":      cfg,
 		"success":     successMsg,
-		"currentPage": "settings",
+		"currentPage": "integrations",
 	})
 }
 
 // twentySettingsRequest is the request body for updating Twenty integration settings.
 type twentySettingsRequest struct {
-	Enabled bool   `json:"enabled"`
-	APIURL  string `json:"apiUrl"`
-	APIKey  string `json:"apiKey"`
+	Enabled       bool   `json:"enabled"`
+	APIURL        string `json:"apiUrl"`
+	APIKey        string `json:"apiKey"`        // empty = keep existing stored key
+	WebhookSecret string `json:"webhookSecret"` // empty = keep existing stored secret
+	CurrencyCode  string `json:"currencyCode"`
 }
 
 // twentySettingsResponse is the response body for Twenty integration settings.
 type twentySettingsResponse struct {
-	Success bool   `json:"success"`
-	Enabled bool   `json:"enabled"`
-	APIURL  string `json:"apiUrl"`
-	// APIKey is intentionally omitted from read responses for security.
+	Success      bool   `json:"success"`
+	Enabled      bool   `json:"enabled"`
+	APIURL       string `json:"apiUrl"`
+	CurrencyCode string `json:"currencyCode"`
+	// APIKey and WebhookSecret are intentionally omitted for security.
 }
 
 // GetTwentySettings returns the current Twenty integration configuration.
@@ -71,16 +113,18 @@ type twentySettingsResponse struct {
 func (h *TwentyHandler) GetTwentySettings(c *gin.Context) {
 	cfg := h.twentyService.GetConfig()
 	c.JSON(http.StatusOK, twentySettingsResponse{
-		Success: true,
-		Enabled: cfg.Enabled,
-		APIURL:  cfg.APIURL,
+		Success:      true,
+		Enabled:      cfg.Enabled,
+		APIURL:       cfg.APIURL,
+		CurrencyCode: cfg.CurrencyCode,
 	})
 }
 
 // UpdateTwentySettings saves updated Twenty integration settings.
+// An empty apiKey or webhookSecret keeps the previously stored value.
 //
 // @Summary     Update Twenty CRM integration settings
-// @Description Saves the Twenty CRM integration configuration (API URL, API key, enabled flag).
+// @Description Saves the Twenty CRM integration configuration.
 // @Tags        admin
 // @Accept      json
 // @Produce     json
@@ -99,6 +143,20 @@ func (h *TwentyHandler) UpdateTwentySettings(c *gin.Context) {
 
 	req.APIURL = strings.TrimSpace(req.APIURL)
 	req.APIKey = strings.TrimSpace(req.APIKey)
+	req.WebhookSecret = strings.TrimSpace(req.WebhookSecret)
+
+	// Load existing config so we can preserve secrets that were not supplied.
+	existing := h.twentyService.GetConfig()
+
+	if req.APIKey == "" {
+		req.APIKey = existing.APIKey
+	}
+	if req.WebhookSecret == "" {
+		req.WebhookSecret = existing.WebhookSecret
+	}
+	if req.CurrencyCode == "" {
+		req.CurrencyCode = existing.CurrencyCode
+	}
 
 	if req.Enabled && req.APIURL == "" {
 		c.JSON(http.StatusBadRequest, errorResponse{Error: "API URL is required when enabling the Twenty integration"})
@@ -110,9 +168,11 @@ func (h *TwentyHandler) UpdateTwentySettings(c *gin.Context) {
 	}
 
 	cfg := services.TwentyConfig{
-		Enabled: req.Enabled,
-		APIURL:  req.APIURL,
-		APIKey:  req.APIKey,
+		Enabled:       req.Enabled,
+		APIURL:        req.APIURL,
+		APIKey:        req.APIKey,
+		WebhookSecret: req.WebhookSecret,
+		CurrencyCode:  req.CurrencyCode,
 	}
 	if err := h.twentyService.SaveConfig(cfg); err != nil {
 		log.Printf("UpdateTwentySettings: failed to save config: %v", err)
@@ -120,9 +180,10 @@ func (h *TwentyHandler) UpdateTwentySettings(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, twentySettingsResponse{
-		Success: true,
-		Enabled: cfg.Enabled,
-		APIURL:  cfg.APIURL,
+		Success:      true,
+		Enabled:      cfg.Enabled,
+		APIURL:       cfg.APIURL,
+		CurrencyCode: cfg.CurrencyCode,
 	})
 }
 
@@ -148,4 +209,29 @@ func (h *TwentyHandler) TestTwentyConnection(c *gin.Context) {
 		"success": true,
 		"message": "Connection to Twenty CRM successful",
 	})
+}
+
+// HandleTwentyWebhook processes an incoming webhook event from Twenty CRM and
+// applies any customer updates back to RentalCore.
+// This endpoint is public (not behind session auth) but protected by the webhook
+// token configured in the integration settings.
+func (h *TwentyHandler) HandleTwentyWebhook(c *gin.Context) {
+	body, err := c.GetRawData()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request body"})
+		return
+	}
+
+	webhookToken := c.GetHeader("X-Twenty-Webhook-Token")
+	if err := h.twentyService.ApplyInboundWebhook(body, webhookToken); err != nil {
+		if strings.Contains(err.Error(), "invalid webhook token") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook token"})
+			return
+		}
+		log.Printf("HandleTwentyWebhook: error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "webhook processing failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

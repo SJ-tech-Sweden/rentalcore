@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,9 +21,14 @@ import (
 )
 
 const (
-	TwentyEnabledKey = "twenty.enabled"
-	TwentyAPIURLKey  = "twenty.api_url"
-	TwentyAPIKeyKey  = "twenty.api_key"
+	TwentyEnabledKey       = "twenty.enabled"
+	TwentyAPIURLKey        = "twenty.api_url"
+	TwentyAPIKeyKey        = "twenty.api_key"
+	TwentyWebhookSecretKey = "twenty.webhook_secret"
+	TwentyCurrencyCodeKey  = "twenty.currency_code"
+
+	// syncSemSize caps the number of concurrent outbound sync goroutines.
+	syncSemSize = 20
 )
 
 // TwentyService manages synchronisation between RentalCore and a Twenty CRM instance.
@@ -32,6 +39,7 @@ type TwentyService struct {
 	db         *gorm.DB
 	mu         sync.RWMutex
 	httpClient *http.Client
+	syncSem    chan struct{} // bounded semaphore for outbound sync goroutines
 }
 
 // NewTwentyService creates a new TwentyService.
@@ -41,23 +49,28 @@ func NewTwentyService(db *gorm.DB) *TwentyService {
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		syncSem: make(chan struct{}, syncSemSize),
 	}
 }
 
 // TwentyConfig holds the runtime configuration for the Twenty integration.
 type TwentyConfig struct {
-	Enabled bool
-	APIURL  string
-	APIKey  string
+	Enabled       bool
+	APIURL        string
+	APIKey        string
+	WebhookSecret string
+	CurrencyCode  string // ISO 4217 currency code, e.g. "EUR"
 }
 
 // GetConfig reads the current Twenty integration configuration from app_settings.
 func (s *TwentyService) GetConfig() TwentyConfig {
-	keys := []string{TwentyEnabledKey, TwentyAPIURLKey, TwentyAPIKeyKey}
+	keys := []string{TwentyEnabledKey, TwentyAPIURLKey, TwentyAPIKeyKey, TwentyWebhookSecretKey, TwentyCurrencyCodeKey}
 	var settings []models.AppSetting
 	s.db.Where("key IN ?", keys).Find(&settings)
 
-	cfg := TwentyConfig{}
+	cfg := TwentyConfig{
+		CurrencyCode: "EUR", // default
+	}
 	for _, row := range settings {
 		switch row.Key {
 		case TwentyEnabledKey:
@@ -66,6 +79,12 @@ func (s *TwentyService) GetConfig() TwentyConfig {
 			cfg.APIURL = row.Value
 		case TwentyAPIKeyKey:
 			cfg.APIKey = row.Value
+		case TwentyWebhookSecretKey:
+			cfg.WebhookSecret = row.Value
+		case TwentyCurrencyCodeKey:
+			if row.Value != "" {
+				cfg.CurrencyCode = row.Value
+			}
 		}
 	}
 	return cfg
@@ -77,10 +96,16 @@ func (s *TwentyService) SaveConfig(cfg TwentyConfig) error {
 	if cfg.Enabled {
 		enabledVal = "true"
 	}
+	currencyCode := cfg.CurrencyCode
+	if currencyCode == "" {
+		currencyCode = "EUR"
+	}
 	rows := []models.AppSetting{
 		{Key: TwentyEnabledKey, Value: enabledVal},
 		{Key: TwentyAPIURLKey, Value: strings.TrimRight(cfg.APIURL, "/")},
 		{Key: TwentyAPIKeyKey, Value: cfg.APIKey},
+		{Key: TwentyWebhookSecretKey, Value: cfg.WebhookSecret},
+		{Key: TwentyCurrencyCodeKey, Value: currencyCode},
 	}
 	for _, row := range rows {
 		if err := s.db.Clauses(clause.OnConflict{
@@ -103,8 +128,6 @@ func (s *TwentyService) TestConnection() error {
 		return errors.New("twenty API key is not configured")
 	}
 
-	// Use the metadata endpoint which returns the server's OpenAPI spec or a simple 200.
-	// A lightweight query is used instead so we don't rely on a specific REST endpoint.
 	payload, err := json.Marshal(gqlRequest{Query: "{ __typename }"})
 	if err != nil {
 		return fmt.Errorf("failed to encode test query: %w", err)
@@ -124,23 +147,37 @@ func (s *TwentyService) TestConnection() error {
 }
 
 // SyncCustomerAsync triggers an asynchronous best-effort sync of a customer to Twenty CRM.
+// The call is dropped (with a log message) if the semaphore is full.
 func (s *TwentyService) SyncCustomerAsync(customer *models.Customer) {
 	c := *customer // copy to avoid data race
-	go func() {
-		if err := s.syncCustomer(&c); err != nil {
-			log.Printf("TwentyService: SyncCustomer for customer %d failed: %v", c.CustomerID, err)
-		}
-	}()
+	select {
+	case s.syncSem <- struct{}{}:
+		go func() {
+			defer func() { <-s.syncSem }()
+			if err := s.syncCustomer(&c); err != nil {
+				log.Printf("TwentyService: SyncCustomer for customer %d failed: %v", c.CustomerID, err)
+			}
+		}()
+	default:
+		log.Printf("TwentyService: sync queue full, skipping outbound sync for customer %d", customer.CustomerID)
+	}
 }
 
 // SyncJobAsync triggers an asynchronous best-effort sync of a job to Twenty CRM.
+// The call is dropped (with a log message) if the semaphore is full.
 func (s *TwentyService) SyncJobAsync(job *models.Job) {
 	j := *job // copy to avoid data race
-	go func() {
-		if err := s.syncJob(&j); err != nil {
-			log.Printf("TwentyService: SyncJob for job %d failed: %v", j.JobID, err)
-		}
-	}()
+	select {
+	case s.syncSem <- struct{}{}:
+		go func() {
+			defer func() { <-s.syncSem }()
+			if err := s.syncJob(&j); err != nil {
+				log.Printf("TwentyService: SyncJob for job %d failed: %v", j.JobID, err)
+			}
+		}()
+	default:
+		log.Printf("TwentyService: sync queue full, skipping outbound sync for job %d", job.JobID)
+	}
 }
 
 // syncCustomer pushes a customer to Twenty CRM.
@@ -166,6 +203,151 @@ func (s *TwentyService) syncJob(job *models.Job) error {
 		return nil
 	}
 	return s.upsertOpportunity(cfg, job)
+}
+
+// ---------- Bidirectional sync: inbound webhook from Twenty ----------
+
+// TwentyWebhookPayload is the incoming webhook event from Twenty CRM.
+type TwentyWebhookPayload struct {
+	Type   string                     `json:"type"`
+	Record map[string]json.RawMessage `json:"record"`
+}
+
+// ApplyInboundWebhook processes an incoming Twenty CRM webhook and updates the
+// corresponding RentalCore customer record.
+// Only records that were originally synced FROM RentalCore are affected.
+func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) error {
+	cfg := s.GetConfig()
+
+	// Verify token if a secret is configured.
+	if cfg.WebhookSecret != "" && webhookToken != cfg.WebhookSecret {
+		return errors.New("invalid webhook token")
+	}
+
+	var payload TwentyWebhookPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return fmt.Errorf("invalid webhook payload: %w", err)
+	}
+
+	// Determine object type from event type, e.g. "company.updated" → "company".
+	parts := strings.SplitN(payload.Type, ".", 2)
+	if len(parts) != 2 {
+		return nil // unknown type; ignore silently
+	}
+	objectType := parts[0]
+	if objectType != "company" && objectType != "person" {
+		return nil // not a type we handle
+	}
+
+	// Extract the Twenty record ID.
+	idRaw, ok := payload.Record["id"]
+	if !ok {
+		return errors.New("webhook record missing id field")
+	}
+	var twentyID string
+	if err := json.Unmarshal(idRaw, &twentyID); err != nil || twentyID == "" {
+		return errors.New("webhook record id is invalid or empty")
+	}
+
+	// Find the RentalCore customer that maps to this Twenty record.
+	customerID, err := s.reverseCustomerIDLookup(twentyID, objectType)
+	if err != nil {
+		return fmt.Errorf("reverse lookup failed: %w", err)
+	}
+	if customerID == 0 {
+		// Not a record we synced from RentalCore; ignore.
+		return nil
+	}
+
+	// Load and update the customer.
+	var customer models.Customer
+	if err := s.db.First(&customer, customerID).Error; err != nil {
+		return fmt.Errorf("customer %d not found: %w", customerID, err)
+	}
+
+	if objectType == "company" {
+		s.applyCompanyWebhook(&customer, payload.Record)
+	} else {
+		s.applyPersonWebhook(&customer, payload.Record)
+	}
+
+	return s.db.Save(&customer).Error
+}
+
+// reverseCustomerIDLookup finds the RentalCore customerID that maps to a given
+// Twenty object ID and object type ("company" or "person").
+// Returns 0 if no mapping exists.
+func (s *TwentyService) reverseCustomerIDLookup(twentyID, objectType string) (uint, error) {
+	prefix := "twenty." + objectType + "."
+	var settings []models.AppSetting
+	if err := s.db.Where("key LIKE ? AND value = ?", prefix+"%", twentyID).Find(&settings).Error; err != nil {
+		return 0, err
+	}
+	if len(settings) == 0 {
+		return 0, nil
+	}
+	idStr := strings.TrimPrefix(settings[0].Key, prefix)
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return 0, nil
+	}
+	return uint(id), nil
+}
+
+// applyCompanyWebhook maps Twenty company fields onto a RentalCore customer.
+func (s *TwentyService) applyCompanyWebhook(customer *models.Customer, record map[string]json.RawMessage) {
+	if raw, ok := record["name"]; ok {
+		var name string
+		if err := json.Unmarshal(raw, &name); err == nil && name != "" {
+			customer.CompanyName = &name
+		}
+	}
+	if raw, ok := record["address"]; ok {
+		var addr struct {
+			Street1  string `json:"addressStreet1"`
+			City     string `json:"addressCity"`
+			State    string `json:"addressState"`
+			Postcode string `json:"addressPostcode"`
+			Country  string `json:"addressCountry"`
+		}
+		if err := json.Unmarshal(raw, &addr); err == nil {
+			customer.Street = &addr.Street1
+			customer.City = &addr.City
+			customer.FederalState = &addr.State
+			customer.ZIP = &addr.Postcode
+			customer.Country = &addr.Country
+		}
+	}
+}
+
+// applyPersonWebhook maps Twenty person fields onto a RentalCore customer.
+func (s *TwentyService) applyPersonWebhook(customer *models.Customer, record map[string]json.RawMessage) {
+	if raw, ok := record["name"]; ok {
+		var name struct {
+			FirstName string `json:"firstName"`
+			LastName  string `json:"lastName"`
+		}
+		if err := json.Unmarshal(raw, &name); err == nil {
+			customer.FirstName = &name.FirstName
+			customer.LastName = &name.LastName
+		}
+	}
+	if raw, ok := record["emails"]; ok {
+		var emails struct {
+			PrimaryEmail string `json:"primaryEmail"`
+		}
+		if err := json.Unmarshal(raw, &emails); err == nil {
+			customer.Email = &emails.PrimaryEmail
+		}
+	}
+	if raw, ok := record["phones"]; ok {
+		var phones struct {
+			PrimaryPhoneNumber string `json:"primaryPhoneNumber"`
+		}
+		if err := json.Unmarshal(raw, &phones); err == nil {
+			customer.PhoneNumber = &phones.PrimaryPhoneNumber
+		}
+	}
 }
 
 // ---------- Twenty GraphQL helpers ----------
@@ -205,6 +387,12 @@ func (s *TwentyService) execGQL(cfg TwentyConfig, query string, variables map[st
 	}
 	defer resp.Body.Close()
 
+	// Check HTTP status before attempting to decode as JSON.
+	if resp.StatusCode >= 400 {
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return nil, fmt.Errorf("Twenty API HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
+	}
+
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -224,13 +412,17 @@ func (s *TwentyService) execGQL(cfg TwentyConfig, query string, variables map[st
 	return gqlResp.Data, nil
 }
 
-// storedID returns the Twenty object ID previously stored for a given RentalCore object, or "".
-func (s *TwentyService) storedID(settingsKey string) string {
+// storedID returns the Twenty object ID previously stored for a given RentalCore object.
+// It returns ("", nil) when no mapping exists yet, and ("", err) on unexpected DB errors.
+func (s *TwentyService) storedID(settingsKey string) (string, error) {
 	var setting models.AppSetting
 	if err := s.db.Where("key = ?", settingsKey).First(&setting).Error; err != nil {
-		return ""
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", nil
+		}
+		return "", fmt.Errorf("storedID(%q): %w", settingsKey, err)
 	}
-	return setting.Value
+	return setting.Value, nil
 }
 
 // storeID persists a Twenty object ID mapping.
@@ -244,11 +436,19 @@ func (s *TwentyService) storeID(settingsKey, twentyID string) {
 	}
 }
 
+// amountMicros converts a float64 amount to micros (millionths) using rounding.
+func amountMicros(amount float64) int64 {
+	return int64(math.Round(amount * 1_000_000))
+}
+
 // ---------- Company sync ----------
 
 func (s *TwentyService) upsertCompany(cfg TwentyConfig, c *models.Customer) error {
 	mappingKey := fmt.Sprintf("twenty.company.%d", c.CustomerID)
-	existingID := s.storedID(mappingKey)
+	existingID, err := s.storedID(mappingKey)
+	if err != nil {
+		return err
+	}
 
 	name := ""
 	if c.CompanyName != nil {
@@ -267,9 +467,9 @@ mutation CreateOneCompany($data: CompanyCreateInput!) {
   createCompany(data: $data) { id }
 }`
 		data := map[string]interface{}{
-			"name":            name,
-			"domainName":      map[string]interface{}{"primaryLinkUrl": "", "primaryLinkLabel": ""},
-			"address":         address,
+			"name":       name,
+			"domainName": map[string]interface{}{"primaryLinkUrl": "", "primaryLinkLabel": ""},
+			"address":    address,
 		}
 		vars := map[string]interface{}{"data": data}
 		resp, err := s.execGQL(cfg, q, vars)
@@ -293,7 +493,7 @@ mutation UpdateOneCompany($id: ID!, $data: CompanyUpdateInput!) {
 		"address": address,
 	}
 	vars := map[string]interface{}{"id": existingID, "data": data}
-	_, err := s.execGQL(cfg, q, vars)
+	_, err = s.execGQL(cfg, q, vars)
 	return err
 }
 
@@ -301,7 +501,10 @@ mutation UpdateOneCompany($id: ID!, $data: CompanyUpdateInput!) {
 
 func (s *TwentyService) upsertPerson(cfg TwentyConfig, c *models.Customer) error {
 	mappingKey := fmt.Sprintf("twenty.person.%d", c.CustomerID)
-	existingID := s.storedID(mappingKey)
+	existingID, err := s.storedID(mappingKey)
+	if err != nil {
+		return err
+	}
 
 	firstName := ""
 	if c.FirstName != nil {
@@ -326,7 +529,7 @@ mutation CreateOnePerson($data: PersonCreateInput!) {
   createPerson(data: $data) { id }
 }`
 		data := map[string]interface{}{
-			"name":  map[string]interface{}{"firstName": firstName, "lastName": lastName},
+			"name":   map[string]interface{}{"firstName": firstName, "lastName": lastName},
 			"emails": map[string]interface{}{"primaryEmail": email},
 			"phones": map[string]interface{}{"primaryPhoneNumber": phone, "primaryPhoneCountryCode": ""},
 		}
@@ -352,7 +555,7 @@ mutation UpdateOnePerson($id: ID!, $data: PersonUpdateInput!) {
 		"phones": map[string]interface{}{"primaryPhoneNumber": phone, "primaryPhoneCountryCode": ""},
 	}
 	vars := map[string]interface{}{"id": existingID, "data": data}
-	_, err := s.execGQL(cfg, q, vars)
+	_, err = s.execGQL(cfg, q, vars)
 	return err
 }
 
@@ -360,26 +563,26 @@ mutation UpdateOnePerson($id: ID!, $data: PersonUpdateInput!) {
 
 func (s *TwentyService) upsertOpportunity(cfg TwentyConfig, job *models.Job) error {
 	mappingKey := fmt.Sprintf("twenty.opportunity.%d", job.JobID)
-	existingID := s.storedID(mappingKey)
+	existingID, err := s.storedID(mappingKey)
+	if err != nil {
+		return err
+	}
 
 	name := job.JobCode
 	if name == "" {
 		name = fmt.Sprintf("Job #%d", job.JobID)
 	}
 
-	// Build a description from the job description field if available.
 	desc := ""
 	if job.Description != nil {
 		desc = *job.Description
 	}
 
-	// Determine stage from status
 	stage := "NEW"
 	if job.Status.Status != "" {
 		stage = mapJobStatusToStage(job.Status.Status)
 	}
 
-	// Determine close date from end date
 	closeDate := ""
 	if job.EndDate != nil {
 		closeDate = job.EndDate.Format("2006-01-02")
@@ -390,16 +593,21 @@ func (s *TwentyService) upsertOpportunity(cfg TwentyConfig, job *models.Job) err
 		amount = *job.FinalRevenue
 	}
 
+	amtObj := map[string]interface{}{
+		"amountMicros": amountMicros(amount),
+		"currencyCode": cfg.CurrencyCode,
+	}
+
 	if existingID == "" {
 		const q = `
 mutation CreateOneOpportunity($data: OpportunityCreateInput!) {
   createOpportunity(data: $data) { id }
 }`
 		data := map[string]interface{}{
-			"name":        name,
-			"stage":       stage,
-			"amount":      map[string]interface{}{"amountMicros": int64(amount * 1_000_000), "currencyCode": "EUR"},
-			"closeDate":   closeDate,
+			"name":      name,
+			"stage":     stage,
+			"amount":    amtObj,
+			"closeDate": closeDate,
 		}
 		if desc != "" {
 			data["pointOfContactNote"] = desc
@@ -423,14 +631,14 @@ mutation UpdateOneOpportunity($id: ID!, $data: OpportunityUpdateInput!) {
 	data := map[string]interface{}{
 		"name":      name,
 		"stage":     stage,
-		"amount":    map[string]interface{}{"amountMicros": int64(amount * 1_000_000), "currencyCode": "EUR"},
+		"amount":    amtObj,
 		"closeDate": closeDate,
 	}
 	if desc != "" {
 		data["pointOfContactNote"] = desc
 	}
 	vars := map[string]interface{}{"id": existingID, "data": data}
-	_, err := s.execGQL(cfg, q, vars)
+	_, err = s.execGQL(cfg, q, vars)
 	return err
 }
 
@@ -461,11 +669,11 @@ func buildAddress(c *models.Customer) map[string]interface{} {
 		country = *c.Country
 	}
 	return map[string]interface{}{
-		"addressStreet1":    street,
-		"addressCity":       city,
-		"addressState":      state,
-		"addressPostcode":   zip,
-		"addressCountry":    country,
+		"addressStreet1":  street,
+		"addressCity":     city,
+		"addressState":    state,
+		"addressPostcode": zip,
+		"addressCountry":  country,
 	}
 }
 
