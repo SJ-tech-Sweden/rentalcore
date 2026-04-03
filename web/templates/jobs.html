@@ -937,6 +937,9 @@
                                             </button>
                                         </div>
                                     </div>
+                                    <div style="padding: var(--space-sm) var(--space-md);">
+                                        <input type="text" id="editProductSearchInput" class="rc-input rc-input-sm" placeholder="Search products…" style="width: 100%;" autocomplete="off">
+                                    </div>
                                     <div class="rc-flex rc-flex-center rc-py-lg" id="editProductTreeLoading">
                                         <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
                                         Please select start and end dates to load available products
@@ -1018,6 +1021,12 @@
                 }
                 if (collapseButton) {
                     collapseButton.addEventListener('click', () => toggleEditProductTreeNodes(false));
+                }
+                const searchInput = document.getElementById('editProductSearchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('input', () => {
+                        renderEditProductTree(editProductTreeData);
+                    });
                 }
                 editProductTreeControlsBound = true;
             }
@@ -1822,18 +1831,71 @@
             return;
         }
 
-        if (empty) empty.style.display = 'none';
-        root.style.display = 'flex';
-        const totals = editCollectTreeStats(treeData);
-        updateEditProductTreeSummary(totals, treeData.length);
+        const searchInput = document.getElementById('editProductSearchInput');
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const filteredData = searchTerm ? filterEditTreeData(treeData, searchTerm) : treeData;
 
-        treeData.forEach(category => {
+        if (filteredData.length === 0) {
+            if (empty) {
+                empty.style.display = 'block';
+                empty.innerHTML = '<i class="bi bi-search"></i> No products match your search.';
+            }
+            root.style.display = 'none';
+            updateEditProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
+            updateEditSelectedProductsSummary();
+            updateEditHiddenProductInput();
+            validateEditProductSelections();
+            return;
+        }
+
+        if (empty) {
+            empty.style.display = 'none';
+            empty.innerHTML = '<i class="bi bi-info-circle"></i> No products found for the selected dates.';
+        }
+        root.style.display = 'flex';
+        const totals = editCollectTreeStats(filteredData);
+        updateEditProductTreeSummary(totals, filteredData.length);
+
+        filteredData.forEach(category => {
             root.appendChild(renderEditCategoryNode(category, 'edit-cat-' + category.id));
         });
 
         updateEditSelectedProductsSummary();
         updateEditHiddenProductInput();
         validateEditProductSelections();
+    }
+
+    function filterEditTreeData(treeData, term) {
+        const result = [];
+        treeData.forEach(category => {
+            const filteredProducts = (category.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+            const filteredSubs = (category.subcategories || []).reduce((acc, sub) => {
+                const subProducts = (sub.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+                const filteredSubbiers = (sub.subbiercategories || []).reduce((acc2, sb) => {
+                    const sbProducts = (sb.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+                    if (sbProducts.length > 0) {
+                        acc2.push(Object.assign({}, sb, { products: sbProducts }));
+                    }
+                    return acc2;
+                }, []);
+                if (subProducts.length > 0 || filteredSubbiers.length > 0) {
+                    acc.push(Object.assign({}, sub, { products: subProducts, subbiercategories: filteredSubbiers }));
+                }
+                return acc;
+            }, []);
+            if (filteredProducts.length > 0 || filteredSubs.length > 0) {
+                const nodeId = 'edit-cat-' + category.id;
+                editProductTreeExpanded.add(nodeId);
+                filteredSubs.forEach(sub => {
+                    editProductTreeExpanded.add('edit-sub-' + sub.id);
+                    if (filteredProducts.length > 0) editProductTreeExpanded.add(`edit-cat-${category.id}-products`);
+                    if (sub.products && sub.products.length > 0) editProductTreeExpanded.add(`edit-sub-${sub.id}-products`);
+                });
+                if (filteredProducts.length > 0) editProductTreeExpanded.add(`edit-cat-${category.id}-products`);
+                result.push(Object.assign({}, category, { products: filteredProducts, subcategories: filteredSubs }));
+            }
+        });
+        return result;
     }
 
     function renderEditCategoryNode(category, nodeId) {

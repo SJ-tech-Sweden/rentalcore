@@ -317,6 +317,9 @@
                                             </button>
                                         </div>
                                     </div>
+                                    <div style="padding: var(--space-sm) var(--space-md);">
+                                        <input type="text" id="productSearchInput" class="rc-input rc-input-sm" placeholder="Search products…" style="width: 100%;" autocomplete="off">
+                                    </div>
                                     <div class="rc-flex rc-flex-center rc-py-lg" id="productTreeLoading">
                                         <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
                                         Loading products...
@@ -1814,19 +1817,74 @@
                 return;
             }
 
-            if (empty) empty.style.display = 'none';
+            const searchInput = document.getElementById('productSearchInput');
+            const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
+            const filteredData = searchTerm ? filterTreeData(treeData, searchTerm) : treeData;
+
+            if (filteredData.length === 0) {
+                if (empty) {
+                    empty.style.display = 'block';
+                    empty.innerHTML = '<i class="bi bi-search"></i> No products match your search.';
+                }
+                root.style.display = 'none';
+                updateProductTreeSummary({ products: 0, available: 0, total: 0 }, 0);
+                updateSelectedProductsSummary();
+                updateHiddenProductInput();
+                validateProductSelections();
+                return;
+            }
+
+            if (empty) {
+                empty.style.display = 'none';
+                empty.innerHTML = '<i class="bi bi-info-circle"></i> No products found.';
+            }
             root.style.display = 'flex';
 
-            const totals = collectTreeStats(treeData);
-            updateProductTreeSummary(totals, treeData.length);
+            const totals = collectTreeStats(filteredData);
+            updateProductTreeSummary(totals, filteredData.length);
 
-            treeData.forEach(category => {
+            filteredData.forEach(category => {
                 root.appendChild(renderCategoryNode(category, 'cat-' + category.id));
             });
 
             updateSelectedProductsSummary();
             updateHiddenProductInput();
             validateProductSelections();
+        }
+
+        function filterTreeData(treeData, term) {
+            const result = [];
+            treeData.forEach(category => {
+                const filteredProducts = (category.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+                const filteredSubs = (category.subcategories || []).reduce((acc, sub) => {
+                    const subProducts = (sub.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+                    const filteredSubbiers = (sub.subbiercategories || []).reduce((acc2, sb) => {
+                        const sbProducts = (sb.products || []).filter(p => p.name && p.name.toLowerCase().includes(term));
+                        if (sbProducts.length > 0) {
+                            acc2.push(Object.assign({}, sb, { products: sbProducts }));
+                        }
+                        return acc2;
+                    }, []);
+                    if (subProducts.length > 0 || filteredSubbiers.length > 0) {
+                        acc.push(Object.assign({}, sub, { products: subProducts, subbiercategories: filteredSubbiers }));
+                    }
+                    return acc;
+                }, []);
+                if (filteredProducts.length > 0 || filteredSubs.length > 0) {
+                    const nodeId = 'cat-' + category.id;
+                    productTreeExpanded.add(nodeId);
+                    filteredSubs.forEach(sub => {
+                        productTreeExpanded.add('sub-' + sub.id);
+                        if (sub.products && sub.products.length > 0) productTreeExpanded.add(`sub-${sub.id}-products`);
+                        (sub.subbiercategories || []).forEach(sb => {
+                            productTreeExpanded.add('subbier-' + sb.id);
+                        });
+                    });
+                    if (filteredProducts.length > 0) productTreeExpanded.add(`cat-${category.id}-products`);
+                    result.push(Object.assign({}, category, { products: filteredProducts, subcategories: filteredSubs }));
+                }
+            });
+            return result;
         }
 
         function renderCategoryNode(category, nodeId) {
@@ -2498,6 +2556,12 @@
                 }
                 if (collapseButton) {
                     collapseButton.addEventListener('click', () => toggleProductTreeNodes(false));
+                }
+                const searchInput = document.getElementById('productSearchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('input', () => {
+                        renderProductTree(productTreeData);
+                    });
                 }
                 productTreeControlsBound = true;
             }
