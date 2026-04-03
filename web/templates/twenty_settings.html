@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <script>
+        // Prevent FOUC by setting theme immediately
+        (function() {
+            const t=(localStorage.getItem("rc-theme")||"dark");
+            document.documentElement.setAttribute("data-theme",t);
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - RentalCore</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RentalCore">
+    <link rel="apple-touch-icon" href="/static/images/icon-180.png">
+
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#030712">
+    <meta name="msapplication-TileColor" content="#030712">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="rc-animate-fade-in">
+    {{template "navbar.html" .}}
+
+    <!-- Main Content -->
+    <main class="rc-container rc-mt-lg">
+        <!-- Page Header -->
+        <div class="rc-flex rc-flex-between rc-mb-xl">
+            <div>
+                <h1 class="rc-heading-2">
+                    <i class="bi bi-diagram-3"></i> Twenty CRM Integration
+                </h1>
+                <p class="rc-text">Sync customers and jobs with your Twenty CRM instance</p>
+            </div>
+            <a href="/settings/company" class="rc-btn rc-btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Settings
+            </a>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="rc-card rc-mb-lg">
+            <div class="rc-card-header">
+                <h3 class="rc-card-title">
+                    <i class="bi bi-gear"></i> Integration Configuration
+                </h3>
+            </div>
+            <div class="rc-card-body">
+                <!-- Alerts -->
+                <div id="alertContainer">
+                    {{if .error}}
+                    <div class="rc-alert rc-alert-danger rc-mb-lg">{{.error}}</div>
+                    {{end}}
+                    {{if .success}}
+                    <div class="rc-alert rc-alert-success rc-mb-lg">{{.success}}</div>
+                    {{end}}
+                </div>
+
+                <form id="twentySettingsForm">
+                    <!-- Enable toggle -->
+                    <div class="rc-form-group rc-mb-lg">
+                        <div class="rc-flex" style="align-items:center;gap:0.75rem;">
+                            <label class="rc-toggle">
+                                <input type="checkbox" id="enabledToggle" name="enabled"
+                                    {{if and .config .config.Enabled}}checked{{end}}>
+                                <span class="rc-toggle-slider"></span>
+                            </label>
+                            <label for="enabledToggle" class="rc-label" style="margin:0;cursor:pointer;">
+                                Enable Twenty CRM Integration
+                            </label>
+                        </div>
+                        <p class="rc-text-muted rc-mt-sm" style="font-size:0.85rem;">
+                            When enabled, customers and jobs created or updated in RentalCore will
+                            automatically be synchronised to your Twenty CRM instance.
+                        </p>
+                    </div>
+
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="apiUrl">Twenty API URL</label>
+                            <input type="url" class="rc-input" id="apiUrl" name="apiUrl"
+                                placeholder="https://app.twenty.com"
+                                value="{{if and .config .config.APIURL}}{{.config.APIURL}}{{end}}">
+                            <small class="rc-text-muted">
+                                Base URL of your Twenty instance, e.g. <code>https://app.twenty.com</code>
+                            </small>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="apiKey">API Key</label>
+                            <div style="position:relative;">
+                                <input type="password" class="rc-input" id="apiKey" name="apiKey"
+                                    placeholder="Enter your Twenty API key"
+                                    value="{{if and .config .config.APIKey}}{{.config.APIKey}}{{end}}"
+                                    autocomplete="off">
+                                <button type="button" id="toggleApiKey"
+                                    style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--rc-text-muted);">
+                                    <i class="bi bi-eye" id="toggleApiKeyIcon"></i>
+                                </button>
+                            </div>
+                            <small class="rc-text-muted">
+                                Found in Twenty under <em>Settings &rarr; API &amp; Webhooks &rarr; API Keys</em>.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="rc-flex rc-gap-md">
+                        <button type="submit" class="rc-btn rc-btn-primary" id="saveBtn">
+                            <i class="bi bi-floppy"></i> Save Settings
+                        </button>
+                        <button type="button" class="rc-btn rc-btn-secondary" id="testBtn">
+                            <i class="bi bi-lightning-charge"></i> Test Connection
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- How it works card -->
+        <div class="rc-card">
+            <div class="rc-card-header">
+                <h3 class="rc-card-title">
+                    <i class="bi bi-info-circle"></i> How It Works
+                </h3>
+            </div>
+            <div class="rc-card-body">
+                <div class="rc-grid rc-grid-3">
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-people rc-text-primary"></i> Customers</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Customers with a company name are synced as <strong>Companies</strong> in Twenty.
+                                Individual customers (first/last name only) are synced as <strong>People</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-briefcase rc-text-primary"></i> Jobs</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Jobs are synced as <strong>Opportunities</strong> in Twenty.
+                                The job status is mapped to a Twenty pipeline stage and the
+                                revenue is stored as the opportunity amount.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-arrow-repeat rc-text-primary"></i> Sync direction</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Sync is <strong>one-way</strong> from RentalCore to Twenty.
+                                Changes made directly in Twenty are not reflected in RentalCore.
+                                Syncs happen automatically in the background when records are saved.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/static/js/rental-core-design.js"></script>
+    <script src="/static/js/i18n.js"></script>
+    <script>
+    (function () {
+        // Toggle API key visibility
+        const apiKeyInput = document.getElementById('apiKey');
+        const toggleBtn = document.getElementById('toggleApiKey');
+        const toggleIcon = document.getElementById('toggleApiKeyIcon');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function () {
+                if (apiKeyInput.type === 'password') {
+                    apiKeyInput.type = 'text';
+                    toggleIcon.className = 'bi bi-eye-slash';
+                } else {
+                    apiKeyInput.type = 'password';
+                    toggleIcon.className = 'bi bi-eye';
+                }
+            });
+        }
+
+        function showAlert(message, type) {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = '<div class="rc-alert rc-alert-' + type + ' rc-mb-lg">' + escapeHtml(message) + '</div>';
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        // Save settings
+        document.getElementById('twentySettingsForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+            const payload = {
+                enabled: document.getElementById('enabledToggle').checked,
+                apiUrl: document.getElementById('apiUrl').value.trim(),
+                apiKey: document.getElementById('apiKey').value.trim()
+            };
+
+            fetch('/api/v1/admin/integrations/twenty', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    showAlert('Settings saved successfully!', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to save settings.', 'danger');
+                }
+            })
+            .catch(function (err) {
+                showAlert('Network error: ' + err.message, 'danger');
+            })
+            .finally(function () {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-floppy"></i> Save Settings';
+            });
+        });
+
+        // Test connection
+        document.getElementById('testBtn').addEventListener('click', function () {
+            const testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+
+            fetch('/api/v1/admin/integrations/twenty/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    showAlert(data.message || 'Connection successful!', 'success');
+                } else {
+                    showAlert('Connection failed: ' + (data.error || 'Unknown error'), 'danger');
+                }
+            })
+            .catch(function (err) {
+                showAlert('Network error: ' + err.message, 'danger');
+            })
+            .finally(function () {
+                testBtn.disabled = false;
+                testBtn.innerHTML = '<i class="bi bi-lightning-charge"></i> Test Connection';
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

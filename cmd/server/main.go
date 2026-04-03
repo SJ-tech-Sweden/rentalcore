@@ -441,6 +441,10 @@ func main() {
 	pdfHandler := handlers.NewPDFHandler(db.DB, "uploads", jobHandler, jobAttachmentRepo, packageAliasCache, documentHandler)
 	accessoriesConsumablesHandler := handlers.NewAccessoriesConsumablesHandler(accessoriesConsumablesRepo)
 	settingsHandler := handlers.NewSettingsHandler(settingsService)
+	twentyService := services.NewTwentyService(db.DB)
+	twentyHandler := handlers.NewTwentyHandler(twentyService)
+	jobHandler.SetTwentyService(twentyService)
+	customerHandler.SetTwentyService(twentyService)
 
 	// Initialize RBAC middleware for role-based access control
 	rbacMiddleware := middleware.NewRBACMiddleware(db.DB)
@@ -762,7 +766,7 @@ func main() {
 	if swaggerHost != "" {
 		docs.SwaggerInfo.Host = swaggerHost
 	}
-	setupRoutes(r, cfg, jobHandler, jobHistoryHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, accessoriesConsumablesHandler, settingsHandler, rbacMiddleware, complianceMiddleware)
+	setupRoutes(r, cfg, jobHandler, jobHistoryHandler, deviceHandler, customerHandler, statusHandler, productHandler, cableHandler, infoHandler, barcodeHandler, authHandler, webauthnHandler, homeHandler, profileHandler, caseHandler, analyticsHandler, searchHandler, pwaHandler, workflowHandler, equipmentPackageHandler, rentalEquipmentHandler, documentHandler, financialHandler, securityHandler, invoiceHandler, templateHandler, companyHandler, monitoringHandler, jobAttachmentHandler, pdfHandler, accessoriesConsumablesHandler, settingsHandler, twentyHandler, rbacMiddleware, complianceMiddleware)
 
 	// Add dedicated error route
 	r.GET("/error", func(c *gin.Context) {
@@ -849,6 +853,7 @@ func setupRoutes(r *gin.Engine,
 	pdfHandler *handlers.PDFHandler,
 	accessoriesConsumablesHandler *handlers.AccessoriesConsumablesHandler,
 	settingsHandler *handlers.SettingsHandler,
+	twentyHandler *handlers.TwentyHandler,
 	rbacMiddleware *middleware.RBACMiddleware,
 	complianceMiddleware *compliance.ComplianceMiddleware) {
 
@@ -1189,6 +1194,8 @@ func setupRoutes(r *gin.Engine,
 			settings.POST("/company/logo", companyHandler.UploadCompanyLogo)
 			settings.DELETE("/company/logo", companyHandler.DeleteCompanyLogo)
 
+			// Integrations: Twenty CRM
+			settings.GET("/integrations/twenty", twentyHandler.TwentySettingsForm)
 		}
 
 		// Security & Admin routes (PROTECTED - Admin only)
@@ -1332,6 +1339,14 @@ func setupRoutes(r *gin.Engine,
 			{
 				adminAPI.GET("/currency", settingsHandler.GetCurrencySettings)
 				adminAPI.PUT("/currency", settingsHandler.UpdateCurrencySettings)
+
+				// Twenty CRM integration settings
+				integrations := adminAPI.Group("/integrations")
+				{
+					integrations.GET("/twenty", twentyHandler.GetTwentySettings)
+					integrations.PUT("/twenty", twentyHandler.UpdateTwentySettings)
+					integrations.POST("/twenty/test", twentyHandler.TestTwentyConnection)
+				}
 			}
 
 			// Job API

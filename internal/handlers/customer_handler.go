@@ -9,16 +9,23 @@ import (
 
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/repository"
+	"go-barcode-webapp/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type CustomerHandler struct {
-	customerRepo *repository.CustomerRepository
+	customerRepo  *repository.CustomerRepository
+	twentyService *services.TwentyService
 }
 
 func NewCustomerHandler(customerRepo *repository.CustomerRepository) *CustomerHandler {
 	return &CustomerHandler{customerRepo: customerRepo}
+}
+
+// SetTwentyService injects the Twenty CRM service into the handler.
+func (h *CustomerHandler) SetTwentyService(svc *services.TwentyService) {
+	h.twentyService = svc
 }
 
 func (h *CustomerHandler) ListCustomers(c *gin.Context) {
@@ -363,6 +370,11 @@ func (h *CustomerHandler) CreateCustomerAPI(c *gin.Context) {
 	}
 
 	fmt.Printf("🎉 DEBUG API: Customer created successfully with ID: %d\n", customer.CustomerID)
+
+	if h.twentyService != nil {
+		h.twentyService.SyncCustomerAsync(&customer)
+	}
+
 	c.JSON(http.StatusCreated, customer)
 }
 
@@ -423,6 +435,10 @@ func (h *CustomerHandler) UpdateCustomerAPI(c *gin.Context) {
 	if err := h.customerRepo.Update(&customer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if h.twentyService != nil {
+		h.twentyService.SyncCustomerAsync(&customer)
 	}
 
 	c.JSON(http.StatusOK, customer)

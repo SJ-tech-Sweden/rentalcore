@@ -122,6 +122,7 @@ type JobHandler struct {
 	jobHistoryService  *services.JobHistoryService
 	rentalEquipRepo    *repository.RentalEquipmentRepository
 	warehouseClient    *warehousecore.Client
+	twentyService      *services.TwentyService
 }
 
 type JobProductSelection struct {
@@ -183,6 +184,11 @@ func NewJobHandler(jobRepo *repository.JobRepository, jobPackageRepo *repository
 		rentalEquipRepo:    rentalEquipRepo,
 		warehouseClient:    warehousecore.NewClient(),
 	}
+}
+
+// SetTwentyService injects the Twenty CRM service into the handler.
+func (h *JobHandler) SetTwentyService(svc *services.TwentyService) {
+	h.twentyService = svc
 }
 
 // processRentalEquipmentSelections handles adding/updating rental equipment to a job
@@ -1199,6 +1205,10 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 		}
 	}
 
+	if h.twentyService != nil {
+		h.twentyService.SyncJobAsync(&job)
+	}
+
 	c.JSON(http.StatusCreated, job)
 }
 
@@ -1400,6 +1410,10 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+	}
+
+	if h.twentyService != nil {
+		h.twentyService.SyncJobAsync(&job)
 	}
 
 	c.JSON(http.StatusOK, job)
