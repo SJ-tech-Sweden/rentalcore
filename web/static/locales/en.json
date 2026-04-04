@@ -168,7 +168,6 @@
     "createUser": "Create User",
     "confirmPassword": "Confirm Password"
   },
-  
   "customers": {
     "title": "Customers",
     "subtitle": "Manage your customer data",
@@ -332,25 +331,22 @@
     "forgotPassword": "Forgot Password?",
     "loginError": "Login failed",
     "loginSuccess": "Successfully signed in"
-  }
-  ,
+  },
   "navbar": {
     "brand_rental": "Rental",
     "brand_core": "Core",
     "tools": "Tools",
     "financial": "Financial",
     "file_pool": "File Pool"
-  }
-
-  ,"login": {
+  },
+  "login": {
     "tagline": "The future of rental management",
     "secure_footer": "Secure login with encrypted passwords & passkeys",
     "signing_in": "Signing in...",
     "passkey_not_supported": "Passkeys are not supported in this browser",
     "auth_failed_prefix": "Authentication failed: "
-  }
-
-  ,"zones": {
+  },
+  "zones": {
     "title": "Storage Zones",
     "subtitle": "Organize your warehouse",
     "zoneId": "Zone ID",
@@ -438,8 +434,7 @@
     "productsSubtitle": "Manage product definitions and rental metadata.",
     "cablesTitle": "Cable Catalog",
     "cablesSubtitle": "Maintain cable types and assignments."
-  }
-,
+  },
   "documents": {
     "title": "Documents",
     "upload": "Upload Document",
@@ -529,8 +524,7 @@
     },
     "delete_error_prefix": "Error: ",
     "delete_failed": "Failed to delete document"
-    }
-,
+  },
   "financial": {
     "title": "Financial Reports",
     "subtitle": "Comprehensive financial analysis and reporting",
@@ -715,8 +709,7 @@
         "detailedReport": "Detailed report"
       }
     }
-  }
-  ,
+  },
   "invoice": {
     "settings": {
       "title": "Invoice Settings",
@@ -811,8 +804,7 @@
       "job_reference": "Job Reference:",
       "payment_terms": "Payment Terms:"
     }
-    }
-  ,
+  },
   "user": {
     "menu": {
       "personal": "Personal",
@@ -833,8 +825,7 @@
     "time": "Time:",
     "confirm_auto_retry": "Would you like to automatically retry loading the page?",
     "page_title": "Error {{code}} - RentalCore"
-  }
-  ,
+  },
   "invoice_detail": {
     "modals": {
       "update_status": {
@@ -876,8 +867,7 @@
   },
   "footer": {
     "copyright": "© 2025 RentalCore. All rights reserved."
-  }
-  ,
+  },
   "invoice_templates": {
     "title": "Invoice Templates",
     "new": "New Template",
@@ -921,8 +911,7 @@
     "save_personal": "Save Personal Information",
     "add_passkey": "Add New Passkey",
     "save_preferences": "Save Preferences"
-  }
-,
+  },
   "productTree": {
     "loading": "Products are loading…",
     "empty": "No products found.",
@@ -946,5 +935,22 @@
     "save_error": "Failed to save currency symbol.",
     "error_empty": "Currency symbol cannot be empty.",
     "error_too_long": "Currency symbol must be at most 8 characters."
+  },
+  "twenty": {
+    "title": "Twenty CRM Integration",
+    "description": "Sync customers and jobs with your Twenty CRM instance",
+    "back_to_settings": "Back to Settings",
+    "config_title": "Integration Configuration",
+    "enable_label": "Enable Twenty CRM Integration",
+    "field": {
+      "api_url": "Twenty API URL",
+      "api_key": "API Key",
+      "currency_code": "Currency Code",
+      "webhook_secret": "Webhook Secret Token",
+      "webhook_url": "Inbound Webhook URL"
+    },
+    "save_settings": "Save Settings",
+    "test_connection": "Test Connection",
+    "how_it_works": "How It Works"
   }
 }

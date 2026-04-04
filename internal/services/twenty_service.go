@@ -2,6 +2,7 @@ package services
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -242,9 +243,13 @@ func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) er
 	if cfg.WebhookSecret == "" {
 		return fmt.Errorf("%w: webhook secret is not configured", ErrWebhookBadRequest)
 	}
-	// Use constant-time comparison to prevent timing side-channels.
-	// TrimSpace guards against accidental leading/trailing whitespace in the header.
-	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(webhookToken)), []byte(cfg.WebhookSecret)) != 1 {
+	// Hash both values with SHA-256 before comparing so that
+	// subtle.ConstantTimeCompare always operates on equal-length slices,
+	// eliminating the length-based early-exit timing signal.
+	// TrimSpace on the header guards against accidental surrounding whitespace.
+	tokenHash := sha256.Sum256([]byte(strings.TrimSpace(webhookToken)))
+	secretHash := sha256.Sum256([]byte(cfg.WebhookSecret))
+	if subtle.ConstantTimeCompare(tokenHash[:], secretHash[:]) != 1 {
 		return ErrInvalidWebhookToken
 	}
 

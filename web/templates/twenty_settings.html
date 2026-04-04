@@ -39,12 +39,12 @@
         <div class="rc-flex rc-flex-between rc-mb-xl">
             <div>
                 <h1 class="rc-heading-2">
-                    <i class="bi bi-diagram-3"></i> Twenty CRM Integration
+                    <i class="bi bi-diagram-3"></i> <span data-i18n="twenty.title">Twenty CRM Integration</span>
                 </h1>
-                <p class="rc-text">Sync customers and jobs with your Twenty CRM instance</p>
+                <p class="rc-text" data-i18n="twenty.description">Sync customers and jobs with your Twenty CRM instance</p>
             </div>
             <a href="/settings/company" class="rc-btn rc-btn-secondary">
-                <i class="bi bi-arrow-left"></i> Back to Settings
+                <i class="bi bi-arrow-left"></i> <span data-i18n="twenty.back_to_settings">Back to Settings</span>
             </a>
         </div>
 
@@ -52,7 +52,7 @@
         <div class="rc-card rc-mb-lg">
             <div class="rc-card-header">
                 <h3 class="rc-card-title">
-                    <i class="bi bi-gear"></i> Integration Configuration
+                    <i class="bi bi-gear"></i> <span data-i18n="twenty.config_title">Integration Configuration</span>
                 </h3>
             </div>
             <div class="rc-card-body">
@@ -75,7 +75,7 @@
                                     {{if and .config .config.Enabled}}checked{{end}}>
                                 <span class="rc-toggle-slider"></span>
                             </label>
-                            <label for="enabledToggle" class="rc-label" style="margin:0;cursor:pointer;">
+                            <label for="enabledToggle" class="rc-label" style="margin:0;cursor:pointer;" data-i18n="twenty.enable_label">
                                 Enable Twenty CRM Integration
                             </label>
                         </div>
@@ -88,7 +88,7 @@
 
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
                         <div class="rc-form-group">
-                            <label class="rc-label" for="apiUrl">Twenty API URL</label>
+                            <label class="rc-label" for="apiUrl" data-i18n="twenty.field.api_url">Twenty API URL</label>
                             <input type="url" class="rc-input" id="apiUrl" name="apiUrl"
                                 placeholder="https://app.twenty.com"
                                 value="{{if and .config .config.APIURL}}{{.config.APIURL}}{{end}}">
@@ -97,7 +97,7 @@
                             </small>
                         </div>
                         <div class="rc-form-group">
-                            <label class="rc-label" for="apiKey">API Key</label>
+                            <label class="rc-label" for="apiKey" data-i18n="twenty.field.api_key">API Key</label>
                             <div style="position:relative;">
                                 <input type="password" class="rc-input" id="apiKey" name="apiKey"
                                     placeholder="{{if and .config .config.APIKey}}Enter a new key to replace the existing one{{else}}Enter your Twenty API key{{end}}"
@@ -122,7 +122,7 @@
 
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
                         <div class="rc-form-group">
-                            <label class="rc-label" for="currencyCode">Currency Code</label>
+                            <label class="rc-label" for="currencyCode" data-i18n="twenty.field.currency_code">Currency Code</label>
                             <input type="text" class="rc-input" id="currencyCode" name="currencyCode"
                                 placeholder="EUR"
                                 maxlength="3"
@@ -132,7 +132,7 @@
                             </small>
                         </div>
                         <div class="rc-form-group">
-                            <label class="rc-label" for="webhookSecret">Webhook Secret Token</label>
+                            <label class="rc-label" for="webhookSecret" data-i18n="twenty.field.webhook_secret">Webhook Secret Token</label>
                             <div style="position:relative;">
                                 <input type="password" class="rc-input" id="webhookSecret" name="webhookSecret"
                                     placeholder="{{if and .config .config.WebhookSecret}}Secret configured – leave blank to keep{{else}}Optional token for webhook verification{{end}}"
@@ -151,7 +151,7 @@
                     </div>
 
                     <div class="rc-form-group rc-mb-lg">
-                        <label class="rc-label">Inbound Webhook URL</label>
+                        <label class="rc-label" data-i18n="twenty.field.webhook_url">Inbound Webhook URL</label>
                         <div class="rc-flex" style="gap:0.5rem;align-items:center;">
                             <input type="text" class="rc-input" id="webhookUrl" readonly
                                 style="font-family:var(--rc-font-mono,monospace);font-size:0.85rem;"
@@ -170,10 +170,10 @@
 
                     <div class="rc-flex rc-gap-md">
                         <button type="submit" class="rc-btn rc-btn-primary" id="saveBtn">
-                            <i class="bi bi-floppy"></i> Save Settings
+                            <i class="bi bi-floppy"></i> <span data-i18n="twenty.save_settings">Save Settings</span>
                         </button>
                         <button type="button" class="rc-btn rc-btn-secondary" id="testBtn">
-                            <i class="bi bi-lightning-charge"></i> Test Connection
+                            <i class="bi bi-lightning-charge"></i> <span data-i18n="twenty.test_connection">Test Connection</span>
                         </button>
                     </div>
                 </form>
@@ -184,7 +184,7 @@
         <div class="rc-card">
             <div class="rc-card-header">
                 <h3 class="rc-card-title">
-                    <i class="bi bi-info-circle"></i> How It Works
+                    <i class="bi bi-info-circle"></i> <span data-i18n="twenty.how_it_works">How It Works</span>
                 </h3>
             </div>
             <div class="rc-card-body">
