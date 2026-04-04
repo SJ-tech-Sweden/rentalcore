@@ -37,6 +37,12 @@ const (
 // does not match the configured secret.
 var ErrInvalidWebhookToken = errors.New("invalid webhook token")
 
+// ErrWebhookBadRequest is returned when an inbound webhook is rejected due to
+// a bad or missing client payload (invalid JSON, missing fields, etc.) or
+// because inbound sync is not properly configured on the server side.
+// Callers should map this to HTTP 400 with a generic message.
+var ErrWebhookBadRequest = errors.New("webhook bad request")
+
 // TwentyService manages synchronisation between RentalCore and a Twenty CRM instance.
 // Customer records are pushed to Twenty as Companies (company customers) or People
 // (individual customers). Jobs are pushed as Opportunities.
@@ -234,7 +240,7 @@ func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) er
 
 	// A webhook secret is required; reject unauthenticated requests.
 	if cfg.WebhookSecret == "" {
-		return errors.New("webhook secret is not configured")
+		return fmt.Errorf("%w: webhook secret is not configured", ErrWebhookBadRequest)
 	}
 	// Use constant-time comparison to prevent timing side-channels.
 	// TrimSpace guards against accidental leading/trailing whitespace in the header.
@@ -244,7 +250,7 @@ func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) er
 
 	var payload TwentyWebhookPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return fmt.Errorf("invalid webhook payload: %w", err)
+		return fmt.Errorf("%w: invalid payload: %v", ErrWebhookBadRequest, err)
 	}
 
 	// Determine object type from event type, e.g. "company.updated" → "company".
@@ -260,11 +266,11 @@ func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) er
 	// Extract the Twenty record ID.
 	idRaw, ok := payload.Record["id"]
 	if !ok {
-		return errors.New("webhook record missing id field")
+		return fmt.Errorf("%w: record missing id field", ErrWebhookBadRequest)
 	}
 	var twentyID string
 	if err := json.Unmarshal(idRaw, &twentyID); err != nil || twentyID == "" {
-		return errors.New("webhook record id is invalid or empty")
+		return fmt.Errorf("%w: record id is invalid or empty", ErrWebhookBadRequest)
 	}
 
 	// Find the RentalCore customer that maps to this Twenty record.
@@ -297,14 +303,19 @@ func (s *TwentyService) ApplyInboundWebhook(body []byte, webhookToken string) er
 // Returns 0 if no mapping exists.
 func (s *TwentyService) reverseCustomerIDLookup(twentyID, objectType string) (uint, error) {
 	prefix := "twenty." + objectType + "."
-	var settings []models.AppSetting
-	if err := s.db.Where("key LIKE ? AND value = ?", prefix+"%", twentyID).Find(&settings).Error; err != nil {
-		return 0, err
+	var setting models.AppSetting
+	result := s.db.
+		Where("key LIKE ? AND value = ?", prefix+"%", twentyID).
+		Order("key ASC").
+		Limit(1).
+		Find(&setting)
+	if result.Error != nil {
+		return 0, result.Error
 	}
-	if len(settings) == 0 {
+	if result.RowsAffected == 0 {
 		return 0, nil
 	}
-	idStr := strings.TrimPrefix(settings[0].Key, prefix)
+	idStr := strings.TrimPrefix(setting.Key, prefix)
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return 0, nil

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/services"
@@ -31,7 +30,8 @@ func NewTwentyHandler(twentyService *services.TwentyService, db *gorm.DB) *Twent
 
 // isAdmin checks whether the current user has the admin role.
 // System admin (username "admin") always returns true.
-// For other users, the user's active roles are checked against the DB.
+// For other users, the user's active roles are checked against the DB,
+// matching the same logic used by the RequireAdmin RBAC middleware.
 func (h *TwentyHandler) isAdmin(c *gin.Context) bool {
 	user, exists := GetCurrentUser(c)
 	if !exists || user == nil {
@@ -42,8 +42,8 @@ func (h *TwentyHandler) isAdmin(c *gin.Context) bool {
 	}
 	var userRoles []models.UserRole
 	if err := h.db.Preload("Role").Where(
-		"userID = ? AND is_active = ? AND (expires_at IS NULL OR expires_at > ?)",
-		user.UserID, true, time.Now(),
+		"userID = ? AND is_active = ?",
+		user.UserID, true,
 	).Find(&userRoles).Error; err != nil {
 		return false
 	}
@@ -241,10 +241,12 @@ func (h *TwentyHandler) HandleTwentyWebhook(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook token"})
 			return
 		}
-		// Client-side errors (bad payload, missing fields) → 400.
-		// Internal errors (DB failures) → 500.
-		if isWebhookClientError(err) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// Client-side errors (bad payload, missing fields, misconfiguration) → 400.
+		// The detailed error is logged server-side; the generic message is returned
+		// to avoid leaking internal configuration state to unauthenticated callers.
+		if errors.Is(err, services.ErrWebhookBadRequest) {
+			log.Printf("HandleTwentyWebhook: bad request: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 			return
 		}
 		log.Printf("HandleTwentyWebhook: error: %v", err)
@@ -253,14 +255,4 @@ func (h *TwentyHandler) HandleTwentyWebhook(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-// isWebhookClientError returns true for errors that are caused by a bad request
-// payload rather than an internal server failure.
-func isWebhookClientError(err error) bool {
-	msg := err.Error()
-	return strings.HasPrefix(msg, "invalid webhook payload") ||
-		strings.HasPrefix(msg, "webhook record missing") ||
-		strings.HasPrefix(msg, "webhook record id") ||
-		msg == "webhook secret is not configured"
 }

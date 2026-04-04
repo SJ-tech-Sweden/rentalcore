@@ -157,8 +157,8 @@ func TestTwentyService_ApplyInboundWebhook_NoSecretConfigured(t *testing.T) {
 
 	payload := []byte(`{"type":"company.updated","record":{"id":"abc"}}`)
 	err := svc.ApplyInboundWebhook(payload, "")
-	if err == nil || err.Error() != "webhook secret is not configured" {
-		t.Errorf("expected 'webhook secret is not configured', got %v", err)
+	if !errors.Is(err, ErrWebhookBadRequest) {
+		t.Errorf("expected ErrWebhookBadRequest, got %v", err)
 	}
 }
 
