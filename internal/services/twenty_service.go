@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"go-barcode-webapp/internal/models"
@@ -52,17 +53,27 @@ type TwentyService struct {
 	db         *gorm.DB
 	httpClient *http.Client
 	syncSem    chan struct{} // bounded semaphore for outbound sync goroutines
+	// integrationEnabled is an in-memory fast-path flag. It is initialised from the
+	// DB in NewTwentyService and kept up-to-date by SaveConfig, so that
+	// SyncCustomerAsync / SyncJobAsync can skip the semaphore + goroutine + DB
+	// overhead entirely when the integration is disabled.
+	integrationEnabled atomic.Bool
 }
 
 // NewTwentyService creates a new TwentyService.
 func NewTwentyService(db *gorm.DB) *TwentyService {
-	return &TwentyService{
+	s := &TwentyService{
 		db: db,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
 		syncSem: make(chan struct{}, syncSemSize),
 	}
+	// Initialise the fast-path flag from the persisted configuration so that the
+	// very first calls to SyncCustomerAsync / SyncJobAsync skip unnecessary work
+	// even before SaveConfig has been invoked.
+	s.integrationEnabled.Store(s.GetConfig().Enabled)
+	return s
 }
 
 // TwentyConfig holds the runtime configuration for the Twenty integration.
@@ -129,6 +140,10 @@ func (s *TwentyService) SaveConfig(cfg TwentyConfig) error {
 			return err
 		}
 	}
+	// Keep the fast-path flag in sync so that SyncCustomerAsync / SyncJobAsync
+	// immediately reflect the new enabled state without waiting for the next
+	// GetConfig() DB read.
+	s.integrationEnabled.Store(cfg.Enabled)
 	return nil
 }
 
@@ -163,6 +178,11 @@ func (s *TwentyService) TestConnection() error {
 // SyncCustomerAsync triggers an asynchronous best-effort sync of a customer to Twenty CRM.
 // The call is dropped (with a log message) if the semaphore is full.
 func (s *TwentyService) SyncCustomerAsync(customer *models.Customer) {
+	// Fast-path: skip semaphore + goroutine + DB round-trip when the integration
+	// is known to be disabled (updated synchronously by SaveConfig).
+	if !s.integrationEnabled.Load() {
+		return
+	}
 	c := *customer // copy to avoid data race
 	select {
 	case s.syncSem <- struct{}{}:
@@ -180,6 +200,11 @@ func (s *TwentyService) SyncCustomerAsync(customer *models.Customer) {
 // SyncJobAsync triggers an asynchronous best-effort sync of a job to Twenty CRM.
 // The call is dropped (with a log message) if the semaphore is full.
 func (s *TwentyService) SyncJobAsync(job *models.Job) {
+	// Fast-path: skip semaphore + goroutine + DB round-trip when the integration
+	// is known to be disabled (updated synchronously by SaveConfig).
+	if !s.integrationEnabled.Load() {
+		return
+	}
 	j := *job // copy to avoid data race
 	select {
 	case s.syncSem <- struct{}{}:

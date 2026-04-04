@@ -17,6 +17,10 @@ import (
 // iso4217Re validates ISO 4217 currency codes: exactly 3 uppercase ASCII letters.
 var iso4217Re = regexp.MustCompile(`^[A-Z]{3}$`)
 
+// maxWebhookBodyBytes is the maximum size (1 MiB) accepted from the public
+// Twenty webhook endpoint. Requests that exceed this limit are rejected with 413.
+const maxWebhookBodyBytes int64 = 1 << 20 // 1 MiB
+
 // TwentyHandler handles the Twenty CRM integration settings pages and API.
 type TwentyHandler struct {
 	twentyService *services.TwentyService
@@ -229,8 +233,15 @@ func (h *TwentyHandler) TestTwentyConnection(c *gin.Context) {
 // This endpoint is public (not behind session auth) but protected by the webhook
 // token configured in the integration settings.
 func (h *TwentyHandler) HandleTwentyWebhook(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxWebhookBodyBytes)
+
 	body, err := c.GetRawData()
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body too large"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read request body"})
 		return
 	}
