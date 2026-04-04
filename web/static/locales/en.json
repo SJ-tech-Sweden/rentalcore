@@ -50,6 +50,7 @@
     "profileSettings": "Profile Settings",
     "companySettings": "Company Settings",
     "userManagement": "User Management",
+    "integrations": "Integrations",
     "login": "Sign In",
     "brand": "RentalCore",
     "tools": {
@@ -936,5 +937,22 @@
     "save_error": "Failed to save currency symbol.",
     "error_empty": "Currency symbol cannot be empty.",
     "error_too_long": "Currency symbol must be at most 8 characters."
+  },
+  "twenty": {
+    "title": "Twenty CRM Integration",
+    "description": "Sync customers and jobs with your Twenty CRM instance",
+    "back_to_settings": "Back to Settings",
+    "config_title": "Integration Configuration",
+    "enable_label": "Enable Twenty CRM Integration",
+    "field": {
+      "api_url": "Twenty API URL",
+      "api_key": "API Key",
+      "currency_code": "Currency Code",
+      "webhook_secret": "Webhook Secret Token",
+      "webhook_url": "Inbound Webhook URL"
+    },
+    "save_settings": "Save Settings",
+    "test_connection": "Test Connection",
+    "how_it_works": "How It Works"
   }
 }

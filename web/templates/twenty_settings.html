@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <script>
+        // Prevent FOUC by setting theme immediately
+        (function() {
+            const t=(localStorage.getItem("rc-theme")||"dark");
+            document.documentElement.setAttribute("data-theme",t);
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - RentalCore</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/static/manifest.json">
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RentalCore">
+    <link rel="apple-touch-icon" href="/static/images/icon-180.png">
+
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#030712">
+    <meta name="msapplication-TileColor" content="#030712">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/static/css/rental-core-design.css?v={{.timestamp}}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="rc-animate-fade-in">
+    {{template "navbar.html" .}}
+
+    <!-- Main Content -->
+    <main class="rc-container rc-mt-lg">
+        <!-- Page Header -->
+        <div class="rc-flex rc-flex-between rc-mb-xl">
+            <div>
+                <h1 class="rc-heading-2">
+                    <i class="bi bi-diagram-3"></i> <span data-i18n="twenty.title">Twenty CRM Integration</span>
+                </h1>
+                <p class="rc-text" data-i18n="twenty.description">Sync customers and jobs with your Twenty CRM instance</p>
+            </div>
+            <a href="/settings/company" class="rc-btn rc-btn-secondary">
+                <i class="bi bi-arrow-left"></i> <span data-i18n="twenty.back_to_settings">Back to Settings</span>
+            </a>
+        </div>
+
+        <!-- Settings Card -->
+        <div class="rc-card rc-mb-lg">
+            <div class="rc-card-header">
+                <h3 class="rc-card-title">
+                    <i class="bi bi-gear"></i> <span data-i18n="twenty.config_title">Integration Configuration</span>
+                </h3>
+            </div>
+            <div class="rc-card-body">
+                <!-- Alerts -->
+                <div id="alertContainer">
+                    {{if .error}}
+                    <div class="rc-alert rc-alert-danger rc-mb-lg">{{.error}}</div>
+                    {{end}}
+                    {{if .success}}
+                    <div class="rc-alert rc-alert-success rc-mb-lg">{{.success}}</div>
+                    {{end}}
+                </div>
+
+                <form id="twentySettingsForm">
+                    <!-- Enable toggle -->
+                    <div class="rc-form-group rc-mb-lg">
+                        <div class="rc-flex" style="align-items:center;gap:0.75rem;">
+                            <label class="rc-toggle">
+                                <input type="checkbox" id="enabledToggle" name="enabled"
+                                    {{if and .config .config.Enabled}}checked{{end}}>
+                                <span class="rc-toggle-slider"></span>
+                            </label>
+                            <label for="enabledToggle" class="rc-label" style="margin:0;cursor:pointer;" data-i18n="twenty.enable_label">
+                                Enable Twenty CRM Integration
+                            </label>
+                        </div>
+                        <p class="rc-text-muted rc-mt-sm" style="font-size:0.85rem;">
+                            When enabled, customers and jobs created or updated in RentalCore will
+                            automatically be synchronized to your Twenty CRM instance.
+                            Changes made to those customers in Twenty will also be synced back.
+                        </p>
+                    </div>
+
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="apiUrl" data-i18n="twenty.field.api_url">Twenty API URL</label>
+                            <input type="url" class="rc-input" id="apiUrl" name="apiUrl"
+                                placeholder="https://app.twenty.com"
+                                value="{{if and .config .config.APIURL}}{{.config.APIURL}}{{end}}">
+                            <small class="rc-text-muted">
+                                Base URL of your Twenty instance, e.g. <code>https://app.twenty.com</code>
+                            </small>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="apiKey" data-i18n="twenty.field.api_key">API Key</label>
+                            <div style="position:relative;">
+                                <input type="password" class="rc-input" id="apiKey" name="apiKey"
+                                    placeholder="{{if and .config .config.APIKey}}Enter a new key to replace the existing one{{else}}Enter your Twenty API key{{end}}"
+                                    autocomplete="off">
+                                <button type="button" id="toggleApiKey" aria-label="Show API key" title="Show API key"
+                                    style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--rc-text-muted);">
+                                    <i class="bi bi-eye" id="toggleApiKeyIcon"></i>
+                                </button>
+                            </div>
+                            {{if and .config .config.APIKey}}
+                            <small class="rc-text-muted">
+                                <i class="bi bi-lock-fill"></i> A key is already configured.
+                                Leave blank to keep the existing key, or enter a new key to replace it.
+                            </small>
+                            {{else}}
+                            <small class="rc-text-muted">
+                                Found in Twenty under <em>Settings &rarr; API &amp; Webhooks &rarr; API Keys</em>.
+                            </small>
+                            {{end}}
+                        </div>
+                    </div>
+
+                    <div class="rc-grid rc-grid-2 rc-mb-lg">
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="currencyCode" data-i18n="twenty.field.currency_code">Currency Code</label>
+                            <input type="text" class="rc-input" id="currencyCode" name="currencyCode"
+                                placeholder="EUR"
+                                maxlength="3"
+                                value="{{if and .config .config.CurrencyCode}}{{.config.CurrencyCode}}{{else}}EUR{{end}}">
+                            <small class="rc-text-muted">
+                                ISO 4217 currency code for opportunity amounts (e.g. EUR, USD, GBP).
+                            </small>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label" for="webhookSecret" data-i18n="twenty.field.webhook_secret">Webhook Secret Token</label>
+                            <div style="position:relative;">
+                                <input type="password" class="rc-input" id="webhookSecret" name="webhookSecret"
+                                    placeholder="{{if and .config .config.WebhookSecret}}Secret configured – leave blank to keep{{else}}Optional token for webhook verification{{end}}"
+                                    autocomplete="off">
+                                <button type="button" id="toggleWebhookSecret" aria-label="Show webhook secret" title="Show webhook secret"
+                                    style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--rc-text-muted);">
+                                    <i class="bi bi-eye" id="toggleWebhookSecretIcon"></i>
+                                </button>
+                            </div>
+                            <small class="rc-text-muted">
+                                Set a secret token here and configure the same token as
+                                <em>X-Twenty-Webhook-Token</em> header in your Twenty webhook settings.
+                                Leave blank to keep the existing secret.
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="rc-form-group rc-mb-lg">
+                        <label class="rc-label" data-i18n="twenty.field.webhook_url">Inbound Webhook URL</label>
+                        <div class="rc-flex" style="gap:0.5rem;align-items:center;">
+                            <input type="text" class="rc-input" id="webhookUrl" readonly
+                                style="font-family:var(--rc-font-mono,monospace);font-size:0.85rem;"
+                                value="">
+                            <button type="button" id="copyWebhookUrl" class="rc-btn rc-btn-secondary rc-btn-sm"
+                                aria-label="Copy inbound webhook URL" title="Copy inbound webhook URL">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                        <small class="rc-text-muted">
+                            Configure this URL in Twenty under
+                            <em>Settings &rarr; API &amp; Webhooks &rarr; Webhooks</em>.
+                            Twenty will POST company and person update events to this address.
+                        </small>
+                    </div>
+
+                    <div class="rc-flex rc-gap-md">
+                        <button type="submit" class="rc-btn rc-btn-primary" id="saveBtn">
+                            <i class="bi bi-floppy"></i> <span data-i18n="twenty.save_settings">Save Settings</span>
+                        </button>
+                        <button type="button" class="rc-btn rc-btn-secondary" id="testBtn">
+                            <i class="bi bi-lightning-charge"></i> <span data-i18n="twenty.test_connection">Test Connection</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- How it works card -->
+        <div class="rc-card">
+            <div class="rc-card-header">
+                <h3 class="rc-card-title">
+                    <i class="bi bi-info-circle"></i> <span data-i18n="twenty.how_it_works">How It Works</span>
+                </h3>
+            </div>
+            <div class="rc-card-body">
+                <div class="rc-grid rc-grid-3">
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-people rc-text-primary"></i> Customers</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Customers with a company name are synced as <strong>Companies</strong> in Twenty.
+                                Individual customers (first/last name only) are synced as <strong>People</strong>.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-briefcase rc-text-primary"></i> Jobs</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Jobs are synced as <strong>Opportunities</strong> in Twenty.
+                                The job status is mapped to a Twenty pipeline stage and the
+                                revenue is stored as the opportunity amount.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="rc-card" style="border:1px solid var(--rc-border);">
+                        <div class="rc-card-body">
+                            <h5><i class="bi bi-arrow-left-right rc-text-primary"></i> Two-way customer sync</h5>
+                            <p class="rc-text-muted" style="font-size:0.9rem;">
+                                Customer changes made in Twenty are synced back to RentalCore via webhook.
+                                Only customers originally pushed from RentalCore are affected.
+                                Job opportunities remain one-way (RentalCore &rarr; Twenty).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/static/js/rental-core-design.js"></script>
+    <script src="/static/js/i18n.js"></script>
+    <script>
+    (function () {
+        // Set the webhook URL based on the current origin.
+        var webhookUrlInput = document.getElementById('webhookUrl');
+        if (webhookUrlInput) {
+            webhookUrlInput.value = window.location.origin + '/api/v1/integrations/twenty/webhook';
+        }
+
+        // Copy webhook URL to clipboard.
+        document.getElementById('copyWebhookUrl').addEventListener('click', function () {
+            var url = webhookUrlInput.value;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(function () {
+                    showAlert('Webhook URL copied to clipboard.', 'success');
+                });
+            } else {
+                webhookUrlInput.select();
+                document.execCommand('copy');
+                showAlert('Webhook URL copied to clipboard.', 'success');
+            }
+        });
+
+        // Toggle API key visibility.
+        setupPasswordToggle('apiKey', 'toggleApiKey', 'toggleApiKeyIcon', 'API key');
+        setupPasswordToggle('webhookSecret', 'toggleWebhookSecret', 'toggleWebhookSecretIcon', 'webhook secret');
+
+        function setupPasswordToggle(inputId, btnId, iconId, label) {
+            var input = document.getElementById(inputId);
+            var btn = document.getElementById(btnId);
+            var icon = document.getElementById(iconId);
+            if (!input || !btn) return;
+            btn.setAttribute('aria-pressed', 'false');
+            btn.setAttribute('aria-label', 'Show ' + label);
+            btn.setAttribute('title', 'Show ' + label);
+            btn.addEventListener('click', function () {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.className = 'bi bi-eye-slash';
+                    btn.setAttribute('aria-label', 'Hide ' + label);
+                    btn.setAttribute('title', 'Hide ' + label);
+                    btn.setAttribute('aria-pressed', 'true');
+                } else {
+                    input.type = 'password';
+                    icon.className = 'bi bi-eye';
+                    btn.setAttribute('aria-label', 'Show ' + label);
+                    btn.setAttribute('title', 'Show ' + label);
+                    btn.setAttribute('aria-pressed', 'false');
+                }
+            });
+        }
+
+        function showAlert(message, type) {
+            var container = document.getElementById('alertContainer');
+            container.innerHTML = '<div class="rc-alert rc-alert-' + type + ' rc-mb-lg">' + escapeHtml(message) + '</div>';
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        // Save settings.
+        document.getElementById('twentySettingsForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+
+            var payload = {
+                enabled:       document.getElementById('enabledToggle').checked,
+                apiUrl:        document.getElementById('apiUrl').value.trim(),
+                apiKey:        document.getElementById('apiKey').value.trim(),
+                webhookSecret: document.getElementById('webhookSecret').value.trim(),
+                currencyCode:  document.getElementById('currencyCode').value.trim().toUpperCase()
+            };
+
+            fetch('/api/v1/admin/integrations/twenty', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    showAlert('Settings saved successfully!', 'success');
+                } else {
+                    showAlert(data.error || 'Failed to save settings.', 'danger');
+                }
+            })
+            .catch(function (err) {
+                showAlert('Network error: ' + err.message, 'danger');
+            })
+            .finally(function () {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="bi bi-floppy"></i> Save Settings';
+            });
+        });
+
+        // Test connection.
+        document.getElementById('testBtn').addEventListener('click', function () {
+            var testBtn = document.getElementById('testBtn');
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+
+            fetch('/api/v1/admin/integrations/twenty/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    showAlert(data.message || 'Connection successful!', 'success');
+                } else {
+                    showAlert('Connection failed: ' + (data.error || 'Unknown error'), 'danger');
+                }
+            })
+            .catch(function (err) {
+                showAlert('Network error: ' + err.message, 'danger');
+            })
+            .finally(function () {
+                testBtn.disabled = false;
+                testBtn.innerHTML = '<i class="bi bi-lightning-charge"></i> Test Connection';
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

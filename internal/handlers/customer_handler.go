@@ -1,24 +1,29 @@
 package handlers
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/repository"
+	"go-barcode-webapp/internal/services"
 
 	"github.com/gin-gonic/gin"
 )
 
 type CustomerHandler struct {
-	customerRepo *repository.CustomerRepository
+	customerRepo  *repository.CustomerRepository
+	twentyService *services.TwentyService
 }
 
 func NewCustomerHandler(customerRepo *repository.CustomerRepository) *CustomerHandler {
 	return &CustomerHandler{customerRepo: customerRepo}
+}
+
+// SetTwentyService injects the Twenty CRM service into the handler.
+func (h *CustomerHandler) SetTwentyService(svc *services.TwentyService) {
+	h.twentyService = svc
 }
 
 func (h *CustomerHandler) ListCustomers(c *gin.Context) {
@@ -78,17 +83,8 @@ func (h *CustomerHandler) NewCustomerForm(c *gin.Context) {
 }
 
 func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
-	// Debug: Print all form data
-	fmt.Printf("🚨 DEBUG: Customer creation called!\n")
-	fmt.Printf("🚨 DEBUG: HTTP Method: %s\n", c.Request.Method)
-	fmt.Printf("🚨 DEBUG: Content-Type: %s\n", c.ContentType())
-	fmt.Printf("🚨 DEBUG: All form fields:\n")
-
 	// Parse form first
 	c.Request.ParseForm()
-	for key, values := range c.Request.PostForm {
-		fmt.Printf("   %s: %v\n", key, values)
-	}
 
 	companyName := c.PostForm("company_name")
 	firstName := c.PostForm("first_name")
@@ -103,15 +99,6 @@ func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
 	country := c.PostForm("country")
 	customerType := c.PostForm("customer_type")
 	notes := c.PostForm("notes")
-
-	// Debug logging
-	fmt.Printf("🔧 DEBUG: Creating customer with parsed data:\n")
-	fmt.Printf("   CompanyName: '%s'\n", companyName)
-	fmt.Printf("   FirstName: '%s'\n", firstName)
-	fmt.Printf("   LastName: '%s'\n", lastName)
-	fmt.Printf("   Email: '%s'\n", email)
-	fmt.Printf("   PhoneNumber: '%s'\n", phoneNumber)
-	fmt.Printf("   CustomerType: '%s'\n", customerType)
 
 	customer := models.Customer{
 		CompanyName:  &companyName,
@@ -129,9 +116,7 @@ func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
 		Notes:        &notes,
 	}
 
-	fmt.Printf("🔧 DEBUG: Calling customerRepo.Create()\n")
 	if err := h.customerRepo.Create(&customer); err != nil {
-		fmt.Printf("❌ DEBUG: Customer creation failed: %v\n", err)
 		user, _ := GetCurrentUser(c)
 		c.HTML(http.StatusInternalServerError, "customer_form.html", gin.H{
 			"title":    "New Customer",
@@ -142,13 +127,11 @@ func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ DEBUG: Customer creation succeeded, ID: %d\n", customer.CustomerID)
+	if h.twentyService != nil {
+		h.twentyService.SyncCustomerAsync(&customer)
+	}
 
-	// Add a simple success page instead of redirect for debugging
-	c.HTML(http.StatusOK, "customers.html", gin.H{
-		"title":   "Success!",
-		"message": fmt.Sprintf("Customer created successfully with ID: %d", customer.CustomerID),
-	})
+	c.Redirect(http.StatusSeeOther, "/customers")
 }
 
 func (h *CustomerHandler) GetCustomer(c *gin.Context) {
@@ -337,32 +320,21 @@ func (h *CustomerHandler) ListCustomersAPI(c *gin.Context) {
 // @Security     SessionCookie
 // @Router       /customers [post]
 func (h *CustomerHandler) CreateCustomerAPI(c *gin.Context) {
-	fmt.Printf("🚨 DEBUG API: CreateCustomerAPI called\n")
-	fmt.Printf("🚨 DEBUG API: Content-Type: %s\n", c.ContentType())
-
-	// Debug: Print raw request body
-	bodyBytes, _ := c.GetRawData()
-	fmt.Printf("🚨 DEBUG API: Raw request body: %s\n", string(bodyBytes))
-
-	// Reset the request body so it can be read again
-	c.Request.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
-
 	var customer models.Customer
 	if err := c.ShouldBindJSON(&customer); err != nil {
-		fmt.Printf("❌ DEBUG API: JSON binding error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("✅ DEBUG API: Parsed customer: %+v\n", customer)
-
 	if err := h.customerRepo.Create(&customer); err != nil {
-		fmt.Printf("❌ DEBUG API: Database error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("🎉 DEBUG API: Customer created successfully with ID: %d\n", customer.CustomerID)
+	if h.twentyService != nil {
+		h.twentyService.SyncCustomerAsync(&customer)
+	}
+
 	c.JSON(http.StatusCreated, customer)
 }
 
@@ -423,6 +395,10 @@ func (h *CustomerHandler) UpdateCustomerAPI(c *gin.Context) {
 	if err := h.customerRepo.Update(&customer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if h.twentyService != nil {
+		h.twentyService.SyncCustomerAsync(&customer)
 	}
 
 	c.JSON(http.StatusOK, customer)

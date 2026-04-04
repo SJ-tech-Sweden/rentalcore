@@ -50,6 +50,7 @@
     "profileSettings": "Profileinstellungen",
     "companySettings": "Unternehmenseinstellungen",
     "userManagement": "Benutzerverwaltung",
+    "integrations": "Integrationen",
     "login": "Anmelden",
     "brand": "RentalCore",
     "tools": {
@@ -899,5 +900,22 @@
     "save_error": "Fehler beim Speichern des Währungssymbols.",
     "error_empty": "Das Währungssymbol darf nicht leer sein.",
     "error_too_long": "Das Währungssymbol darf höchstens 8 Zeichen lang sein."
+  },
+  "twenty": {
+    "title": "Twenty CRM Integration",
+    "description": "Kunden und Aufträge mit Ihrer Twenty-CRM-Instanz synchronisieren",
+    "back_to_settings": "Zurück zu den Einstellungen",
+    "config_title": "Integrationskonfiguration",
+    "enable_label": "Twenty CRM Integration aktivieren",
+    "field": {
+      "api_url": "Twenty API-URL",
+      "api_key": "API-Schlüssel",
+      "currency_code": "Währungscode",
+      "webhook_secret": "Webhook-Geheimtoken",
+      "webhook_url": "Eingehende Webhook-URL"
+    },
+    "save_settings": "Einstellungen speichern",
+    "test_connection": "Verbindung testen",
+    "how_it_works": "So funktioniert es"
   }
 }
