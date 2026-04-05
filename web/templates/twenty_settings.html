@@ -313,7 +313,7 @@
             .then(function (r) {
                 var status = r.status;
                 return r.text().then(function (text) {
-                    try { return JSON.parse(text); } catch (_) { throw new Error('HTTP ' + status); }
+                    try { return JSON.parse(text); } catch (_) { throw new Error(window.t('twenty.alert.parse_error', 'Unexpected server response') + ' (HTTP ' + status + ')'); }
                 });
             })
             .then(function (data) {
@@ -346,7 +346,7 @@
             .then(function (r) {
                 var status = r.status;
                 return r.text().then(function (text) {
-                    try { return JSON.parse(text); } catch (_) { throw new Error('HTTP ' + status); }
+                    try { return JSON.parse(text); } catch (_) { throw new Error(window.t('twenty.alert.parse_error', 'Unexpected server response') + ' (HTTP ' + status + ')'); }
                 });
             })
             .then(function (data) {

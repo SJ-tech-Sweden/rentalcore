@@ -925,7 +925,8 @@
       "test_success": "Verbindung erfolgreich!",
       "test_failed": "Verbindung fehlgeschlagen",
       "network_error": "Netzwerkfehler",
-      "unknown_error": "Unbekannter Fehler"
+      "unknown_error": "Unbekannter Fehler",
+      "parse_error": "Unerwartete Serverantwort"
     }
   }
 }

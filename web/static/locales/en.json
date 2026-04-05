@@ -962,7 +962,8 @@
       "test_success": "Connection successful!",
       "test_failed": "Connection failed",
       "network_error": "Network error",
-      "unknown_error": "Unknown error"
+      "unknown_error": "Unknown error",
+      "parse_error": "Unexpected server response"
     }
   }
 }
