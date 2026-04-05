@@ -50,6 +50,7 @@
     "profileSettings": "Profileinstellungen",
     "companySettings": "Unternehmenseinstellungen",
     "userManagement": "Benutzerverwaltung",
+    "integrations": "Integrationen",
     "login": "Anmelden",
     "brand": "RentalCore",
     "tools": {
@@ -899,5 +900,38 @@
     "save_error": "Fehler beim Speichern des Währungssymbols.",
     "error_empty": "Das Währungssymbol darf nicht leer sein.",
     "error_too_long": "Das Währungssymbol darf höchstens 8 Zeichen lang sein."
+  },
+  "twenty": {
+    "title": "Twenty CRM Integration",
+    "description": "Kunden und Aufträge mit Ihrer Twenty-CRM-Instanz synchronisieren",
+    "back_to_settings": "Zurück zu den Einstellungen",
+    "config_title": "Integrationskonfiguration",
+    "enable_label": "Twenty CRM Integration aktivieren",
+    "field": {
+      "api_url": "Twenty API-URL",
+      "api_key": "API-Schlüssel",
+      "currency_code": "Währungscode",
+      "webhook_secret": "Webhook-Geheimtoken",
+      "webhook_url": "Eingehende Webhook-URL"
+    },
+    "save_settings": "Einstellungen speichern",
+    "test_connection": "Verbindung testen",
+    "how_it_works": "So funktioniert es",
+    "btn": {
+      "saving": "Wird gespeichert\u2026",
+      "testing": "Wird getestet\u2026"
+    },
+    "alert": {
+      "save_success": "Einstellungen erfolgreich gespeichert!",
+      "save_failed": "Einstellungen konnten nicht gespeichert werden.",
+      "test_success": "Verbindung erfolgreich!",
+      "test_failed": "Verbindung fehlgeschlagen",
+      "network_error": "Netzwerkfehler",
+      "request_error": "Anfragefehler",
+      "unknown_error": "Unbekannter Fehler",
+      "parse_error": "Unerwartete Serverantwort",
+      "copy_success": "Webhook-URL in die Zwischenablage kopiert.",
+      "copy_error": "Webhook-URL konnte nicht kopiert werden. Bitte manuell kopieren."
+    }
   }
 }
