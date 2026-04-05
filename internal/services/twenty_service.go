@@ -132,13 +132,18 @@ func (s *TwentyService) SaveConfig(cfg TwentyConfig) error {
 		{Key: TwentyWebhookSecretKey, Value: cfg.WebhookSecret},
 		{Key: TwentyCurrencyCodeKey, Value: currencyCode},
 	}
-	for _, row := range rows {
-		if err := s.db.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "key"}},
-			DoUpdates: clause.Assignments(map[string]interface{}{"value": row.Value, "updated_at": time.Now()}),
-		}).Create(&row).Error; err != nil {
-			return err
+	if err := s.db.Transaction(func(tx *gorm.DB) error {
+		for _, row := range rows {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "key"}},
+				DoUpdates: clause.Assignments(map[string]interface{}{"value": row.Value, "updated_at": time.Now()}),
+			}).Create(&row).Error; err != nil {
+				return err
+			}
 		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	// Keep the fast-path flag in sync so that SyncCustomerAsync / SyncJobAsync
 	// immediately reflect the new enabled state without waiting for the next

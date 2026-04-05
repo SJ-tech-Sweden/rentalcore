@@ -962,8 +962,10 @@
       "test_success": "Connection successful!",
       "test_failed": "Connection failed",
       "network_error": "Network error",
+      "request_error": "Request error",
       "unknown_error": "Unknown error",
-      "parse_error": "Unexpected server response"
+      "parse_error": "Unexpected server response",
+      "copy_success": "Webhook URL copied to clipboard."
     }
   }
 }

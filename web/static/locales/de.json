@@ -925,8 +925,10 @@
       "test_success": "Verbindung erfolgreich!",
       "test_failed": "Verbindung fehlgeschlagen",
       "network_error": "Netzwerkfehler",
+      "request_error": "Anfragefehler",
       "unknown_error": "Unbekannter Fehler",
-      "parse_error": "Unerwartete Serverantwort"
+      "parse_error": "Unerwartete Serverantwort",
+      "copy_success": "Webhook-URL in die Zwischenablage kopiert."
     }
   }
 }

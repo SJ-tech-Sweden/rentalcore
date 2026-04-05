@@ -239,12 +239,12 @@
             var url = webhookUrlInput.value;
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(url).then(function () {
-                    showAlert('Webhook URL copied to clipboard.', 'success');
+                    showAlert(window.t('twenty.alert.copy_success', 'Webhook URL copied to clipboard.'), 'success');
                 });
             } else {
                 webhookUrlInput.select();
                 document.execCommand('copy');
-                showAlert('Webhook URL copied to clipboard.', 'success');
+                showAlert(window.t('twenty.alert.copy_success', 'Webhook URL copied to clipboard.'), 'success');
             }
         });
 
@@ -324,7 +324,10 @@
                 }
             })
             .catch(function (err) {
-                showAlert(window.t('twenty.alert.network_error', 'Network error') + ': ' + err.message, 'danger');
+                var prefix = (err instanceof TypeError)
+                    ? window.t('twenty.alert.network_error', 'Network error')
+                    : window.t('twenty.alert.request_error', 'Request error');
+                showAlert(prefix + ': ' + err.message, 'danger');
             })
             .finally(function () {
                 saveBtn.disabled = false;
@@ -357,7 +360,10 @@
                 }
             })
             .catch(function (err) {
-                showAlert(window.t('twenty.alert.network_error', 'Network error') + ': ' + err.message, 'danger');
+                var prefix = (err instanceof TypeError)
+                    ? window.t('twenty.alert.network_error', 'Network error')
+                    : window.t('twenty.alert.request_error', 'Request error');
+                showAlert(prefix + ': ' + err.message, 'danger');
             })
             .finally(function () {
                 testBtn.disabled = false;
