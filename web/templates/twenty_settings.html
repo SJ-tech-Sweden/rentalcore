@@ -236,16 +236,7 @@
 
         // Copy webhook URL to clipboard.
         function copyWebhookUrlManually() {
-            try {
-                webhookUrlInput.select();
-                if (document.execCommand('copy')) {
-                    showAlert(window.t('twenty.alert.copy_success', 'Webhook URL copied to clipboard.'), 'success');
-                } else {
-                    showAlert(window.t('twenty.alert.copy_error', 'Unable to copy webhook URL. Please copy it manually.'), 'danger');
-                }
-            } catch (err) {
-                showAlert(window.t('twenty.alert.copy_error', 'Unable to copy webhook URL. Please copy it manually.'), 'danger');
-            }
+            showAlert(window.t('twenty.alert.copy_error', 'Unable to copy webhook URL. Please copy it manually.'), 'danger');
         }
 
         document.getElementById('copyWebhookUrl').addEventListener('click', function () {
