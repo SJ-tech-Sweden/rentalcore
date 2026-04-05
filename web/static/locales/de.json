@@ -928,7 +928,8 @@
       "request_error": "Anfragefehler",
       "unknown_error": "Unbekannter Fehler",
       "parse_error": "Unerwartete Serverantwort",
-      "copy_success": "Webhook-URL in die Zwischenablage kopiert."
+      "copy_success": "Webhook-URL in die Zwischenablage kopiert.",
+      "copy_error": "Webhook-URL konnte nicht kopiert werden. Bitte manuell kopieren."
     }
   }
 }

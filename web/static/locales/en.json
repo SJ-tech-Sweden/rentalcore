@@ -965,7 +965,8 @@
       "request_error": "Request error",
       "unknown_error": "Unknown error",
       "parse_error": "Unexpected server response",
-      "copy_success": "Webhook URL copied to clipboard."
+      "copy_success": "Webhook URL copied to clipboard.",
+      "copy_error": "Unable to copy webhook URL. Please copy it manually."
     }
   }
 }

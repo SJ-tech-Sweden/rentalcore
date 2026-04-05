@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/services"
@@ -89,6 +90,7 @@ func (h *TwentyHandler) TwentySettingsForm(c *gin.Context) {
 		"config":      cfg,
 		"success":     successMsg,
 		"currentPage": "integrations",
+		"timestamp":   time.Now().Unix(),
 	})
 }
 
