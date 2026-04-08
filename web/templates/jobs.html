@@ -368,8 +368,8 @@
                                 </button>
                             </div>
                         </div>
-                        ${jobData.startDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.startDate') : 'Start Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.startDate).toLocaleDateString() + '</div></div>' : ''}
-                        ${jobData.endDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.endDate') : 'End Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.endDate).toLocaleDateString() + '</div></div>' : ''}
+                        ${jobData.startDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.startDate') : 'Start Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.startDate).toISOString().slice(0, 10) + '</div></div>' : ''}
+                        ${jobData.endDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.endDate') : 'End Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.endDate).toISOString().slice(0, 10) + '</div></div>' : ''}
                         ${jobData.discount > 0 ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.discount') : 'Discount') + '</label><div>' + jobData.discount + ' ' + (jobData.discount_type === 'percent' ? '%' : '€') + '</div></div>' : ''}
                         ${jobData.finalRevenue ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.finalRevenue') : 'Final Revenue') + '</label><div class="rc-text-lg">€' + jobData.finalRevenue.toFixed(2) + '</div></div>' : ''}
                     </div>
@@ -387,8 +387,8 @@
                         <div class="rc-card" style="background: var(--surface-1); border: 1px solid var(--surface-3);">
                             <div class="rc-card-body">
                                 <div class="rc-text-sm">
-                                    ${jobData.created_at ? '<div class="rc-mb-xs"><span class="rc-text-secondary">Created:</span> <span>' + new Date(jobData.created_at).toLocaleDateString('de-DE') + ' ' + new Date(jobData.created_at).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'}) + '</span></div>' : ''}
-                                    ${jobData.updated_at ? '<div><span class="rc-text-secondary">Last edited:</span> <span>' + new Date(jobData.updated_at).toLocaleDateString('de-DE') + ' ' + new Date(jobData.updated_at).toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'}) + '</span></div>' : ''}
+                                    ${jobData.created_at ? '<div class="rc-mb-xs"><span class="rc-text-secondary">Created:</span> <span>' + new Date(jobData.created_at).toISOString().slice(0, 16).replace('T', ' ') + '</span></div>' : ''}
+                                    ${jobData.updated_at ? '<div><span class="rc-text-secondary">Last edited:</span> <span>' + new Date(jobData.updated_at).toISOString().slice(0, 16).replace('T', ' ') + '</span></div>' : ''}
                                 </div>
                             </div>
                         </div>
@@ -779,7 +779,8 @@
             fetch('/api/v1/jobs/' + jobID),
             fetch('/api/v1/customers'),
             fetch('/statuses'),
-            fetch('/api/v1/jobs/' + jobID + '/devices')
+            fetch('/api/v1/jobs/' + jobID + '/devices'),
+            fetch('/api/v1/jobs/' + jobID + '/product-requirements')
         ])
         .then(responses => {
             // Check if all responses are ok before parsing JSON
@@ -790,11 +791,12 @@
             });
             return Promise.all(responses.map(r => r.json()));
         })
-        .then(([jobResponse, customersResponse, statusResponse, devicesResponse]) => {
+        .then(([jobResponse, customersResponse, statusResponse, devicesResponse, requirementsResponse]) => {
             const job = jobResponse.job || jobResponse;
             const customers = customersResponse.customers || customersResponse;
             const statuses = statusResponse.statuses || statusResponse;
             const existingDevices = devicesResponse.devices || [];
+            const productRequirements = Array.isArray(requirementsResponse) ? requirementsResponse : [];
             
             console.log('Job edit data:', {job, customers, statuses});
             
@@ -1034,7 +1036,7 @@
                 editProductTreeControlsBound = true;
             }
 
-            initializeEditProductSelections(job.jobID, existingDevices);
+            initializeEditProductSelections(job.jobID, existingDevices, productRequirements);
             loadEditAssignedDevices(job.jobID, existingDevices);
             refreshJobRentalEquipment(job.jobID);
         })
@@ -1459,12 +1461,25 @@
     let editProductTreeControlsBound = false;
     let editProductTreeExpanded = new Set();
 
-    function initializeEditProductSelections(jobID, existingDevices) {
+    function initializeEditProductSelections(jobID, existingDevices, productRequirements) {
         editProductSelections = new Map();
         editInitialProductSelections = new Map();
         editProductValidationErrors = [];
 
-        if (Array.isArray(existingDevices)) {
+        // Prefer product requirements (planned quantities) over actual device counts
+        if (Array.isArray(productRequirements) && productRequirements.length > 0) {
+            productRequirements.forEach(req => {
+                const product = req.product || {};
+                const productID = req.product_id || product.productID || product.ProductID;
+                if (!productID) return;
+                const productName = product.name || product.Name || `Product ${productID}`;
+                const quantity = req.quantity || 0;
+                const entry = { id: productID, name: productName, available: 0, total: 0, quantity };
+                editInitialProductSelections.set(String(productID), entry);
+                editProductSelections.set(String(productID), { ...entry });
+            });
+        } else if (Array.isArray(existingDevices)) {
+            // Fall back to counting actual device assignments grouped by product
             const counts = new Map();
             existingDevices.forEach(deviceEntry => {
                 const device = deviceEntry.device || deviceEntry;
@@ -3511,7 +3526,7 @@ function showToast(message, type) {
                                     <div style="font-size: 12px; color: var(--text-muted);">
                                         ${attachment.fileSizeFormatted}
                                         ${attachment.uploader ? ` • by ${attachment.uploader.firstName} ${attachment.uploader.lastName}` : ''}
-                                        • ${new Date(attachment.uploadedAt).toLocaleDateString()}
+                                        • ${new Date(attachment.uploadedAt).toISOString().slice(0, 10)}
                                     </div>
                                 </div>
                             </div>
@@ -5893,8 +5908,7 @@ function showToast(message, type) {
         }
 
         function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+            return new Date(dateStr).toISOString().slice(0, 10);
         }
 
         function processPdfSource() {
@@ -6074,15 +6088,8 @@ function showToast(message, type) {
 
             history.forEach((entry, index) => {
                 const changeDate = new Date(entry.changed_at);
-                const formattedDate = changeDate.toLocaleDateString('de-DE', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit'
-                });
-                const formattedTime = changeDate.toLocaleTimeString('de-DE', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
+                const formattedDate = changeDate.toISOString().slice(0, 10);
+                const formattedTime = changeDate.toISOString().slice(11, 16);
 
                 const typeInfo = getHistoryChangeTypeInfo(entry.change_type);
 

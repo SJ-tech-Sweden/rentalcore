@@ -478,10 +478,10 @@ func main() {
 			return 0
 		},
 		"formatDateNew": func(t time.Time) string {
-			return t.Format("Jan 2, 2006")
+			return t.Format("2006-01-02")
 		},
 		"formatDateTime": func(t time.Time) string {
-			return t.Format("Jan 2, 2006 at 3:04 PM")
+			return t.Format("2006-01-02 15:04")
 		},
 		"substrNew": func(s string, start, length int) string {
 			if start >= len(s) {

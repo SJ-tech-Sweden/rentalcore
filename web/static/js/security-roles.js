@@ -169,7 +169,7 @@ class RoleManagement {
                             </div>
                             <div class="role-meta-item">
                                 <i class="bi bi-calendar-plus"></i>
-                                <span>Created ${role.createdAt ? new Date(role.createdAt).toLocaleDateString() : 'N/A'}</span>
+                                <span>Created ${role.createdAt ? new Date(role.createdAt).toISOString().slice(0, 10) : 'N/A'}</span>
                             </div>
                             <div class="role-meta-item">
                                 <i class="bi bi-shield"></i>
@@ -354,11 +354,11 @@ function viewRole(roleId) {
                 <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Created:</span>
-                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.createdAt).toLocaleDateString()}</span>
+                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.createdAt).toISOString().slice(0, 10)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Updated:</span>
-                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.updatedAt).toLocaleDateString()}</span>
+                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.updatedAt).toISOString().slice(0, 10)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Permissions:</span>
@@ -777,7 +777,7 @@ function renderRoleUsers() {
         const fullName = `${firstName} ${lastName}`.trim() || user.username;
         
         const expiryText = user.userRoleData?.expiresAt ? 
-            `<span style="font-size: 0.75rem; color: var(--text-muted);">Expires: ${new Date(user.userRoleData.expiresAt).toLocaleDateString()}</span>` : 
+            `<span style="font-size: 0.75rem; color: var(--text-muted);">Expires: ${new Date(user.userRoleData.expiresAt).toISOString().slice(0, 10)}</span>` : 
             '<span style="font-size: 0.75rem; color: var(--text-muted);">No expiry</span>';
         
         return `

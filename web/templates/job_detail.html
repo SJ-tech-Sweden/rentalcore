@@ -600,15 +600,8 @@
 
         history.forEach((entry, index) => {
             const changeDate = new Date(entry.changed_at);
-            const formattedDate = changeDate.toLocaleDateString('de-DE', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-            const formattedTime = changeDate.toLocaleTimeString('de-DE', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            const formattedDate = changeDate.toISOString().slice(0, 10);
+            const formattedTime = changeDate.toISOString().slice(11, 16);
 
             // Get icon and badge color based on change type
             const typeInfo = getChangeTypeInfo(entry.change_type);
@@ -765,7 +758,7 @@
         attachments.forEach(attachment => {
             const isImage = attachment.isImage;
             const iconClass = getFileIcon(attachment.mimeType);
-            const uploadDate = new Date(attachment.uploadedAt).toLocaleDateString('de-DE');
+            const uploadDate = new Date(attachment.uploadedAt).toISOString().slice(0, 10);
 
             html += `
                 <div class="attachment-item rc-flex rc-flex-between rc-p-md rc-border-bottom">
