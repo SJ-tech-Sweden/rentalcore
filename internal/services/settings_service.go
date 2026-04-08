@@ -91,12 +91,12 @@ func (s *SettingsService) readCurrencyFromDB() (string, bool) {
 		var m map[string]interface{}
 		if json.Unmarshal([]byte(setting.Value), &m) == nil {
 			if sym, ok := m["symbol"].(string); ok && sym != "" {
-				return sym, true
+				return sym, cacheable
 			}
 		}
 		// Fall back to treating the raw value as the symbol (plain-text legacy rows).
 		if setting.Value != "" {
-			return setting.Value, true
+			return setting.Value, cacheable
 		}
 	}
 	return defaultCurrencySymbol, cacheable
