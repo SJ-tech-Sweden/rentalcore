@@ -1,4 +1,16 @@
 // Security Roles Management JavaScript
+
+// Date helper: format as local YYYY-MM-DD
+function toLocalDateStr(d) {
+    if (!d) return 'N/A';
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return 'N/A';
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const day = String(dt.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 class RoleManagement {
     constructor() {
         this.roles = [];
@@ -169,7 +181,7 @@ class RoleManagement {
                             </div>
                             <div class="role-meta-item">
                                 <i class="bi bi-calendar-plus"></i>
-                                <span>Created ${role.createdAt ? new Date(role.createdAt).toLocaleDateString() : 'N/A'}</span>
+                                <span>Created ${toLocalDateStr(role.createdAt)}</span>
                             </div>
                             <div class="role-meta-item">
                                 <i class="bi bi-shield"></i>
@@ -354,11 +366,11 @@ function viewRole(roleId) {
                 <div style="display: flex; flex-direction: column; gap: var(--space-sm);">
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Created:</span>
-                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.createdAt).toLocaleDateString()}</span>
+                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${toLocalDateStr(role.createdAt)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Updated:</span>
-                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${new Date(role.updatedAt).toLocaleDateString()}</span>
+                        <span style="font-family: var(--font-mono); color: var(--text-primary); font-size: 0.875rem;">${toLocalDateStr(role.updatedAt)}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: var(--space-xs) 0; border-bottom: 1px solid var(--surface-3);">
                         <span style="color: var(--text-secondary);">Permissions:</span>
@@ -777,7 +789,7 @@ function renderRoleUsers() {
         const fullName = `${firstName} ${lastName}`.trim() || user.username;
         
         const expiryText = user.userRoleData?.expiresAt ? 
-            `<span style="font-size: 0.75rem; color: var(--text-muted);">Expires: ${new Date(user.userRoleData.expiresAt).toLocaleDateString()}</span>` : 
+            `<span style="font-size: 0.75rem; color: var(--text-muted);">Expires: ${toLocalDateStr(user.userRoleData.expiresAt)}</span>` : 
             '<span style="font-size: 0.75rem; color: var(--text-muted);">No expiry</span>';
         
         return `

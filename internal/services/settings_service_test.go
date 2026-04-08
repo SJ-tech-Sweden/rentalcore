@@ -123,7 +123,7 @@ func TestGetCurrencySymbol_NoCacheEntry(t *testing.T) {
 // from the DB when the cache is cold and returns the stored symbol.
 func TestGetCurrencySymbol_DBRecord(t *testing.T) {
 	db := newTestDB(t)
-	db.Create(&models.AppSetting{Key: AppCurrencyKey, Value: "$"})
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: "$"})
 
 	s := NewSettingsService(db)
 	got := s.GetCurrencySymbol()
@@ -161,7 +161,7 @@ func TestGetCurrencySymbol_TransientError(t *testing.T) {
 	db := newTestDB(t)
 
 	// Seed a value and warm the cache.
-	db.Create(&models.AppSetting{Key: AppCurrencyKey, Value: "£"})
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: "£"})
 	s := NewSettingsService(db)
 	_ = s.GetCurrencySymbol() // warm the cache
 
@@ -203,7 +203,7 @@ func TestUpdateCurrencySymbol_Upsert_Insert(t *testing.T) {
 // updates an existing row without creating duplicates.
 func TestUpdateCurrencySymbol_Upsert_Update(t *testing.T) {
 	db := newTestDB(t)
-	db.Create(&models.AppSetting{Key: AppCurrencyKey, Value: "€"})
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: "€"})
 	s := NewSettingsService(db)
 
 	if err := s.UpdateCurrencySymbol("CHF"); err != nil {
@@ -211,16 +211,18 @@ func TestUpdateCurrencySymbol_Upsert_Update(t *testing.T) {
 	}
 
 	var row models.AppSetting
-	if err := db.Where("key = ?", AppCurrencyKey).First(&row).Error; err != nil {
+	if err := db.Where("scope = ? AND key = ?", "global", AppCurrencyKey).First(&row).Error; err != nil {
 		t.Fatalf("DB read after upsert: %v", err)
 	}
-	if row.Value != "CHF" {
-		t.Errorf("DB row value = %q, want %q", row.Value, "CHF")
+	// Value is stored as JSON {"symbol":"..."} by UpdateCurrencySymbol.
+	wantValue := `{"symbol":"CHF"}`
+	if row.Value != wantValue {
+		t.Errorf("DB row value = %q, want %q", row.Value, wantValue)
 	}
 
 	// Confirm only one row exists.
 	var count int64
-	db.Model(&models.AppSetting{}).Where("key = ?", AppCurrencyKey).Count(&count)
+	db.Model(&models.AppSetting{}).Where("scope = ? AND key = ?", "global", AppCurrencyKey).Count(&count)
 	if count != 1 {
 		t.Errorf("row count = %d, want 1 (no duplicates)", count)
 	}
@@ -254,7 +256,7 @@ func TestUpdateCurrencySymbol_CacheRefresh(t *testing.T) {
 // refreshed from the DB when GetCurrencySymbol is called again.
 func TestGetCurrencySymbol_CacheRefreshedAfterExpiry(t *testing.T) {
 	db := newTestDB(t)
-	db.Create(&models.AppSetting{Key: AppCurrencyKey, Value: "zł"})
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: "zł"})
 
 	// Create service and pre-populate with an expired cache entry for a different symbol.
 	s := &SettingsService{
@@ -286,5 +288,71 @@ func TestGetCurrencySymbol_TransientError_NoPreviousCache(t *testing.T) {
 	got := s.GetCurrencySymbol()
 	if got != defaultCurrencySymbol {
 		t.Errorf("GetCurrencySymbol() with closed DB and no cache = %q, want default %q", got, defaultCurrencySymbol)
+	}
+}
+
+// TestGetCurrencySymbol_JSONEncodedValue verifies that GetCurrencySymbol correctly
+// parses the shared JSON format {"symbol":"..."} used by both RentalCore and WarehouseCore.
+func TestGetCurrencySymbol_JSONEncodedValue(t *testing.T) {
+	db := newTestDB(t)
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: `{"symbol":"kr"}`})
+
+	s := NewSettingsService(db)
+	got := s.GetCurrencySymbol()
+	if got != "kr" {
+		t.Errorf("GetCurrencySymbol() with JSON value = %q, want %q", got, "kr")
+	}
+	if !s.cacheValid {
+		t.Error("expected cacheValid=true after successful JSON parse")
+	}
+}
+
+// TestGetCurrencySymbol_WarehousecoreFallback verifies that when no 'global' row exists
+// the service falls back to the 'warehousecore' scope and parses its JSON value.
+func TestGetCurrencySymbol_WarehousecoreFallback(t *testing.T) {
+	db := newTestDB(t)
+	// Only insert a 'warehousecore' row — no 'global' row.
+	db.Create(&models.AppSetting{Scope: "warehousecore", Key: AppCurrencyKey, Value: `{"symbol":"SEK"}`})
+
+	s := NewSettingsService(db)
+	got := s.GetCurrencySymbol()
+	if got != "SEK" {
+		t.Errorf("GetCurrencySymbol() warehousecore fallback = %q, want %q", got, "SEK")
+	}
+	if !s.cacheValid {
+		t.Error("expected cacheValid=true after successful warehousecore fallback read")
+	}
+}
+
+// TestGetCurrencySymbol_GlobalTakesPrecedenceOverWarehousecore verifies that the
+// 'global' scope row takes precedence when both scopes are present.
+func TestGetCurrencySymbol_GlobalTakesPrecedenceOverWarehousecore(t *testing.T) {
+	db := newTestDB(t)
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: `{"symbol":"€"}`})
+	db.Create(&models.AppSetting{Scope: "warehousecore", Key: AppCurrencyKey, Value: `{"symbol":"kr"}`})
+
+	s := NewSettingsService(db)
+	got := s.GetCurrencySymbol()
+	if got != "€" {
+		t.Errorf("GetCurrencySymbol() = %q, want global scope %q to take precedence", got, "€")
+	}
+}
+
+// TestGetCurrencySymbol_JSONAfterCacheExpiry verifies that an expired cache entry is
+// refreshed from the DB and the JSON value is correctly parsed.
+func TestGetCurrencySymbol_JSONAfterCacheExpiry(t *testing.T) {
+	db := newTestDB(t)
+	db.Create(&models.AppSetting{Scope: "global", Key: AppCurrencyKey, Value: `{"symbol":"CHF"}`})
+
+	s := &SettingsService{
+		db:             db,
+		cachedCurrency: "£",
+		cacheValid:     true,
+		cacheExpiry:    time.Now().Add(-1 * time.Second), // expired
+	}
+
+	got := s.GetCurrencySymbol()
+	if got != "CHF" {
+		t.Errorf("GetCurrencySymbol() after cache expiry = %q, want DB JSON value %q", got, "CHF")
 	}
 }
