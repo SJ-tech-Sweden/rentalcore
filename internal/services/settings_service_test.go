@@ -214,8 +214,10 @@ func TestUpdateCurrencySymbol_Upsert_Update(t *testing.T) {
 	if err := db.Where("key = ?", AppCurrencyKey).First(&row).Error; err != nil {
 		t.Fatalf("DB read after upsert: %v", err)
 	}
-	if row.Value != "CHF" {
-		t.Errorf("DB row value = %q, want %q", row.Value, "CHF")
+	// Value is stored as JSON {"symbol":"..."} by UpdateCurrencySymbol.
+	wantValue := `{"symbol":"CHF"}`
+	if row.Value != wantValue {
+		t.Errorf("DB row value = %q, want %q", row.Value, wantValue)
 	}
 
 	// Confirm only one row exists.

@@ -864,7 +864,7 @@
                 <div>
                     <div class="rc-text-sm rc-font-medium">${name}</div>
                     <div class="rc-text-xs rc-text-muted">
-                        Created: ${new Date().toISOString().slice(0, 10)}
+                        Created: ${(() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth() + 1).padStart(2, '0'); const d = String(n.getDate()).padStart(2, '0'); return `${y}-${m}-${d}`; })()}
                     </div>
                 </div>
             </div>

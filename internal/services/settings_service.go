@@ -57,17 +57,24 @@ func (s *SettingsService) GetCurrencySymbol() string {
 		return s.cachedCurrency
 	}
 
-	symbol := s.readCurrencyFromDB()
-
-	s.cachedCurrency = symbol
-	s.cacheValid = true
-	s.cacheExpiry = time.Now().Add(currencyCacheTTL)
+	symbol, cacheable := s.readCurrencyFromDB()
+	if cacheable {
+		s.cachedCurrency = symbol
+		s.cacheValid = true
+		s.cacheExpiry = time.Now().Add(currencyCacheTTL)
+	} else if s.cacheValid {
+		// Preserve stale cached value on transient DB errors.
+		return s.cachedCurrency
+	}
 	return symbol
 }
 
 // readCurrencyFromDB tries scope='global' then scope='warehousecore', parsing
 // the shared JSON format {"symbol":"..."} used by both services.
-func (s *SettingsService) readCurrencyFromDB() string {
+// Returns (symbol, cacheable) where cacheable is false on transient DB errors
+// (in which case the caller should retain any previously cached value).
+func (s *SettingsService) readCurrencyFromDB() (string, bool) {
+	cacheable := true
 	for _, scope := range []string{"global", "warehousecore"} {
 		var setting models.AppSetting
 		err := s.db.Where("scope = ? AND key = ?", scope, AppCurrencyKey).First(&setting).Error
@@ -76,49 +83,54 @@ func (s *SettingsService) readCurrencyFromDB() string {
 		}
 		if err != nil {
 			log.Printf("SettingsService: failed to read %q (scope=%s): %v", AppCurrencyKey, scope, err)
+			cacheable = false
 			continue
 		}
 		// Value is stored as JSON {"symbol":"..."} in both scopes.
 		var m map[string]interface{}
 		if json.Unmarshal([]byte(setting.Value), &m) == nil {
 			if sym, ok := m["symbol"].(string); ok && sym != "" {
-				return sym
+				return sym, true
 			}
 		}
 		// Fall back to treating the raw value as the symbol (plain-text legacy rows).
 		if setting.Value != "" {
-			return setting.Value
+			return setting.Value, true
 		}
 	}
-	return defaultCurrencySymbol
+	return defaultCurrencySymbol, cacheable
 }
 
 // UpdateCurrencySymbol persists a new currency symbol and invalidates the cache.
 // The value is written to scope='global' in the JSON format {"symbol":"..."} so
 // that WarehouseCore can also read it via the same shared table.
 func (s *SettingsService) UpdateCurrencySymbol(symbol string) error {
-	jsonValue := `{"symbol":"` + symbol + `"}`
+	jsonBytes, err := json.Marshal(map[string]string{"symbol": symbol})
+	if err != nil {
+		return fmt.Errorf("failed to encode currency symbol: %w", err)
+	}
+	jsonValue := string(jsonBytes)
 
-	var setting models.AppSetting
-	err := s.db.Where("scope = ? AND key = ?", "global", AppCurrencyKey).First(&setting).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		setting = models.AppSetting{
-			Scope: "global",
-			Key:   AppCurrencyKey,
-			Value: jsonValue,
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		var setting models.AppSetting
+		err := tx.Where("scope = ? AND key = ?", "global", AppCurrencyKey).First(&setting).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			setting = models.AppSetting{
+				Scope: "global",
+				Key:   AppCurrencyKey,
+				Value: jsonValue,
+			}
+			return tx.Create(&setting).Error
+		} else if err != nil {
+			return fmt.Errorf("failed to look up currency symbol: %w", err)
 		}
-		if err := s.db.Create(&setting).Error; err != nil {
-			return fmt.Errorf("failed to save currency symbol: %w", err)
-		}
-	} else if err != nil {
-		return fmt.Errorf("failed to look up currency symbol: %w", err)
-	} else {
-		if err := s.db.Model(&setting).Updates(map[string]interface{}{
+		return tx.Model(&setting).Updates(map[string]interface{}{
 			"value":      jsonValue,
 			"updated_at": time.Now(),
-		}).Error; err != nil {
-			return fmt.Errorf("failed to save currency symbol: %w", err)
-		}
+		}).Error
+	})
+	if err != nil {
+		return fmt.Errorf("failed to save currency symbol: %w", err)
 	}
 
 	s.mu.Lock()

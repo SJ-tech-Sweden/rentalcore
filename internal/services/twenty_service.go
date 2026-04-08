@@ -126,16 +126,16 @@ func (s *TwentyService) SaveConfig(cfg TwentyConfig) error {
 		currencyCode = "EUR"
 	}
 	rows := []models.AppSetting{
-		{Key: TwentyEnabledKey, Value: enabledVal},
-		{Key: TwentyAPIURLKey, Value: strings.TrimRight(cfg.APIURL, "/")},
-		{Key: TwentyAPIKeyKey, Value: cfg.APIKey},
-		{Key: TwentyWebhookSecretKey, Value: cfg.WebhookSecret},
-		{Key: TwentyCurrencyCodeKey, Value: currencyCode},
+		{Scope: "global", Key: TwentyEnabledKey, Value: enabledVal},
+		{Scope: "global", Key: TwentyAPIURLKey, Value: strings.TrimRight(cfg.APIURL, "/")},
+		{Scope: "global", Key: TwentyAPIKeyKey, Value: cfg.APIKey},
+		{Scope: "global", Key: TwentyWebhookSecretKey, Value: cfg.WebhookSecret},
+		{Scope: "global", Key: TwentyCurrencyCodeKey, Value: currencyCode},
 	}
 	if err := s.db.Transaction(func(tx *gorm.DB) error {
 		for _, row := range rows {
 			if err := tx.Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "key"}},
+				Columns:   []clause.Column{{Name: "scope"}, {Name: "key"}},
 				DoUpdates: clause.Assignments(map[string]interface{}{"value": row.Value, "updated_at": time.Now()}),
 			}).Create(&row).Error; err != nil {
 				return err

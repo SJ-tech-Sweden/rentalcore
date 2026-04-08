@@ -314,7 +314,29 @@
         }
     }
 
-    const appCurrencySymbol = '{{currencySymbol}}' || '€';
+    const appCurrencySymbol = (window.__APP_CONFIG__ && window.__APP_CONFIG__.currencySymbol) || '{{currencySymbol}}';
+
+    function toLocalDateStr(d) {
+        if (!d) return '';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '';
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function toLocalDateTimeStr(d) {
+        if (!d) return '';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '';
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        const h = String(dt.getHours()).padStart(2, '0');
+        const min = String(dt.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${day} ${h}:${min}`;
+    }
 
     // Job Details Modal
     function showJobDetails(jobID) {
@@ -370,8 +392,8 @@
                                 </button>
                             </div>
                         </div>
-                        ${jobData.startDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.startDate') : 'Start Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.startDate).toISOString().slice(0, 10) + '</div></div>' : ''}
-                        ${jobData.endDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.endDate') : 'End Date') + '</label><div><i class="bi bi-calendar"></i> ' + new Date(jobData.endDate).toISOString().slice(0, 10) + '</div></div>' : ''}
+                        ${jobData.startDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.startDate') : 'Start Date') + '</label><div><i class="bi bi-calendar"></i> ' + toLocalDateStr(jobData.startDate) + '</div></div>' : ''}
+                        ${jobData.endDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.endDate') : 'End Date') + '</label><div><i class="bi bi-calendar"></i> ' + toLocalDateStr(jobData.endDate) + '</div></div>' : ''}
                         ${jobData.discount > 0 ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.discount') : 'Discount') + '</label><div>' + jobData.discount + ' ' + (jobData.discount_type === 'percent' ? '%' : appCurrencySymbol) + '</div></div>' : ''}
                         ${jobData.finalRevenue ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.finalRevenue') : 'Final Revenue') + '</label><div class="rc-text-lg">' + appCurrencySymbol + jobData.finalRevenue.toFixed(2) + '</div></div>' : ''}
                     </div>
@@ -389,8 +411,8 @@
                         <div class="rc-card" style="background: var(--surface-1); border: 1px solid var(--surface-3);">
                             <div class="rc-card-body">
                                 <div class="rc-text-sm">
-                                    ${jobData.created_at ? '<div class="rc-mb-xs"><span class="rc-text-secondary">Created:</span> <span>' + new Date(jobData.created_at).toISOString().slice(0, 16).replace('T', ' ') + '</span></div>' : ''}
-                                    ${jobData.updated_at ? '<div><span class="rc-text-secondary">Last edited:</span> <span>' + new Date(jobData.updated_at).toISOString().slice(0, 16).replace('T', ' ') + '</span></div>' : ''}
+                                    ${jobData.created_at ? '<div class="rc-mb-xs"><span class="rc-text-secondary">Created:</span> <span>' + toLocalDateTimeStr(jobData.created_at) + '</span></div>' : ''}
+                                    ${jobData.updated_at ? '<div><span class="rc-text-secondary">Last edited:</span> <span>' + toLocalDateTimeStr(jobData.updated_at) + '</span></div>' : ''}
                                 </div>
                             </div>
                         </div>
@@ -3528,7 +3550,7 @@ function showToast(message, type) {
                                     <div style="font-size: 12px; color: var(--text-muted);">
                                         ${attachment.fileSizeFormatted}
                                         ${attachment.uploader ? ` • by ${attachment.uploader.firstName} ${attachment.uploader.lastName}` : ''}
-                                        • ${new Date(attachment.uploadedAt).toISOString().slice(0, 10)}
+                                        • ${toLocalDateStr(attachment.uploadedAt)}
                                     </div>
                                 </div>
                             </div>
@@ -5910,7 +5932,30 @@ function showToast(message, type) {
         }
 
         function formatDate(dateStr) {
-            return new Date(dateStr).toISOString().slice(0, 10);
+            if (!dateStr || typeof dateStr !== 'string') {
+                return '';
+            }
+
+            const trimmed = dateStr.trim();
+            if (!trimmed) {
+                return '';
+            }
+
+            // Handle YYYY-MM-DD and YYYY-MM-DD HH:MM:SS formats directly
+            // (returned by the PDF pool endpoint) without UTC conversion.
+            if (/^\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}(:\d{2})?)?$/.test(trimmed)) {
+                return trimmed.slice(0, 10);
+            }
+
+            const parsed = new Date(trimmed);
+            if (isNaN(parsed.getTime())) {
+                return '';
+            }
+
+            const y = parsed.getFullYear();
+            const m = String(parsed.getMonth() + 1).padStart(2, '0');
+            const d = String(parsed.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
         }
 
         function processPdfSource() {
@@ -6090,8 +6135,8 @@ function showToast(message, type) {
 
             history.forEach((entry, index) => {
                 const changeDate = new Date(entry.changed_at);
-                const formattedDate = changeDate.toISOString().slice(0, 10);
-                const formattedTime = changeDate.toISOString().slice(11, 16);
+                const formattedDate = toLocalDateStr(changeDate);
+                const formattedTime = String(changeDate.getHours()).padStart(2, '0') + ':' + String(changeDate.getMinutes()).padStart(2, '0');
 
                 const typeInfo = getHistoryChangeTypeInfo(entry.change_type);
 
