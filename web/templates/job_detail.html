@@ -600,13 +600,7 @@
 
         history.forEach((entry, index) => {
             const changeDate = new Date(entry.changed_at);
-            const formattedDate = (() => {
-                if (isNaN(changeDate.getTime())) return '';
-                const y = changeDate.getFullYear();
-                const mo = String(changeDate.getMonth() + 1).padStart(2, '0');
-                const d = String(changeDate.getDate()).padStart(2, '0');
-                return `${y}-${mo}-${d}`;
-            })();
+            const formattedDate = toLocalDateStr(changeDate);
             const formattedTime = isNaN(changeDate.getTime()) ? '' :
                 String(changeDate.getHours()).padStart(2, '0') + ':' + String(changeDate.getMinutes()).padStart(2, '0');
 
@@ -765,15 +759,7 @@
         attachments.forEach(attachment => {
             const isImage = attachment.isImage;
             const iconClass = getFileIcon(attachment.mimeType);
-            const uploadDate = (() => {
-                if (!attachment.uploadedAt) return '';
-                const d = new Date(attachment.uploadedAt);
-                if (isNaN(d.getTime())) return '';
-                const y = d.getFullYear();
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${y}-${m}-${day}`;
-            })();
+            const uploadDate = toLocalDateStr(attachment.uploadedAt);
 
             html += `
                 <div class="attachment-item rc-flex rc-flex-between rc-p-md rc-border-bottom">
@@ -940,6 +926,16 @@
     }
 
     // Helper functions
+    function toLocalDateStr(d) {
+        if (!d) return '';
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return '';
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
     function getFileIcon(mimeType) {
         if (mimeType.startsWith('image/')) return 'bi-image';
         if (mimeType.startsWith('video/')) return 'bi-play-circle';

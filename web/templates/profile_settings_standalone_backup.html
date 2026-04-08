@@ -854,6 +854,11 @@
         if (noPasskeysMessage) {
             noPasskeysMessage.remove();
         }
+
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' +
+            String(today.getMonth() + 1).padStart(2, '0') + '-' +
+            String(today.getDate()).padStart(2, '0');
         
         const passkeyElement = document.createElement('div');
         passkeyElement.className = 'rc-flex rc-flex-between rc-flex-center rc-p-sm rc-border rc-rounded rc-mb-sm';
@@ -864,7 +869,7 @@
                 <div>
                     <div class="rc-text-sm rc-font-medium">${name}</div>
                     <div class="rc-text-xs rc-text-muted">
-                        Created: ${(() => { const n = new Date(); const y = n.getFullYear(); const m = String(n.getMonth() + 1).padStart(2, '0'); const d = String(n.getDate()).padStart(2, '0'); return `${y}-${m}-${d}`; })()}
+                        Created: ${todayStr}
                     </div>
                 </div>
             </div>
