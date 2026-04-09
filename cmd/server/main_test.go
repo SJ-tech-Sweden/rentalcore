@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 func TestBuildWarehouseProductsURLWithEnv(t *testing.T) {
@@ -159,5 +161,86 @@ func TestBuildWarehouseCasesURLWithPort(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("expected %s, got %s", want, got)
+	}
+}
+
+// buildDocsRouter returns a minimal Gin router wired with the same /docs and
+// /swagger routes used in setupRoutes, so we can test redirect behaviour
+// without starting the full application.
+func buildDocsRouter() *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	docsIndexRedirect := func(c *gin.Context) {
+		target := "/docs/index.html"
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusMovedPermanently, target)
+	}
+	r.GET("/docs", docsIndexRedirect)
+	r.GET("/docs/*any", func(c *gin.Context) {
+		if c.Param("any") == "/" {
+			docsIndexRedirect(c)
+			return
+		}
+		// Simulate gin-swagger returning 200 for a valid file request.
+		c.String(http.StatusOK, "ok")
+	})
+	r.GET("/swagger", func(c *gin.Context) {
+		target := "/docs/index.html"
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusMovedPermanently, target)
+	})
+	r.GET("/swagger/*any", func(c *gin.Context) {
+		target := "/docs" + c.Param("any")
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusMovedPermanently, target)
+	})
+	return r
+}
+
+func TestDocsRouteRedirects(t *testing.T) {
+	r := buildDocsRouter()
+
+	tests := []struct {
+		path         string
+		wantStatus   int
+		wantLocation string
+	}{
+		// Bare /docs → /docs/index.html
+		{"/docs", http.StatusMovedPermanently, "/docs/index.html"},
+		// Bare /docs/ → /docs/index.html
+		{"/docs/", http.StatusMovedPermanently, "/docs/index.html"},
+		// Query string must be preserved
+		{"/docs?url=custom.json", http.StatusMovedPermanently, "/docs/index.html?url=custom.json"},
+		{"/docs/?url=custom.json", http.StatusMovedPermanently, "/docs/index.html?url=custom.json"},
+		// Swagger file → 200
+		{"/docs/index.html", http.StatusOK, ""},
+		// /swagger backward-compat redirects
+		{"/swagger", http.StatusMovedPermanently, "/docs/index.html"},
+		{"/swagger/", http.StatusMovedPermanently, "/docs/"},
+		{"/swagger/index.html", http.StatusMovedPermanently, "/docs/index.html"},
+		{"/swagger?url=custom.json", http.StatusMovedPermanently, "/docs/index.html?url=custom.json"},
+	}
+
+	for _, tc := range tests {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		r.ServeHTTP(w, req)
+
+		if w.Code != tc.wantStatus {
+			t.Errorf("GET %s: got status %d, want %d", tc.path, w.Code, tc.wantStatus)
+			continue
+		}
+		if tc.wantLocation != "" {
+			if loc := w.Header().Get("Location"); loc != tc.wantLocation {
+				t.Errorf("GET %s: got Location %q, want %q", tc.path, loc, tc.wantLocation)
+			}
+		}
 	}
 }
