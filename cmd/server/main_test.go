@@ -164,43 +164,14 @@ func TestBuildWarehouseCasesURLWithPort(t *testing.T) {
 	}
 }
 
-// buildDocsRouter returns a minimal Gin router wired with the same /docs and
-// /swagger routes used in setupRoutes, so we can test redirect behaviour
-// without starting the full application.
+// buildDocsRouter returns a Gin router configured through the same
+// registerDocsRoutes helper used by setupRoutes, with a stub handler for doc
+// files, so the test stays aligned with production routing as it evolves.
 func buildDocsRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-
-	docsIndexRedirect := func(c *gin.Context) {
-		target := "/docs/index.html"
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	}
-	r.GET("/docs", docsIndexRedirect)
-	r.GET("/docs/*any", func(c *gin.Context) {
-		if c.Param("any") == "/" {
-			docsIndexRedirect(c)
-			return
-		}
-		// Simulate gin-swagger returning 200 for a valid file request.
-		c.String(http.StatusOK, "ok")
-	})
-	r.GET("/swagger", func(c *gin.Context) {
-		target := "/docs/index.html"
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	})
-	r.GET("/swagger/*any", func(c *gin.Context) {
-		target := "/docs" + c.Param("any")
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	})
+	// Stub handler: simulate gin-swagger returning 200 for a valid file request.
+	registerDocsRoutes(r, func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	return r
 }
 

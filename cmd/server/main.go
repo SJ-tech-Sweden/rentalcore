@@ -820,6 +820,38 @@ func main() {
 	log.Fatal(http.ListenAndServe(addr, methodOverrideHandler))
 }
 
+// registerDocsRoutes mounts the Swagger / OpenAPI UI at /docs and adds
+// backward-compatible redirects from /swagger. docsFileHandler is the handler
+// that serves individual doc files (e.g. index.html, doc.json); pass
+// ginSwagger.WrapHandler(swaggerfiles.Handler) in production or a stub in tests.
+func registerDocsRoutes(r *gin.Engine, docsFileHandler gin.HandlerFunc) {
+	docsIndexRedirect := func(c *gin.Context) {
+		target := "/docs/index.html"
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusMovedPermanently, target)
+	}
+	r.GET("/docs", docsIndexRedirect)
+	r.GET("/docs/*any", func(c *gin.Context) {
+		// Redirect bare /docs/ to the index page
+		if c.Param("any") == "/" {
+			docsIndexRedirect(c)
+			return
+		}
+		docsFileHandler(c)
+	})
+	// Backward-compatible redirect: /swagger/* → /docs/*
+	r.GET("/swagger", docsIndexRedirect)
+	r.GET("/swagger/*any", func(c *gin.Context) {
+		target := "/docs" + c.Param("any")
+		if c.Request.URL.RawQuery != "" {
+			target += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusMovedPermanently, target)
+	})
+}
+
 func setupRoutes(r *gin.Engine,
 	cfg *config.Config,
 	jobHandler *handlers.JobHandler,
@@ -858,38 +890,7 @@ func setupRoutes(r *gin.Engine,
 	complianceMiddleware *compliance.ComplianceMiddleware) {
 
 	// Swagger / OpenAPI UI routes (accessible at /docs)
-	docsHandler := ginSwagger.WrapHandler(swaggerfiles.Handler)
-	docsIndexRedirect := func(c *gin.Context) {
-		target := "/docs/index.html"
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	}
-	r.GET("/docs", docsIndexRedirect)
-	r.GET("/docs/*any", func(c *gin.Context) {
-		// Redirect bare /docs/ to the index page
-		if c.Param("any") == "/" {
-			docsIndexRedirect(c)
-			return
-		}
-		docsHandler(c)
-	})
-	// Backward-compatible redirect: /swagger/* → /docs/*
-	r.GET("/swagger", func(c *gin.Context) {
-		target := "/docs/index.html"
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	})
-	r.GET("/swagger/*any", func(c *gin.Context) {
-		target := "/docs" + c.Param("any")
-		if c.Request.URL.RawQuery != "" {
-			target += "?" + c.Request.URL.RawQuery
-		}
-		c.Redirect(http.StatusMovedPermanently, target)
-	})
+	registerDocsRoutes(r, ginSwagger.WrapHandler(swaggerfiles.Handler))
 
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {
