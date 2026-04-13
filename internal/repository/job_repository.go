@@ -1,12 +1,20 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"go-barcode-webapp/internal/models"
 	"log"
 	"strings"
 
 	"gorm.io/gorm"
+)
+
+// Sentinel errors for cable assignment
+var (
+	ErrCableNotFound       = errors.New("cable not found")
+	ErrJobNotFound         = errors.New("job not found")
+	ErrCableAlreadyAssigned = errors.New("cable is already assigned to this job")
 )
 
 type JobRepository struct {
@@ -532,30 +540,47 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 }
 
 func (r *JobRepository) AssignCable(jobID uint, cableID int) error {
+	// Check that the job exists
+	var job models.Job
+	if err := r.db.First(&job, jobID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return ErrJobNotFound
+		}
+		return fmt.Errorf("error checking job: %w", err)
+	}
+
 	// Check that the cable exists
 	var cable models.Cable
 	if err := r.db.First(&cable, cableID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return fmt.Errorf("cable not found")
+			return ErrCableNotFound
 		}
-		return fmt.Errorf("error checking cable: %v", err)
+		return fmt.Errorf("error checking cable: %w", err)
 	}
 
 	// Check if cable is already assigned to this job
 	var existing models.JobCable
 	err := r.db.Where("jobid = ? AND \"cableID\" = ?", jobID, cableID).First(&existing).Error
 	if err == nil {
-		return fmt.Errorf("cable is already assigned to this job")
+		return ErrCableAlreadyAssigned
 	}
 	if err != gorm.ErrRecordNotFound {
-		return fmt.Errorf("error checking cable assignment: %v", err)
+		return fmt.Errorf("error checking cable assignment: %w", err)
 	}
 
 	jobCable := &models.JobCable{
 		JobID:   int(jobID),
 		CableID: cableID,
 	}
-	return r.db.Create(jobCable).Error
+	if err := r.db.Create(jobCable).Error; err != nil {
+		// Handle race condition: duplicate PK insert
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") ||
+			strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return ErrCableAlreadyAssigned
+		}
+		return fmt.Errorf("error assigning cable: %w", err)
+	}
+	return nil
 }
 
 func (r *JobRepository) RemoveCable(jobID uint, cableID int) error {

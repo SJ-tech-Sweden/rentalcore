@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -2142,7 +2143,14 @@ func (h *JobHandler) AssignCableToJobAPI(c *gin.Context) {
 	}
 
 	if err := h.jobRepo.AssignCable(uint(jobID), req.CableID); err != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		switch {
+		case errors.Is(err, repository.ErrJobNotFound), errors.Is(err, repository.ErrCableNotFound):
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		case errors.Is(err, repository.ErrCableAlreadyAssigned):
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
 		return
 	}
 

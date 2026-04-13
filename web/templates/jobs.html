@@ -661,7 +661,7 @@
         document.getElementById('jobCablesContent').style.display = 'block';
 
         // Update modal title
-        document.getElementById('jobDetailsModalTitle').innerHTML = '<i class="bi bi-ethernet"></i> Cable Overview - Job #' + jobID;
+        document.getElementById('jobDetailsModalTitle').innerHTML = '<i class="bi bi-ethernet"></i> ' + (window.t ? window.t('jobs.cableOverview', 'Cable Overview - Job #' + jobID) : ('Cable Overview - Job #' + jobID));
 
         // Make modal larger
         document.getElementById('jobDetailsModalContent').style.maxWidth = '1400px';
