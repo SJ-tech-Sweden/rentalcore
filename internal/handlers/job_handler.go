@@ -2171,6 +2171,11 @@ func (h *JobHandler) RemoveCableFromJobAPI(c *gin.Context) {
 		return
 	}
 
+	if cableID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cable ID"})
+		return
+	}
+
 	if err := h.jobRepo.RemoveCable(uint(jobID), cableID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -7,13 +7,14 @@ import (
 	"log"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
 // Sentinel errors for cable assignment
 var (
-	ErrCableNotFound       = errors.New("cable not found")
-	ErrJobNotFound         = errors.New("job not found")
+	ErrCableNotFound        = errors.New("cable not found")
+	ErrJobNotFound          = errors.New("job not found")
 	ErrCableAlreadyAssigned = errors.New("cable is already assigned to this job")
 )
 
@@ -574,6 +575,11 @@ func (r *JobRepository) AssignCable(jobID uint, cableID int) error {
 	}
 	if err := r.db.Create(jobCable).Error; err != nil {
 		// Handle race condition: duplicate PK insert
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrCableAlreadyAssigned
+		}
+		// Fallback for non-PostgreSQL databases (e.g., SQLite in tests)
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") ||
 			strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return ErrCableAlreadyAssigned
