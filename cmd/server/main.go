@@ -1519,18 +1519,14 @@ func setupRoutes(r *gin.Engine,
 				apiScan.POST("/consumable", accessoriesConsumablesHandler.ScanConsumableAPI)
 			}
 
-			// Cable API - removed, now handled by WarehouseCore
-			// Only keeping read-only endpoints if needed by jobs/invoices
-			// apiCables := api.Group("/cables")
-			// {
-			// 	apiCables.GET("", cableHandler.ListCablesAPI)
-			// 	apiCables.POST("", cableHandler.CreateCableAPI)
-			// 	apiCables.GET("/:id", cableHandler.GetCableAPI)
-			// 	apiCables.PUT("/:id", cableHandler.UpdateCableAPI)
-			// 	apiCables.DELETE("/:id", cableHandler.DeleteCableAPI)
-			// 	apiCables.GET("/types", cableHandler.GetCableTypesAPI)
-			// 	apiCables.GET("/connectors", cableHandler.GetCableConnectorsAPI)
-			// }
+			// Cable API (read-only endpoints) - enable lightweight cable lookup
+			apiCables := api.Group("/cables")
+			{
+				apiCables.GET("", cableHandler.ListCablesAPI)
+				apiCables.GET("/:id", cableHandler.GetCableAPI)
+				apiCables.GET("/types", cableHandler.GetCableTypesAPI)
+				apiCables.GET("/connectors", cableHandler.GetCableConnectorsAPI)
+			}
 
 			// Customer API
 			apiCustomers := api.Group("/customers")

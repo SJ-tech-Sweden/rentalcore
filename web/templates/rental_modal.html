@@ -1,0 +1,605 @@
+{{define "rental_modal.html"}}
+<!-- Rental modal partial (shared) -->
+<div class="rc-modal" data-role="rental-modal" style="display: none;">
+    <div class="rc-modal-overlay" data-action="close-rental-modal"></div>
+    <div class="rc-modal-content" style="max-width: 900px;">
+        <div class="rc-modal-header">
+            <h3 class="rc-modal-title">Rental Equipment</h3>
+            <button type="button" class="rc-modal-close" data-action="close-rental-modal">×</button>
+        </div>
+        <div class="rc-modal-body">
+            <div style="display:flex; gap:12px; margin-bottom:12px; align-items:center;">
+                <input id="rentalSearchInput" class="rc-input" placeholder="Search by name or supplier" style="flex:1;">
+                <button type="button" class="rc-btn rc-btn-outline" id="rentalRefreshBtn">Refresh</button>
+                <div id="rentalModalError" style="margin-left:8px; color: var(--danger); font-size:0.9rem; display:none;"></div>
+            </div>
+            <div style="display:flex; gap:16px;">
+                <div style="flex:1; max-height: 360px; overflow:auto; border-right:1px solid var(--surface-3); padding-right:12px;">
+                    <table class="rc-table rc-table-compact" id="rentalListTable">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;"><input type="checkbox" id="rentalHeaderSelectAll"></th>
+                                <th>Product</th>
+                                <th>Supplier</th>
+                                <th style="width:80px;">Price</th>
+                                <th style="width:80px;">Qty</th>
+                                <th style="width:80px;">Days</th>
+                                <th style="width:120px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rentalListBody"></tbody>
+                    </table>
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px;">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button type="button" class="rc-btn rc-btn-sm" id="rentalPrevPageBtn">Prev</button>
+                            <button type="button" class="rc-btn rc-btn-sm" id="rentalNextPageBtn">Next</button>
+                            <button type="button" class="rc-btn rc-btn-sm" id="addSelectedBtn">Add Selected</button>
+                            <button type="button" class="rc-btn rc-btn-sm" id="selectAllMatchingBtn">Select all matching</button>
+                            <div id="rentalPageIndicator" style="margin-left:8px; font-size:0.9rem;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <label style="font-size:0.85rem; color:var(--text-muted);">Per page</label>
+                            <select id="rentalPageSizeSelect" class="rc-input" style="width:80px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="25">25</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="rentalSelectInfo" style="display:none; padding-top:8px;">
+                        <span id="rentalSelectInfoText" style="font-size:0.95rem; color:var(--text-muted);"></span>
+                        <div style="margin-top:6px; display:flex; gap:8px;">
+                            <button type="button" class="rc-btn rc-btn-sm rc-btn-primary" id="addAllConfirmBtn">Add all matching</button>
+                            <button type="button" class="rc-btn rc-btn-sm" id="clearSelectionBtn">Clear selection</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="width:320px;">
+                    <h4>Create new rental device</h4>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input id="newRentalProductName" class="rc-input" placeholder="Product name">
+                            <div class="field-error" id="error_newRentalProductName" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input id="newRentalSupplier" class="rc-input" placeholder="Supplier name">
+                            <div class="field-error" id="error_newRentalSupplier" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input id="newRentalPrice" class="rc-input" placeholder="Rental price">
+                            <div class="field-error" id="error_newRentalPrice" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <div style="flex:1; display:flex; flex-direction:column;">
+                                <input id="newRentalQty" class="rc-input" placeholder="Quantity to add to job (default 1)" value="1">
+                                <div class="field-error" id="error_newRentalQty" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                            </div>
+                            <div style="flex:1; display:flex; flex-direction:column;">
+                                <input id="newRentalDays" class="rc-input" placeholder="Days used (default 1)" value="1">
+                                <div class="field-error" id="error_newRentalDays" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <textarea id="newRentalNotes" class="rc-textarea" placeholder="Notes"></textarea>
+                            <div class="field-error" id="error_newRentalNotes" style="display:none; color:var(--danger); font-size:0.85rem;"></div>
+                        </div>
+                        <div style="display:flex; gap:8px; justify-content:flex-end;">
+                            <button type="button" class="rc-btn rc-btn-secondary" data-action="close-rental-modal">Cancel</button>
+                            <button type="button" class="rc-btn rc-btn-primary" id="createManualRentalBtn">Create & Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Rental Equipment Selection Functionality (shared)
+const rentalSelections = new Map();
+
+function initializeRentalEquipment() {
+    const qtyInputs = document.querySelectorAll('.rental-qty-input');
+    const daysInputs = document.querySelectorAll('.rental-days-input');
+    const notesInputs = document.querySelectorAll('.rental-notes-input');
+
+    qtyInputs.forEach(input => {
+        input.addEventListener('change', updateRentalSelection);
+        input.addEventListener('input', updateRentalSelection);
+    });
+
+    daysInputs.forEach(input => {
+        input.addEventListener('change', updateRentalSelection);
+        input.addEventListener('input', updateRentalSelection);
+    });
+
+    notesInputs.forEach(input => {
+        input.addEventListener('change', updateRentalSelection);
+        input.addEventListener('input', updateRentalSelection);
+    });
+
+    // Load existing selections if editing
+    loadExistingRentalSelections();
+}
+
+function loadExistingRentalSelections() {
+    // placeholder: job-specific preloads are rendered where template is used
+}
+
+function updateRentalSelection(event) {
+    const input = event.target;
+    const equipmentId = input.dataset.equipmentId;
+    const row = input.closest('tr');
+    if (!row) return;
+    const qtyInput = row.querySelector('.rental-qty-input');
+    const daysInput = row.querySelector('.rental-days-input');
+    const notesInput = row.querySelector('.rental-notes-input');
+    const qty = parseInt(qtyInput.value) || 0;
+    const days = parseInt(daysInput.value) || 1;
+    const notes = notesInput ? notesInput.value : '';
+    const rentalPrice = parseFloat(qtyInput.dataset.rentalPrice) || 0;
+    const customerPrice = parseFloat(qtyInput.dataset.customerPrice) || 0;
+    const productName = row.querySelector('strong')?.textContent?.trim() || 'Unknown';
+    const supplierHeader = row.closest('.rc-mb-lg')?.querySelector('h5 i.bi-building')?.parentElement;
+    const supplierName = supplierHeader ? supplierHeader.childNodes[1]?.textContent?.trim() : 'Unknown';
+    if (qty > 0) {
+        rentalSelections.set(equipmentId, {
+            equipmentId: parseInt(equipmentId),
+            productName: productName,
+            supplierName: supplierName,
+            quantity: qty,
+            days: days,
+            rentalPrice: rentalPrice,
+            customerPrice: customerPrice,
+            notes: notes,
+            totalCost: rentalPrice * qty * days,
+            totalRevenue: customerPrice * qty * days
+        });
+    } else {
+        rentalSelections.delete(equipmentId);
+    }
+    updateRentalSummary();
+    updateRentalHiddenInput();
+}
+
+function updateRentalSummary() {
+    const emptyMsg = document.getElementById('selectedRentalEmpty');
+    const table = document.getElementById('selectedRentalTable');
+    const tbody = document.getElementById('selectedRentalBody');
+    const totalCostEl = document.getElementById('totalRentalCost');
+    const totalRevenueEl = document.getElementById('totalRentalRevenue');
+    if (!tbody) return;
+    if (rentalSelections.size === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        if (table) table.style.display = 'none';
+        return;
+    }
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    if (table) table.style.display = 'table';
+    let html = '';
+    let totalCost = 0;
+    let totalRevenue = 0;
+    rentalSelections.forEach(selection => {
+        const cost = selection.totalCost;
+        const revenue = selection.totalRevenue;
+        totalCost += cost;
+        totalRevenue += revenue;
+        html += `
+            <tr>
+                <td>
+                    <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; font-size: 0.6rem; padding: 2px 6px; margin-right: 4px;">
+                        Miet
+                    </span>
+                    ${escapeHtml(selection.productName)}
+                </td>
+                <td style="font-size: 0.85rem;">${escapeHtml(selection.supplierName)}</td>
+                <td style="text-align: center;">${selection.quantity}</td>
+                <td style="text-align: center;">${selection.days}</td>
+                <td style="font-family: 'JetBrains Mono', monospace; color: #f97316; font-size: 0.85rem;">${cost.toFixed(2)} EUR</td>
+                <td style="font-family: 'JetBrains Mono', monospace; color: #22c55e; font-size: 0.85rem;">${revenue.toFixed(2)} EUR</td>
+            </tr>
+        `;
+    });
+    tbody.innerHTML = html;
+    if (totalCostEl) totalCostEl.textContent = totalCost.toFixed(2) + ' EUR';
+    if (totalRevenueEl) totalRevenueEl.textContent = totalRevenue.toFixed(2) + ' EUR';
+}
+
+function updateRentalHiddenInput() {
+    const input = document.getElementById('selectedRentalInput');
+    if (!input) return;
+    const selections = [];
+    rentalSelections.forEach(selection => {
+        selections.push({
+            equipment_id: selection.equipmentId,
+            quantity: selection.quantity,
+            days_used: selection.days,
+            notes: selection.notes
+        });
+    });
+    input.value = JSON.stringify(selections);
+}
+
+// Rental browser / create modal JS (list, paging, selection)
+function openRentalModal() {
+    const modal = document.querySelector('[data-role="rental-modal"]');
+    if (!modal) return;
+    modal.style.display = 'block';
+    document.querySelector('[data-action="close-rental-modal"]').addEventListener('click', () => closeRentalModal());
+}
+
+function closeRentalModal() {
+    const modal = document.querySelector('[data-role="rental-modal"]');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+let rentalItemsCache = [];
+let rentalCurrentPage = 1;
+let rentalPageSize = 10;
+const rentalSelectedIds = new Set();
+let rentalSelectAllMatching = false;
+
+async function loadRentalList() {
+    const body = document.getElementById('rentalListBody');
+    const errorEl = document.getElementById('rentalModalError');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="4">Loading…</td></tr>';
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    try {
+        const res = await fetch('/api/v1/rental-equipment', { credentials: 'include' });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = data.error || 'Failed to load rental equipment'; }
+            body.innerHTML = '<tr><td colspan="4">Failed to load</td></tr>';
+            return;
+        }
+        const data = await res.json();
+        rentalItemsCache = data.rentalEquipment || [];
+        rentalCurrentPage = 1;
+        renderRentalPage(rentalCurrentPage);
+    } catch (err) {
+        if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = 'Error loading rental list'; }
+        body.innerHTML = '<tr><td colspan="4">Error loading</td></tr>';
+    }
+}
+
+function getFilteredRentalItems() {
+    const search = document.getElementById('rentalSearchInput')?.value?.toLowerCase()?.trim() || '';
+    if (!search) return rentalItemsCache.slice();
+    return rentalItemsCache.filter(it => (it.productName || '').toLowerCase().includes(search) || (it.supplierName || '').toLowerCase().includes(search));
+}
+
+function renderRentalPage(page) {
+    const body = document.getElementById('rentalListBody');
+    const indicator = document.getElementById('rentalPageIndicator');
+    if (!body) return;
+    const items = getFilteredRentalItems();
+    rentalPageSize = parseInt(document.getElementById('rentalPageSizeSelect')?.value || '10', 10) || 10;
+    const total = items.length;
+    const pages = Math.max(1, Math.ceil(total / rentalPageSize));
+    rentalCurrentPage = Math.min(Math.max(1, page), pages);
+    const start = (rentalCurrentPage - 1) * rentalPageSize;
+    const pageItems = items.slice(start, start + rentalPageSize);
+    if (pageItems.length === 0) {
+        body.innerHTML = '<tr><td colspan="4">No results</td></tr>';
+    } else {
+        body.innerHTML = '';
+        pageItems.forEach(it => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align:center;"><input type="checkbox" class="rental-select-checkbox" data-eid="${it.equipmentID}"></td>
+                <td>${escapeHtml(it.productName)}</td>
+                <td>${escapeHtml(it.supplierName)}</td>
+                <td style="font-family: 'JetBrains Mono', monospace;">${parseFloat(it.rentalPrice).toFixed(2)} EUR</td>
+                <td><input type="number" class="rc-input rental-modal-qty" value="1" min="1" style="width:70px; padding:4px; text-align:center;" data-eid="${it.equipmentID}"></td>
+                <td><input type="number" class="rc-input rental-modal-days" value="1" min="1" style="width:70px; padding:4px; text-align:center;" data-eid="${it.equipmentID}"></td>
+                <td><button class="rc-btn rc-btn-sm rc-btn-outline" data-eid="${it.equipmentID}">Add</button></td>
+            `;
+            const btn = tr.querySelector('button');
+            btn.addEventListener('click', () => {
+                const qty = parseInt(tr.querySelector('.rental-modal-qty')?.value || '1', 10) || 1;
+                const days = parseInt(tr.querySelector('.rental-modal-days')?.value || '1', 10) || 1;
+                addRentalFromListWithValues(it, qty, days);
+            });
+            body.appendChild(tr);
+        });
+    }
+    if (indicator) indicator.textContent = `Page ${rentalCurrentPage} / ${pages} (${total} items)`;
+    const checkboxes = document.querySelectorAll('.rental-select-checkbox');
+    checkboxes.forEach(cb => {
+        const id = cb.dataset.eid;
+        if (rentalSelectAllMatching) {
+            cb.checked = true;
+        } else {
+            cb.checked = rentalSelectedIds.has(String(id));
+        }
+        cb.addEventListener('change', (e) => {
+            const checked = e.target.checked;
+            const id = e.target.dataset.eid;
+            if (checked) rentalSelectedIds.add(String(id)); else rentalSelectedIds.delete(String(id));
+            document.getElementById('rentalHeaderSelectAll').checked = areAllVisibleChecked();
+        });
+    });
+    const headerCheckbox = document.getElementById('rentalHeaderSelectAll');
+    if (headerCheckbox) {
+        headerCheckbox.checked = areAllVisibleChecked();
+        headerCheckbox.onchange = (e) => {
+            const checked = e.target.checked;
+            document.querySelectorAll('.rental-select-checkbox').forEach(cb => { cb.checked = checked; const id = cb.dataset.eid; if (checked) rentalSelectedIds.add(String(id)); else rentalSelectedIds.delete(String(id)); });
+        };
+    }
+    const selectAllBtn = document.getElementById('selectAllMatchingBtn');
+    if (selectAllBtn) {
+        selectAllBtn.textContent = rentalSelectAllMatching ? 'Unselect all matching' : 'Select all matching';
+        selectAllBtn.onclick = () => {
+            rentalSelectAllMatching = !rentalSelectAllMatching;
+            if (rentalSelectAllMatching) {
+                getFilteredRentalItems().forEach(it => rentalSelectedIds.add(String(it.equipmentID)));
+            } else {
+                getFilteredRentalItems().forEach(it => rentalSelectedIds.delete(String(it.equipmentID)));
+            }
+            renderRentalPage(rentalCurrentPage);
+            updateSelectInfo();
+        };
+    }
+}
+
+function updateSelectInfo() {
+    const info = document.getElementById('rentalSelectInfo');
+    const infoText = document.getElementById('rentalSelectInfoText');
+    if (!info || !infoText) return;
+    if (rentalSelectAllMatching) {
+        const count = getFilteredRentalItems().length;
+        info.style.display = 'block';
+        infoText.textContent = `All ${count} matching items are selected.`;
+    } else if (rentalSelectedIds.size > 0) {
+        info.style.display = 'block';
+        infoText.textContent = `${rentalSelectedIds.size} items selected`;
+    } else {
+        info.style.display = 'none';
+        infoText.textContent = '';
+    }
+    const addAllBtn = document.getElementById('addAllConfirmBtn');
+    const clearBtn = document.getElementById('clearSelectionBtn');
+    if (addAllBtn) addAllBtn.onclick = () => { addAllMatchingToSelections(); };
+    if (clearBtn) clearBtn.onclick = () => { rentalSelectedIds.clear(); rentalSelectAllMatching = false; renderRentalPage(rentalCurrentPage); updateSelectInfo(); };
+}
+
+function addAllMatchingToSelections() {
+    const items = getFilteredRentalItems();
+    items.forEach(it => {
+        rentalSelections.set(String(it.equipmentID), {
+            equipmentId: it.equipmentID,
+            productName: it.productName,
+            supplierName: it.supplierName,
+            quantity: 1,
+            days: 1,
+            rentalPrice: parseFloat(it.rentalPrice) || 0,
+            customerPrice: 0,
+            notes: '',
+            totalCost: (parseFloat(it.rentalPrice) || 0) * 1 * 1,
+            totalRevenue: 0
+        });
+    });
+    updateRentalSummary();
+    updateRentalHiddenInput();
+    rentalSelectedIds.clear();
+    rentalSelectAllMatching = false;
+    renderRentalPage(rentalCurrentPage);
+    updateSelectInfo();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const prev = document.getElementById('rentalPrevPageBtn');
+    const next = document.getElementById('rentalNextPageBtn');
+    const pageSize = document.getElementById('rentalPageSizeSelect');
+    const search = document.getElementById('rentalSearchInput');
+    if (prev) prev.addEventListener('click', () => renderRentalPage(rentalCurrentPage - 1));
+    if (next) next.addEventListener('click', () => renderRentalPage(rentalCurrentPage + 1));
+    if (pageSize) pageSize.addEventListener('change', () => renderRentalPage(1));
+    if (search) search.addEventListener('input', () => renderRentalPage(1));
+    const addSelected = document.getElementById('addSelectedBtn');
+    if (addSelected) addSelected.addEventListener('click', addSelectedRentals);
+});
+
+function addRentalFromList(item) {
+    const qtyInput = document.querySelector(`input[name="rental_qty_${item.equipmentID}"]`);
+    const daysInput = document.querySelector(`input[name="rental_days_${item.equipmentID}"]`);
+    if (qtyInput) {
+        qtyInput.value = 1;
+        qtyInput.dispatchEvent(new Event('change'));
+        if (daysInput) daysInput.value = 1;
+    } else {
+        rentalSelections.set(String(item.equipmentID), {
+            equipmentId: item.equipmentID,
+            productName: item.productName,
+            supplierName: item.supplierName,
+            quantity: 1,
+            days: 1,
+            rentalPrice: parseFloat(item.rentalPrice) || 0,
+            customerPrice: 0,
+            notes: '',
+            totalCost: (parseFloat(item.rentalPrice) || 0) * 1 * 1,
+            totalRevenue: 0
+        });
+        updateRentalSummary();
+        updateRentalHiddenInput();
+    }
+    closeRentalModal();
+}
+
+function addRentalFromListWithValues(item, qty, days) {
+    const qtyInput = document.querySelector(`input[name="rental_qty_${item.equipmentID}"]`);
+    const daysInput = document.querySelector(`input[name="rental_days_${item.equipmentID}"]`);
+    if (qtyInput) {
+        qtyInput.value = qty;
+        qtyInput.dispatchEvent(new Event('change'));
+        if (daysInput) daysInput.value = days;
+    } else {
+        rentalSelections.set(String(item.equipmentID), {
+            equipmentId: item.equipmentID,
+            productName: item.productName,
+            supplierName: item.supplierName,
+            quantity: qty,
+            days: days,
+            rentalPrice: parseFloat(item.rentalPrice) || 0,
+            customerPrice: 0,
+            notes: '',
+            totalCost: (parseFloat(item.rentalPrice) || 0) * qty * days,
+            totalRevenue: 0
+        });
+        updateRentalSummary();
+        updateRentalHiddenInput();
+    }
+    closeRentalModal();
+}
+
+function addSelectedRentals() {
+    const checkboxes = Array.from(document.querySelectorAll('.rental-select-checkbox'));
+    const selected = checkboxes.filter(cb => cb.checked);
+    if (selected.length === 0) {
+        alert('Select at least one device to add');
+        return;
+    }
+    selected.forEach(cb => {
+        const eid = cb.dataset.eid;
+        const item = rentalItemsCache.find(it => String(it.equipmentID) === String(eid));
+        if (!item) return;
+        const qty = parseInt(document.querySelector(`.rental-modal-qty[data-eid="${eid}"]`)?.value || '1', 10) || 1;
+        const days = parseInt(document.querySelector(`.rental-modal-days[data-eid="${eid}"]`)?.value || '1', 10) || 1;
+        rentalSelections.set(String(item.equipmentID), {
+            equipmentId: item.equipmentID,
+            productName: item.productName,
+            supplierName: item.supplierName,
+            quantity: qty,
+            days: days,
+            rentalPrice: parseFloat(item.rentalPrice) || 0,
+            customerPrice: 0,
+            notes: '',
+            totalCost: (parseFloat(item.rentalPrice) || 0) * qty * days,
+            totalRevenue: 0
+        });
+    });
+    updateRentalSummary();
+    updateRentalHiddenInput();
+    closeRentalModal();
+}
+
+async function createManualRentalAndAdd() {
+    const productName = document.getElementById('newRentalProductName').value.trim();
+    const supplier = document.getElementById('newRentalSupplier').value.trim();
+    const price = parseFloat(document.getElementById('newRentalPrice').value) || 0;
+    const qty = parseInt(document.getElementById('newRentalQty').value, 10) || 1;
+    const days = parseInt(document.getElementById('newRentalDays').value, 10) || 1;
+    const notes = document.getElementById('newRentalNotes').value || '';
+    const jobID = (typeof window !== 'undefined' && window.__CURRENT_JOB_ID__) ? window.__CURRENT_JOB_ID__ : null;
+    if (!jobID) {
+        alert('Save the job first before adding manual rental items');
+        return;
+    }
+    const body = {
+        jobID: jobID,
+        productName: productName,
+        supplierName: supplier,
+        rentalPrice: price,
+        quantity: qty,
+        daysUsed: days,
+        description: '',
+        notes: notes
+    };
+    const errorEl = document.getElementById('rentalModalError');
+    const createBtnEl = document.getElementById('createManualRentalBtn');
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+    clearFieldErrors();
+    if (createBtnEl) createBtnEl.disabled = true;
+    try {
+        const res = await fetch('/api/v1/rental-equipment/manual-entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            credentials: 'include'
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            if (data.fields) {
+                showFieldErrors(data.fields);
+            }
+            if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = data.error || (data.details || 'Failed to create manual rental entry'); }
+            return;
+        }
+        const eq = data.rentalEquipment;
+        rentalSelections.set(String(eq.equipmentID), {
+            equipmentId: eq.equipmentID,
+            productName: eq.productName,
+            supplierName: eq.supplierName,
+            quantity: qty,
+            days: days,
+            rentalPrice: eq.rentalPrice,
+            customerPrice: 0,
+            notes: notes,
+            totalCost: eq.rentalPrice * qty * days,
+            totalRevenue: 0
+        });
+        updateRentalSummary();
+        updateRentalHiddenInput();
+        closeRentalModal();
+    } catch (err) {
+        if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = 'Failed to create manual rental entry'; }
+    } finally {
+        if (createBtnEl) createBtnEl.disabled = false;
+    }
+}
+
+function showFieldErrors(fields) {
+    const mapping = {
+        "ProductName": 'newRentalProductName',
+        "SupplierName": 'newRentalSupplier',
+        "RentalPrice": 'newRentalPrice',
+        "Quantity": 'newRentalQty',
+        "DaysUsed": 'newRentalDays',
+        "Category": null,
+        "Description": null,
+        "Notes": 'newRentalNotes',
+    };
+    try {
+        for (const k in fields) {
+            const id = mapping[k];
+            const msg = fields[k];
+            if (id) {
+                const el = document.getElementById(id);
+                const ferr = document.getElementById('error_' + id);
+                if (ferr) { ferr.style.display = 'block'; ferr.textContent = msg; }
+                if (el) el.classList.add('rc-input-error');
+            } else {
+                const errorEl = document.getElementById('rentalModalError');
+                if (errorEl) { errorEl.style.display = 'block'; errorEl.textContent = msg; }
+            }
+        }
+    } catch (e) { console.error('showFieldErrors', e); }
+}
+
+function clearFieldErrors() {
+    const ids = ['newRentalProductName','newRentalSupplier','newRentalPrice','newRentalQty','newRentalDays','newRentalNotes'];
+    ids.forEach(id => {
+        const ferr = document.getElementById('error_' + id);
+        if (ferr) { ferr.style.display = 'none'; ferr.textContent = ''; }
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('rc-input-error');
+    });
+}
+
+// wire modal buttons (partial-level)
+document.addEventListener('DOMContentLoaded', () => {
+    const openBtn = document.getElementById('openRentalBrowserBtn');
+    const createBtn = document.getElementById('openRentalCreateBtn');
+    const refreshBtn = document.getElementById('rentalRefreshBtn');
+    const createManualBtn = document.getElementById('createManualRentalBtn');
+    if (openBtn) openBtn.addEventListener('click', () => { openRentalModal(); loadRentalList(); });
+    if (createBtn) createBtn.addEventListener('click', () => openRentalModal());
+    if (refreshBtn) refreshBtn.addEventListener('click', loadRentalList);
+    if (createManualBtn) createManualBtn.addEventListener('click', createManualRentalAndAdd);
+});
+
+</script>
+{{end}}

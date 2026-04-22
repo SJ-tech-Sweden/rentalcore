@@ -152,6 +152,63 @@ func parseRentalEquipmentSelections(raw string) ([]RentalEquipmentSelection, err
 	return selections, nil
 }
 
+func parseRentalEquipmentSelectionsFromInterface(value interface{}) ([]RentalEquipmentSelection, error) {
+	switch v := value.(type) {
+	case string:
+		return parseRentalEquipmentSelections(v)
+	case []interface{}:
+		selections := make([]RentalEquipmentSelection, 0, len(v))
+		for _, item := range v {
+			obj, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			sel := RentalEquipmentSelection{}
+			if idVal, exists := obj["equipment_id"]; exists {
+				switch id := idVal.(type) {
+				case float64:
+					sel.EquipmentID = uint(id)
+				case int:
+					sel.EquipmentID = uint(id)
+				case uint:
+					sel.EquipmentID = id
+				}
+			}
+			if qtyVal, exists := obj["quantity"]; exists {
+				switch q := qtyVal.(type) {
+				case float64:
+					sel.Quantity = uint(q)
+				case int:
+					sel.Quantity = uint(q)
+				case uint:
+					sel.Quantity = q
+				}
+			}
+			if daysVal, exists := obj["days_used"]; exists {
+				switch d := daysVal.(type) {
+				case float64:
+					sel.DaysUsed = uint(d)
+				case int:
+					sel.DaysUsed = uint(d)
+				case uint:
+					sel.DaysUsed = d
+				}
+			}
+			if notesVal, exists := obj["notes"]; exists {
+				if s, ok := notesVal.(string); ok {
+					sel.Notes = s
+				}
+			}
+			selections = append(selections, sel)
+		}
+		return selections, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported selected_rental_equipment payload")
+	}
+}
+
 func formatUserDisplayName(user *models.User) string {
 	if user == nil {
 		return ""
@@ -1206,6 +1263,23 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 		}
 	}
 
+	// Accept rental equipment selections in API payload (similar to products)
+	if rentalValue, exists := requestData["selected_rental_equipment"]; exists {
+		rentalSelections, err := parseRentalEquipmentSelectionsFromInterface(rentalValue)
+		if err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment payload"})
+			return
+		}
+		if len(rentalSelections) > 0 {
+			if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
+				_ = h.jobRepo.Delete(job.JobID)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+		}
+	}
+
 	if h.twentyService != nil {
 		// Reload the job with associations (Status etc.) so the stage mapping is accurate.
 		if syncedJob, err := h.jobRepo.GetByID(job.JobID); err == nil {
@@ -1415,6 +1489,21 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 		if err := h.applyProductSelections(&job, selections); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+	}
+
+	// Accept rental equipment selections in API payload (similar to products)
+	if rentalValue, exists := requestData["selected_rental_equipment"]; exists {
+		rentalSelections, err := parseRentalEquipmentSelectionsFromInterface(rentalValue)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment payload"})
+			return
+		}
+		if len(rentalSelections) > 0 {
+			if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
 		}
 	}
 
