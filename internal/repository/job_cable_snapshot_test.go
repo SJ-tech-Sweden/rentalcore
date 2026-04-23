@@ -175,3 +175,54 @@ func TestGetJobCables_SnapshotMode_FallsBackToDBWhenAPIFails(t *testing.T) {
 		t.Error("Cable should be populated from DB fallback when API fails")
 	}
 }
+
+func TestGetJobCables_SnapshotMode_PopulatesLookupRelations(t *testing.T) {
+	db := newTestJobDB(t)
+
+	// Seed lookup tables so populateCableLookups can resolve names.
+	connector1 := models.CableConnector{CableConnectorsID: 1, Name: "XLR"}
+	connector2 := models.CableConnector{CableConnectorsID: 2, Name: "RCA"}
+	cableType := models.CableType{CableTypesID: 3, Name: "Audio"}
+	if err := db.Create(&connector1).Error; err != nil {
+		t.Fatalf("seed connector1: %v", err)
+	}
+	if err := db.Create(&connector2).Error; err != nil {
+		t.Fatalf("seed connector2: %v", err)
+	}
+	if err := db.Create(&cableType).Error; err != nil {
+		t.Fatalf("seed cable type: %v", err)
+	}
+
+	raw := json.RawMessage(`{"cableID":1,"connector1":1,"connector2":2,"typ":3,"length":5.0}`)
+	seedCableAndJobCable(t, db, raw)
+
+	repo := NewJobRepository(db)
+	repo.cableSnapshotEnabled = true
+
+	cables, err := repo.GetJobCables(1)
+	if err != nil {
+		t.Fatalf("GetJobCables() error: %v", err)
+	}
+	if len(cables) != 1 {
+		t.Fatalf("GetJobCables() returned %d rows, want 1", len(cables))
+	}
+	c := cables[0].Cable
+	if c == nil {
+		t.Fatal("Cable should be populated from snapshot")
+	}
+	if c.TypeInfo == nil {
+		t.Error("Cable.TypeInfo should be populated by populateCableLookups")
+	} else if c.TypeInfo.Name != "Audio" {
+		t.Errorf("Cable.TypeInfo.Name = %q, want %q", c.TypeInfo.Name, "Audio")
+	}
+	if c.Connector1Info == nil {
+		t.Error("Cable.Connector1Info should be populated by populateCableLookups")
+	} else if c.Connector1Info.Name != "XLR" {
+		t.Errorf("Cable.Connector1Info.Name = %q, want %q", c.Connector1Info.Name, "XLR")
+	}
+	if c.Connector2Info == nil {
+		t.Error("Cable.Connector2Info should be populated by populateCableLookups")
+	} else if c.Connector2Info.Name != "RCA" {
+		t.Errorf("Cable.Connector2Info.Name = %q, want %q", c.Connector2Info.Name, "RCA")
+	}
+}

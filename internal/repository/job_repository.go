@@ -561,12 +561,13 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 		for i := range jobCables {
 			if len(jobCables[i].CableSnapshot) > 0 {
 				var cable models.Cable
-				if err := json.Unmarshal(jobCables[i].CableSnapshot, &cable); err == nil {
+				if unmarshalErr := json.Unmarshal(jobCables[i].CableSnapshot, &cable); unmarshalErr == nil {
 					jobCables[i].Cable = &cable
 					continue
+				} else {
+					log.Printf("warn: failed to unmarshal cable_snapshot for jobid=%d cableID=%d: %v",
+						jobCables[i].JobID, jobCables[i].CableID, unmarshalErr)
 				}
-				log.Printf("warn: failed to unmarshal cable_snapshot for jobid=%d cableID=%d: %v",
-					jobCables[i].JobID, jobCables[i].CableID, err)
 			}
 
 			// Snapshot missing or corrupt – try WarehouseCore API first.
@@ -635,6 +636,15 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 			}
 		}
 
+		// Third pass: populate TypeInfo/Connector1Info/Connector2Info for cables
+		// that were loaded from snapshots or the WarehouseCore API.  Those cables
+		// only carry scalar ID fields; the lookup tables (cable_connectors,
+		// cable_types) are local and cheap to query in bulk.
+		if err := r.populateCableLookups(jobCables); err != nil {
+			log.Printf("warn: failed to populate cable lookup relations: %v", err)
+			// Non-fatal – callers receive the cable data, just without name strings.
+		}
+
 		return jobCables, nil
 	}
 
@@ -645,6 +655,80 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 		Preload("Cable.TypeInfo").
 		Find(&jobCables).Error
 	return jobCables, err
+}
+
+// populateCableLookups enriches Cable objects that were populated from JSONB
+// snapshots or the WarehouseCore API.  Those cables carry only scalar IDs for
+// Connector1, Connector2, and Type; this helper resolves them via two batched
+// queries against the local cable_connectors and cable_types lookup tables.
+// Cables already having TypeInfo populated (e.g. from the DB preload fallback)
+// are skipped.
+func (r *JobRepository) populateCableLookups(jobCables []models.JobCable) error {
+	// Collect unique IDs from cables that need lookup.
+	var connectorIDs, typeIDs []int
+	connectorSeen := map[int]bool{}
+	typeSeen := map[int]bool{}
+
+	for i := range jobCables {
+		c := jobCables[i].Cable
+		if c == nil || c.TypeInfo != nil {
+			continue // nil or already populated via DB preload
+		}
+		if !connectorSeen[c.Connector1] {
+			connectorSeen[c.Connector1] = true
+			connectorIDs = append(connectorIDs, c.Connector1)
+		}
+		if !connectorSeen[c.Connector2] {
+			connectorSeen[c.Connector2] = true
+			connectorIDs = append(connectorIDs, c.Connector2)
+		}
+		if !typeSeen[c.Type] {
+			typeSeen[c.Type] = true
+			typeIDs = append(typeIDs, c.Type)
+		}
+	}
+
+	if len(connectorIDs) == 0 && len(typeIDs) == 0 {
+		return nil
+	}
+
+	connectorMap := make(map[int]*models.CableConnector)
+	typeMap := make(map[int]*models.CableType)
+
+	if len(connectorIDs) > 0 {
+		var connectors []models.CableConnector
+		if err := r.db.Where(`"cable_connectorsID" IN ?`, connectorIDs).
+			Find(&connectors).Error; err != nil {
+			return fmt.Errorf("load cable connectors: %w", err)
+		}
+		for idx := range connectors {
+			connectorMap[connectors[idx].CableConnectorsID] = &connectors[idx]
+		}
+	}
+
+	if len(typeIDs) > 0 {
+		var cableTypes []models.CableType
+		if err := r.db.Where(`"cable_typesID" IN ?`, typeIDs).
+			Find(&cableTypes).Error; err != nil {
+			return fmt.Errorf("load cable types: %w", err)
+		}
+		for idx := range cableTypes {
+			typeMap[cableTypes[idx].CableTypesID] = &cableTypes[idx]
+		}
+	}
+
+	// Attach lookup data to cables that were loaded from snapshots/API.
+	for i := range jobCables {
+		c := jobCables[i].Cable
+		if c == nil || c.TypeInfo != nil {
+			continue
+		}
+		c.Connector1Info = connectorMap[c.Connector1]
+		c.Connector2Info = connectorMap[c.Connector2]
+		c.TypeInfo = typeMap[c.Type]
+	}
+
+	return nil
 }
 
 func (r *JobRepository) AssignCable(jobID uint, cableID int) error {

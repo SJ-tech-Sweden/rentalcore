@@ -43,6 +43,15 @@ func TestGetCable_Success(t *testing.T) {
 	if got.CableID != snap.CableID {
 		t.Errorf("CableID = %d, want %d", got.CableID, snap.CableID)
 	}
+	if got.Connector1 != snap.Connector1 {
+		t.Errorf("Connector1 = %d, want %d", got.Connector1, snap.Connector1)
+	}
+	if got.Connector2 != snap.Connector2 {
+		t.Errorf("Connector2 = %d, want %d", got.Connector2, snap.Connector2)
+	}
+	if got.Type != snap.Type {
+		t.Errorf("Type = %d, want %d", got.Type, snap.Type)
+	}
 	if got.Length != snap.Length {
 		t.Errorf("Length = %f, want %f", got.Length, snap.Length)
 	}

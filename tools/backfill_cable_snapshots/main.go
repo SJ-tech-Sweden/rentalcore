@@ -49,8 +49,8 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// cableSnapshot mirrors warehousecore.CableSnapshot – kept local to avoid an
-// import cycle between the standalone tool and the main module.
+// cableSnapshot mirrors warehousecore.CableSnapshot and is kept local so this
+// standalone tool stays self-contained without importing application packages.
 type cableSnapshot struct {
 	CableID    int      `json:"cableID"`
 	Connector1 int      `json:"connector1"`
@@ -117,13 +117,14 @@ func run(cfg backfillConfig) error {
 
 	// cursor holds the last-seen (jobID, cableID) pair for stable keyset
 	// pagination.  Rows that fail permanently (non-5xx) are added to skipSet
-	// so they are excluded from subsequent batches and don't cause an infinite
-	// loop.
+	// so they are not processed again within this run.  The cursor advances
+	// over skipped rows so a full page of skip-set entries never causes an
+	// early exit.
 	var cursorJobID, cursorCableID int
 	skipSet := make(map[[2]int]bool)
 
 	for {
-		rows, err := fetchBatch(db, cfg.batchSize, cursorJobID, cursorCableID, skipSet)
+		rows, err := fetchBatch(db, cfg.batchSize, cursorJobID, cursorCableID)
 		if err != nil {
 			return fmt.Errorf("fetch batch: %w", err)
 		}
@@ -132,9 +133,15 @@ func run(cfg backfillConfig) error {
 		}
 
 		for _, row := range rows {
-			totalProcessed++
-			// Advance cursor to current row regardless of outcome.
+			// Always advance cursor so the next fetchBatch starts after this row,
+			// even for rows we skip – this prevents an infinite loop when an
+			// entire page of results is in skipSet.
 			cursorJobID, cursorCableID = row.jobID, row.cableID
+
+			if skipSet[[2]int{row.jobID, row.cableID}] {
+				continue // already failed permanently this run
+			}
+			totalProcessed++
 
 			snap, err := fetchCableWithRetry(httpClient, cfg, row.cableID, cfg.maxRetries)
 			if err != nil {
@@ -188,9 +195,8 @@ type jobCableRow struct {
 
 // fetchBatch returns the next batch of job_cables rows where cable_snapshot IS
 // NULL, using keyset pagination (ORDER BY jobid, "cableID") for stable and
-// efficient iteration.  Rows in skipSet are excluded so permanently-failed
-// entries don't block progress.
-func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int, skipSet map[[2]int]bool) ([]jobCableRow, error) {
+// efficient iteration.
+func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int) ([]jobCableRow, error) {
 	const q = `SELECT jobid, "cableID"
 	             FROM job_cables
 	            WHERE cable_snapshot IS NULL
@@ -212,9 +218,6 @@ func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int, skipSet map[[2]
 		var r jobCableRow
 		if err := rws.Scan(&r.jobID, &r.cableID); err != nil {
 			return nil, err
-		}
-		if skipSet[[2]int{r.jobID, r.cableID}] {
-			continue
 		}
 		result = append(result, r)
 	}
