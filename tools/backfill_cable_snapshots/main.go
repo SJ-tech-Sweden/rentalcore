@@ -360,7 +360,14 @@ func buildDSN() string {
 		Scheme: "postgres",
 		Host:   host + ":" + port,
 		Path:   "/" + name,
-		User:   url.UserPassword(user, pass),
+	}
+	// Only include a password in the URL when one is actually configured;
+	// omitting it lets pgx/libpq fall back to ~/.pgpass or other credential
+	// sources and avoids auth failures from an explicit empty password.
+	if pass == "" {
+		u.User = url.User(user)
+	} else {
+		u.User = url.UserPassword(user, pass)
 	}
 	q := u.Query()
 	q.Set("sslmode", ssl)

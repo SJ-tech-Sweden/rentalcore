@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -404,6 +405,14 @@ func loadFromEnvironment(config *Config) {
 	// WarehouseCore configuration
 	if baseURL := os.Getenv("WAREHOUSECORE_BASE_URL"); baseURL != "" {
 		config.WarehouseCore.BaseURL = baseURL
+	} else if domain := os.Getenv("WAREHOUSECORE_DOMAIN"); domain != "" {
+		// Backwards-compatible fallback: derive BaseURL from WAREHOUSECORE_DOMAIN
+		// using the same protocol selection logic as warehousecore.NewClient().
+		protocol := "https"
+		if strings.Contains(domain, "localhost") || strings.Contains(domain, "127.0.0.1") {
+			protocol = "http"
+		}
+		config.WarehouseCore.BaseURL = fmt.Sprintf("%s://%s", protocol, strings.TrimSuffix(domain, "/"))
 	}
 	if apiKey := os.Getenv("WAREHOUSECORE_API_KEY"); apiKey != "" {
 		config.WarehouseCore.APIKey = apiKey
