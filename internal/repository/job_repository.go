@@ -561,13 +561,13 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 		for i := range jobCables {
 			if len(jobCables[i].CableSnapshot) > 0 {
 				var cable models.Cable
-				if unmarshalErr := json.Unmarshal(jobCables[i].CableSnapshot, &cable); unmarshalErr == nil {
+				unmarshalErr := json.Unmarshal(jobCables[i].CableSnapshot, &cable)
+				if unmarshalErr == nil {
 					jobCables[i].Cable = &cable
 					continue
-				} else {
-					log.Printf("warn: failed to unmarshal cable_snapshot for jobid=%d cableID=%d: %v",
-						jobCables[i].JobID, jobCables[i].CableID, unmarshalErr)
 				}
+				log.Printf("warn: failed to unmarshal cable_snapshot for jobid=%d cableID=%d: %v",
+					jobCables[i].JobID, jobCables[i].CableID, unmarshalErr)
 			}
 
 			// Snapshot missing or corrupt – try WarehouseCore API first.
