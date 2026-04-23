@@ -371,11 +371,18 @@ func main() {
 	jobRepo := repository.NewJobRepository(db)
 
 	// Wire WarehouseCore client for cable-snapshot dual-mode (feature flag).
+	// Snapshot mode can operate without a WarehouseCore client if all rows are
+	// already backfilled; the client is only needed to fetch missing snapshots.
 	if cfg.WarehouseCore.BaseURL != "" {
 		whClient := warehousecore.NewClientWithConfig(cfg.WarehouseCore.BaseURL, cfg.WarehouseCore.APIKey)
 		jobRepo.WithWarehouseCoreClient(whClient, cfg.Features.CableSnapshotEnabled)
 		if cfg.Features.CableSnapshotEnabled {
 			log.Printf("Cable snapshot mode enabled (WarehouseCore: %s)", cfg.WarehouseCore.BaseURL)
+		}
+	} else {
+		jobRepo.WithWarehouseCoreClient(nil, cfg.Features.CableSnapshotEnabled)
+		if cfg.Features.CableSnapshotEnabled {
+			log.Printf("Warning: Cable snapshot mode enabled without WarehouseCore BaseURL; using snapshot-only mode (no API fallback)")
 		}
 	}
 	deviceRepo := repository.NewDeviceRepository(db)

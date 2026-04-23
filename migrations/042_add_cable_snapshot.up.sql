@@ -9,8 +9,8 @@
 --
 -- Rollout steps:
 --   1. Apply this migration (safe – ADD COLUMN with default null).
---   2. Run the backfill script (tools/backfill_cable_snapshots.go) to populate
---      cable_snapshot for existing rows.
+--   2. Run the backfill tool (`go run ./tools/backfill_cable_snapshots`) to
+--      populate cable_snapshot for existing rows.
 --   3. Enable the CABLE_SNAPSHOT_ENABLED feature flag to switch reads to the
 --      snapshot path.
 --   4. Monitor logs; rollback by toggling the flag then running the down migration.

@@ -2,6 +2,7 @@ package warehousecore
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,6 +64,9 @@ func TestGetCable_NotFound(t *testing.T) {
 	_, err := c.GetCable(99)
 	if err == nil {
 		t.Fatal("GetCable() expected error for 404, got nil")
+	}
+	if !errors.Is(err, ErrCableNotFound) {
+		t.Errorf("GetCable() 404 error should wrap ErrCableNotFound, got: %v", err)
 	}
 }
 

@@ -555,8 +555,8 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 		}
 
 		// First pass: populate from stored snapshots, collect IDs that need fallback.
-		var missingIDs []int            // cable IDs that still need DB/API lookup
-		missingIdx := map[int][]int{}   // cableID → indices in jobCables slice
+		var missingIDs []int          // cable IDs that still need DB/API lookup
+		missingIdx := map[int][]int{} // cableID → indices in jobCables slice
 
 		for i := range jobCables {
 			if len(jobCables[i].CableSnapshot) > 0 {
@@ -619,16 +619,17 @@ func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
 				Preload("Connector2Info").
 				Preload("TypeInfo").
 				Where(`"cableID" IN ?`, missingIDs).
-				Find(&cables).Error; err == nil {
-				cableMap := make(map[int]*models.Cable, len(cables))
-				for idx := range cables {
-					cableMap[cables[idx].CableID] = &cables[idx]
-				}
-				for cid, indices := range missingIdx {
-					if c, ok := cableMap[cid]; ok {
-						for _, i := range indices {
-							jobCables[i].Cable = c
-						}
+				Find(&cables).Error; err != nil {
+				return nil, fmt.Errorf("db fallback for cables %v: %w", missingIDs, err)
+			}
+			cableMap := make(map[int]*models.Cable, len(cables))
+			for idx := range cables {
+				cableMap[cables[idx].CableID] = &cables[idx]
+			}
+			for cid, indices := range missingIdx {
+				if c, ok := cableMap[cid]; ok {
+					for _, i := range indices {
+						jobCables[i].Cable = c
 					}
 				}
 			}

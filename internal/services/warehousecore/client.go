@@ -2,13 +2,18 @@ package warehousecore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 )
+
+// ErrCableNotFound is returned by GetCable when WarehouseCore responds with 404.
+var ErrCableNotFound = errors.New("cable not found in WarehouseCore")
 
 // RentalEquipmentItem represents a rental equipment item from WarehouseCore
 type RentalEquipmentItem struct {
@@ -108,7 +113,7 @@ func (c *Client) addAuthHeader(req *http.Request) {
 }
 
 // GetCable fetches cable metadata from WarehouseCore using GET /admin/cables/{id}.
-// Returns ErrCableNotFound when the API responds with 404.
+// Returns ErrCableNotFound (wrapped) when the API responds with 404.
 func (c *Client) GetCable(id int) (*CableSnapshot, error) {
 	url := fmt.Sprintf("%s/admin/cables/%d", c.baseURL, id)
 
@@ -125,8 +130,13 @@ func (c *Client) GetCable(id int) (*CableSnapshot, error) {
 	}
 	defer resp.Body.Close()
 
+	// Always drain the body to allow connection reuse.
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+	}
+
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("cable %d not found in WarehouseCore", id)
+		return nil, fmt.Errorf("%w (id=%d)", ErrCableNotFound, id)
 	}
 	if resp.StatusCode >= 500 {
 		return nil, fmt.Errorf("WarehouseCore returned %d for cable %d", resp.StatusCode, id)
@@ -172,6 +182,7 @@ func (c *Client) GetRentalEquipment() ([]RentalEquipmentItem, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("rental equipment API returned status %d", resp.StatusCode)
 	}
 

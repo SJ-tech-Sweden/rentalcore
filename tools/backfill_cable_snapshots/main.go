@@ -11,7 +11,10 @@
 //
 //	DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD   – PostgreSQL connection
 //	WAREHOUSECORE_BASE_URL                            – e.g. https://wh.example.com
-//	WAREHOUSECORE_API_KEY                             – admin API key
+//
+// Optional environment variables:
+//
+//	WAREHOUSECORE_API_KEY                             – admin API key for authenticated WarehouseCore requests
 //
 // Optional flags:
 //
@@ -34,6 +37,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -111,8 +115,15 @@ func run(cfg backfillConfig) error {
 
 	log.Printf("Starting cable snapshot backfill (dry-run=%v, batch-size=%d)", cfg.dryRun, cfg.batchSize)
 
+	// cursor holds the last-seen (jobID, cableID) pair for stable keyset
+	// pagination.  Rows that fail permanently (non-5xx) are added to skipSet
+	// so they are excluded from subsequent batches and don't cause an infinite
+	// loop.
+	var cursorJobID, cursorCableID int
+	skipSet := make(map[[2]int]bool)
+
 	for {
-		rows, err := fetchBatch(db, cfg.batchSize)
+		rows, err := fetchBatch(db, cfg.batchSize, cursorJobID, cursorCableID, skipSet)
 		if err != nil {
 			return fmt.Errorf("fetch batch: %w", err)
 		}
@@ -122,11 +133,15 @@ func run(cfg backfillConfig) error {
 
 		for _, row := range rows {
 			totalProcessed++
+			// Advance cursor to current row regardless of outcome.
+			cursorJobID, cursorCableID = row.jobID, row.cableID
 
 			snap, err := fetchCableWithRetry(httpClient, cfg, row.cableID, cfg.maxRetries)
 			if err != nil {
-				log.Printf("ERROR cableID=%d: %v", row.cableID, err)
+				log.Printf("ERROR cableID=%d jobid=%d: %v", row.cableID, row.jobID, err)
 				totalFailed++
+				// Mark as permanently failed to avoid re-selecting this pair.
+				skipSet[[2]int{row.jobID, row.cableID}] = true
 				continue
 			}
 
@@ -134,6 +149,7 @@ func run(cfg backfillConfig) error {
 			if err != nil {
 				log.Printf("ERROR marshal cableID=%d: %v", row.cableID, err)
 				totalFailed++
+				skipSet[[2]int{row.jobID, row.cableID}] = true
 				continue
 			}
 
@@ -147,6 +163,7 @@ func run(cfg backfillConfig) error {
 			if err := updateSnapshot(db, row.jobID, row.cableID, raw); err != nil {
 				log.Printf("ERROR update jobid=%d cableID=%d: %v", row.jobID, row.cableID, err)
 				totalFailed++
+				skipSet[[2]int{row.jobID, row.cableID}] = true
 				continue
 			}
 
@@ -169,17 +186,22 @@ type jobCableRow struct {
 	cableID int
 }
 
-// fetchBatch returns the next batch of job_cables rows where cable_snapshot IS NULL.
-func fetchBatch(db *sql.DB, limit int) ([]jobCableRow, error) {
+// fetchBatch returns the next batch of job_cables rows where cable_snapshot IS
+// NULL, using keyset pagination (ORDER BY jobid, "cableID") for stable and
+// efficient iteration.  Rows in skipSet are excluded so permanently-failed
+// entries don't block progress.
+func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int, skipSet map[[2]int]bool) ([]jobCableRow, error) {
 	const q = `SELECT jobid, "cableID"
 	             FROM job_cables
 	            WHERE cable_snapshot IS NULL
+	              AND (jobid > $2 OR (jobid = $2 AND "cableID" > $3))
+	            ORDER BY jobid, "cableID"
 	            LIMIT $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	rws, err := db.QueryContext(ctx, q, limit)
+	rws, err := db.QueryContext(ctx, q, limit, afterJobID, afterCableID)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +212,9 @@ func fetchBatch(db *sql.DB, limit int) ([]jobCableRow, error) {
 		var r jobCableRow
 		if err := rws.Scan(&r.jobID, &r.cableID); err != nil {
 			return nil, err
+		}
+		if skipSet[[2]int{r.jobID, r.cableID}] {
+			continue
 		}
 		result = append(result, r)
 	}
@@ -258,6 +283,11 @@ func doFetch(client *http.Client, url, apiKey string, cableID int) (*cableSnapsh
 		return nil, retryableError{fmt.Errorf("GET %s: %w", url, err)}
 	}
 	defer resp.Body.Close()
+
+	// Always drain the body to allow connection reuse.
+	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, resp.Body)
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, fmt.Errorf("cable %d not found (404)", cableID)

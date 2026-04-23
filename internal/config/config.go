@@ -129,7 +129,7 @@ type FeaturesConfig struct {
 
 	// CableSnapshotEnabled switches GetJobCables to prefer cable_snapshot JSONB
 	// stored in job_cables over a live cross-service DB join to cables table.
-	// Enable this after running tools/backfill_cable_snapshots.go.
+	// Enable this after running go run ./tools/backfill_cable_snapshots.
 	CableSnapshotEnabled bool `json:"cable_snapshot_enabled"`
 }
 
