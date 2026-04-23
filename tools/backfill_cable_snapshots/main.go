@@ -275,7 +275,7 @@ func updateSnapshot(db *sql.DB, jobID, cableID int, raw json.RawMessage) (bool, 
 // on 5xx responses.
 func fetchCableWithRetry(client *http.Client, cfg backfillConfig, cableID int) (*cableSnapshot, error) {
 	maxRetries := cfg.maxRetries
-	url := fmt.Sprintf("%s/admin/cables/%d", cfg.whBaseURL, cableID)
+	cableURL := fmt.Sprintf("%s/admin/cables/%d", cfg.whBaseURL, cableID)
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
@@ -284,7 +284,7 @@ func fetchCableWithRetry(client *http.Client, cfg backfillConfig, cableID int) (
 			time.Sleep(wait)
 		}
 
-		snap, err := doFetch(client, url, cfg.whAPIKey, cableID)
+		snap, err := doFetch(client, cableURL, cfg.whAPIKey, cableID)
 		if err == nil {
 			return snap, nil
 		}
@@ -375,14 +375,6 @@ func buildDSN() string {
 	q.Set("sslmode", ssl)
 	u.RawQuery = q.Encode()
 	return u.String()
-}
-
-func mustEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		log.Fatalf("required environment variable %s is not set", key)
-	}
-	return v
 }
 
 // resolveWarehouseCoreBaseURL returns the WarehouseCore base URL from
