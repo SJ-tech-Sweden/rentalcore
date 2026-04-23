@@ -417,7 +417,7 @@ func main() {
 
 	// Initialize handlers
 	jobHandler := handlers.NewJobHandler(jobRepo, jobPackageRepo, deviceRepo, customerRepo, statusRepo, jobCategoryRepo, jobEditSessionRepo, jobHistoryService, rentalEquipmentRepo)
-	// Share the same WarehouseCore client (nil when BaseURL is unconfigured) so
+	// When a shared WarehouseCore client is configured, inject it so
 	// jobHandler and jobRepo use identical config and HTTP connection pool.
 	if whClient != nil {
 		jobHandler.SetWarehouseClient(whClient)
