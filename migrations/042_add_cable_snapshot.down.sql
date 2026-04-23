@@ -5,7 +5,7 @@
 --       exists.  The original cross-service FK to cables("cableID") is kept
 --       intact by this migration; it is only removed in a future PR.
 
-DROP INDEX IF EXISTS idx_job_cables_cable_id;
+DROP INDEX IF EXISTS idx_job_cables_snapshot_backfill;
 
 ALTER TABLE job_cables
     DROP COLUMN IF EXISTS cable_snapshot;

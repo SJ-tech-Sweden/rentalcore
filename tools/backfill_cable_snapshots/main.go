@@ -41,6 +41,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -224,17 +225,28 @@ func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int) ([]jobCableRow,
 	return result, rws.Err()
 }
 
-// updateSnapshot persists the JSONB blob to the database.
+// updateSnapshot persists the JSONB blob to the database only when the row
+// does not yet have a snapshot, guarding against concurrent writes from
+// AssignCable or a parallel backfill run.
 func updateSnapshot(db *sql.DB, jobID, cableID int, raw json.RawMessage) error {
 	const q = `UPDATE job_cables
 	              SET cable_snapshot = $1
-	            WHERE jobid = $2 AND "cableID" = $3`
+	            WHERE jobid = $2
+	              AND "cableID" = $3
+	              AND cable_snapshot IS NULL`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	_, err := db.ExecContext(ctx, q, raw, jobID, cableID)
-	return err
+	result, err := db.ExecContext(ctx, q, raw, jobID, cableID)
+	if err != nil {
+		return err
+	}
+
+	// rowsAffected == 0 means another writer already populated the snapshot
+	// after fetchBatch selected this row.  Treat it as a benign no-op.
+	_, _ = result.RowsAffected()
+	return nil
 }
 
 // fetchCableWithRetry calls GET /admin/cables/{id} with exponential back-off
@@ -307,7 +319,9 @@ func doFetch(client *http.Client, url, apiKey string, cableID int) (*cableSnapsh
 	return &snap, nil
 }
 
-// buildDSN constructs a PostgreSQL DSN from environment variables.
+// buildDSN constructs a PostgreSQL connection URL from environment variables.
+// Values are percent-encoded so passwords and usernames containing special
+// characters (spaces, @, /, etc.) are handled correctly.
 func buildDSN() string {
 	host := getEnvOrDefault("DB_HOST", "localhost")
 	port := getEnvOrDefault("DB_PORT", "5432")
@@ -321,8 +335,16 @@ func buildDSN() string {
 		port = "5432"
 	}
 
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		host, port, user, pass, name, ssl)
+	u := &url.URL{
+		Scheme: "postgres",
+		Host:   host + ":" + port,
+		Path:   "/" + name,
+		User:   url.UserPassword(user, pass),
+	}
+	q := u.Query()
+	q.Set("sslmode", ssl)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func mustEnv(key string) string {

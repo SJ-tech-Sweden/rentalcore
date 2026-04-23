@@ -19,9 +19,11 @@
 ALTER TABLE job_cables
     ADD COLUMN IF NOT EXISTS cable_snapshot JSONB;
 
--- Index on cableID supports:
---   • the DB fallback path (batched IN-query when snapshots are missing)
---   • future backfill queries (WHERE "cableID" = ?)
--- The index will remain useful until the cross-service FK is removed in the
--- follow-up PR; at that point it can be re-evaluated.
-CREATE INDEX IF NOT EXISTS idx_job_cables_cable_id ON job_cables ("cableID");
+-- Partial composite index supports the backfill tool's keyset query by
+-- limiting the index to rows that still need snapshots and matching the
+-- ordered access pattern on (jobid, "cableID").
+-- The index disappears automatically once all rows have a snapshot (no rows
+-- match the WHERE clause), avoiding write overhead on fully-backfilled tables.
+CREATE INDEX IF NOT EXISTS idx_job_cables_snapshot_backfill
+    ON job_cables (jobid, "cableID")
+    WHERE cable_snapshot IS NULL;
