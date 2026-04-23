@@ -147,7 +147,7 @@ func run(cfg backfillConfig) error {
 			}
 			totalProcessed++
 
-			snap, err := fetchCableWithRetry(httpClient, cfg, row.cableID, cfg.maxRetries)
+			snap, err := fetchCableWithRetry(httpClient, cfg, row.cableID)
 			if err != nil {
 				log.Printf("ERROR cableID=%d jobid=%d: %v", row.cableID, row.jobID, err)
 				totalFailed++
@@ -243,8 +243,11 @@ func fetchBatch(db *sql.DB, limit, afterJobID, afterCableID int) ([]jobCableRow,
 // already populated by another writer (treated as a benign no-op), and
 // (false, err) on DB errors.
 func updateSnapshot(db *sql.DB, jobID, cableID int, raw json.RawMessage) (bool, error) {
+	// Pass the JSON as a string and use an explicit ::jsonb cast so pgx does
+	// not send the []byte value as BYTEA (which would cause a type mismatch
+	// against the jsonb column).
 	const q = `UPDATE job_cables
-	              SET cable_snapshot = $1
+	              SET cable_snapshot = $1::jsonb
 	            WHERE jobid = $2
 	              AND "cableID" = $3
 	              AND cable_snapshot IS NULL`
@@ -252,7 +255,7 @@ func updateSnapshot(db *sql.DB, jobID, cableID int, raw json.RawMessage) (bool, 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result, err := db.ExecContext(ctx, q, raw, jobID, cableID)
+	result, err := db.ExecContext(ctx, q, string(raw), jobID, cableID)
 	if err != nil {
 		return false, err
 	}
@@ -268,7 +271,8 @@ func updateSnapshot(db *sql.DB, jobID, cableID int, raw json.RawMessage) (bool, 
 
 // fetchCableWithRetry calls GET /admin/cables/{id} with exponential back-off
 // on 5xx responses.
-func fetchCableWithRetry(client *http.Client, cfg backfillConfig, cableID, maxRetries int) (*cableSnapshot, error) {
+func fetchCableWithRetry(client *http.Client, cfg backfillConfig, cableID int) (*cableSnapshot, error) {
+	maxRetries := cfg.maxRetries
 	url := fmt.Sprintf("%s/admin/cables/%d", cfg.whBaseURL, cableID)
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
