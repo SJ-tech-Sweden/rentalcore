@@ -132,10 +132,10 @@ type JobProductSelection struct {
 }
 
 type RentalEquipmentSelection struct {
-	EquipmentID   uint    `json:"equipment_id"`
-	Quantity      uint    `json:"quantity"`
-	DaysUsed      uint    `json:"days_used"`
-	Notes         string  `json:"notes"`
+	EquipmentID uint   `json:"equipment_id"`
+	Quantity    uint   `json:"quantity"`
+	DaysUsed    uint   `json:"days_used"`
+	Notes       string `json:"notes"`
 	// Equipment details carried from the form so we can upsert locally when using WarehouseCore IDs
 	RentalPrice   float64 `json:"rental_price,omitempty"`
 	CustomerPrice float64 `json:"customer_price,omitempty"`

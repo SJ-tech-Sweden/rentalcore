@@ -79,24 +79,24 @@ type DeviceTreeDevice struct {
 
 // DeviceTreeSubbiercategory mirrors WarehouseCore tree hierarchy.
 type DeviceTreeSubbiercategory struct {
-	ID      string           `json:"id"`
-	Name    string           `json:"name"`
+	ID      string             `json:"id"`
+	Name    string             `json:"name"`
 	Devices []DeviceTreeDevice `json:"devices"`
 }
 
 // DeviceTreeSubcategory mirrors WarehouseCore tree hierarchy.
 type DeviceTreeSubcategory struct {
-	ID                string                    `json:"id"`
-	Name              string                    `json:"name"`
-	DirectDevices     []DeviceTreeDevice        `json:"direct_devices"`
+	ID                string                      `json:"id"`
+	Name              string                      `json:"name"`
+	DirectDevices     []DeviceTreeDevice          `json:"direct_devices"`
 	Subbiercategories []DeviceTreeSubbiercategory `json:"subbiercategories"`
 }
 
 // DeviceTreeCategory mirrors WarehouseCore tree hierarchy.
 type DeviceTreeCategory struct {
-	ID            int                   `json:"id"`
-	Name          string                `json:"name"`
-	DirectDevices []DeviceTreeDevice    `json:"direct_devices"`
+	ID            int                     `json:"id"`
+	Name          string                  `json:"name"`
+	DirectDevices []DeviceTreeDevice      `json:"direct_devices"`
 	Subcategories []DeviceTreeSubcategory `json:"subcategories"`
 }
 
@@ -373,7 +373,7 @@ type RentalSubcategoryGroup struct {
 
 // RentalCategoryGroup groups rental items by category.
 type RentalCategoryGroup struct {
-	Category     string
+	Category      string
 	Subcategories []RentalSubcategoryGroup
 }
 

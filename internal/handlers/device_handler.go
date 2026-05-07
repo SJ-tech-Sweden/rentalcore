@@ -930,11 +930,11 @@ func (h *DeviceHandler) convertWarehouseTreeToProductTree(source []warehousecore
 
 			for _, sb := range sub.Subbiercategories {
 				tsb := TreeSubbiercategory{
-					ID:      strings.TrimSpace(sb.ID),
-					Name:    strings.TrimSpace(sb.Name),
-					Devices: []TreeDevice{},
-					Products: h.summarizeWarehouseDevices(sb.Devices, conflicts),
-					DeviceCount: 0,
+					ID:             strings.TrimSpace(sb.ID),
+					Name:           strings.TrimSpace(sb.Name),
+					Devices:        []TreeDevice{},
+					Products:       h.summarizeWarehouseDevices(sb.Devices, conflicts),
+					DeviceCount:    0,
 					AvailableCount: 0,
 				}
 				if tsb.Name == "" {

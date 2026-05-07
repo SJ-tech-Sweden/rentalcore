@@ -14,7 +14,7 @@ import (
 )
 
 type RentalEquipmentRepository struct {
-	db *Database
+	db       *Database
 	whClient *warehousecore.Client
 }
 
@@ -37,13 +37,13 @@ func (r *RentalEquipmentRepository) GetAllRentalEquipment(rentalEquipment *[]mod
 			out := make([]models.RentalEquipment, 0, len(items))
 			for _, it := range items {
 				out = append(out, models.RentalEquipment{
-					EquipmentID: it.EquipmentID,
-					ProductName: it.ProductName,
+					EquipmentID:  it.EquipmentID,
+					ProductName:  it.ProductName,
 					SupplierName: it.SupplierName,
-					RentalPrice: it.RentalPrice,
-					Category: it.Category,
-					Description: it.Description,
-					IsActive: it.IsActive,
+					RentalPrice:  it.RentalPrice,
+					Category:     it.Category,
+					Description:  it.Description,
+					IsActive:     it.IsActive,
 				})
 			}
 			*rentalEquipment = out
@@ -64,13 +64,13 @@ func (r *RentalEquipmentRepository) GetRentalEquipmentByID(equipmentID uint, ren
 			for _, it := range items {
 				if it.EquipmentID == equipmentID {
 					*rentalEquipment = models.RentalEquipment{
-						EquipmentID: it.EquipmentID,
-						ProductName: it.ProductName,
+						EquipmentID:  it.EquipmentID,
+						ProductName:  it.ProductName,
 						SupplierName: it.SupplierName,
-						RentalPrice: it.RentalPrice,
-						Category: it.Category,
-						Description: it.Description,
-						IsActive: it.IsActive,
+						RentalPrice:  it.RentalPrice,
+						Category:     it.Category,
+						Description:  it.Description,
+						IsActive:     it.IsActive,
 					}
 					return nil
 				}
@@ -239,7 +239,7 @@ func (r *RentalEquipmentRepository) GetJobRentalEquipment(jobID uint, jobRentals
 	}
 
 	err := r.db.Preload("RentalEquipment").Where("job_id = ?", jobID).Find(jobRentals).Error
-	
+
 	// Handle missing table (42P01 error) gracefully
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -259,7 +259,7 @@ func (r *RentalEquipmentRepository) GetJobRentalEquipment(jobID uint, jobRentals
 // Gracefully handles missing table (migration not run yet)
 func (r *RentalEquipmentRepository) RemoveRentalFromJob(jobID, equipmentID uint) error {
 	err := r.db.Where("job_id = ? AND equipment_id = ?", jobID, equipmentID).Delete(&models.JobRentalEquipment{}).Error
-	
+
 	// Handle missing table gracefully
 	if err != nil {
 		var pgErr *pgconn.PgError
