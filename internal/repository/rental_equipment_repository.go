@@ -1,58 +1,141 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
-	"go-barcode-webapp/internal/models"
+	"log"
 
+	"go-barcode-webapp/internal/models"
+	"go-barcode-webapp/internal/services/warehousecore"
+
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type RentalEquipmentRepository struct {
 	db *Database
+	whClient *warehousecore.Client
 }
 
 func NewRentalEquipmentRepository(db *Database) *RentalEquipmentRepository {
 	return &RentalEquipmentRepository{db: db}
 }
 
+// WithWarehouseCoreClient attaches a WarehouseCore client and enables API-based reads.
+func (r *RentalEquipmentRepository) WithWarehouseCoreClient(client *warehousecore.Client) *RentalEquipmentRepository {
+	r.whClient = client
+	return r
+}
+
 // GetAllRentalEquipment returns all rental equipment items
 func (r *RentalEquipmentRepository) GetAllRentalEquipment(rentalEquipment *[]models.RentalEquipment) error {
+	// Prefer WarehouseCore API when configured
+	if r.whClient != nil {
+		items, err := r.whClient.GetActiveRentalEquipment()
+		if err == nil {
+			out := make([]models.RentalEquipment, 0, len(items))
+			for _, it := range items {
+				out = append(out, models.RentalEquipment{
+					EquipmentID: it.EquipmentID,
+					ProductName: it.ProductName,
+					SupplierName: it.SupplierName,
+					RentalPrice: it.RentalPrice,
+					Category: it.Category,
+					Description: it.Description,
+					IsActive: it.IsActive,
+				})
+			}
+			*rentalEquipment = out
+			return nil
+		}
+		// Fall back to DB on API error
+	}
+
 	return r.db.Find(rentalEquipment).Error
 }
 
 // GetRentalEquipmentByID returns a specific rental equipment item by ID
 func (r *RentalEquipmentRepository) GetRentalEquipmentByID(equipmentID uint, rentalEquipment *models.RentalEquipment) error {
+	if r.whClient != nil {
+		// Try WarehouseCore first
+		items, err := r.whClient.GetActiveRentalEquipment()
+		if err == nil {
+			for _, it := range items {
+				if it.EquipmentID == equipmentID {
+					*rentalEquipment = models.RentalEquipment{
+						EquipmentID: it.EquipmentID,
+						ProductName: it.ProductName,
+						SupplierName: it.SupplierName,
+						RentalPrice: it.RentalPrice,
+						Category: it.Category,
+						Description: it.Description,
+						IsActive: it.IsActive,
+					}
+					return nil
+				}
+			}
+		}
+		// Fall through to DB
+	}
+
 	return r.db.First(rentalEquipment, equipmentID).Error
 }
 
 // CreateRentalEquipment creates a new rental equipment item
 func (r *RentalEquipmentRepository) CreateRentalEquipment(rentalEquipment *models.RentalEquipment) error {
-	return r.db.Create(rentalEquipment).Error
+	// Creation of rental equipment is now managed in WarehouseCore
+	return fmt.Errorf("rental equipment management moved to WarehouseCore; create via WarehouseCore admin API")
 }
 
 // UpdateRentalEquipment updates an existing rental equipment item
 func (r *RentalEquipmentRepository) UpdateRentalEquipment(rentalEquipment *models.RentalEquipment) error {
-	return r.db.Save(rentalEquipment).Error
+	return fmt.Errorf("rental equipment management moved to WarehouseCore; update via WarehouseCore admin API")
 }
 
 // DeleteRentalEquipment deletes a rental equipment item
 func (r *RentalEquipmentRepository) DeleteRentalEquipment(equipmentID uint) error {
-	// First check if the equipment is used in any jobs
-	var count int64
-	err := r.db.Model(&models.JobRentalEquipment{}).Where("equipment_id = ?", equipmentID).Count(&count).Error
-	if err != nil {
-		return fmt.Errorf("failed to check equipment usage: %v", err)
+	return fmt.Errorf("rental equipment management moved to WarehouseCore; delete via WarehouseCore admin API")
+}
+
+// UpsertEquipmentFromWC ensures a WarehouseCore-managed rental equipment record
+// exists in the local rental_equipment table so that job_rental_equipment FK
+// constraints are satisfied. It creates a minimal record or updates the price/name
+// if already present.
+func (r *RentalEquipmentRepository) UpsertEquipmentFromWC(equipmentID uint, productName, supplierName string, rentalPrice float64, category string) error {
+	if !r.db.Migrator().HasTable("rental_equipment") {
+		log.Printf("⚠️ Warning: rental_equipment table does not exist; skipping upsert for equipment_id %d", equipmentID)
+		return nil
 	}
 
-	if count > 0 {
-		return fmt.Errorf("cannot delete equipment that is used in %d job(s)", count)
+	if supplierName == "" {
+		supplierName = "External"
 	}
-
-	return r.db.Delete(&models.RentalEquipment{}, equipmentID).Error
+	equipment := models.RentalEquipment{
+		EquipmentID:  equipmentID,
+		ProductName:  productName,
+		SupplierName: supplierName,
+		RentalPrice:  rentalPrice,
+		Category:     category,
+		IsActive:     true,
+	}
+	// Use GORM clauses for a proper upsert (INSERT … ON CONFLICT DO UPDATE)
+	return r.db.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "equipment_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"product_name", "supplier_name", "rental_price", "category", "updated_at"}),
+		}).
+		Create(&equipment).Error
 }
 
 // AddRentalToJob adds rental equipment to a job
+// Gracefully handles missing table (migration not run yet)
 func (r *RentalEquipmentRepository) AddRentalToJob(jobRental *models.JobRentalEquipment) error {
+	if !r.db.Migrator().HasTable("job_rental_equipment") || !r.db.Migrator().HasTable("rental_equipment") {
+		log.Printf("⚠️ Warning: rental job link tables missing; skipping rental equipment addition for job_id %d", jobRental.JobID)
+		return nil
+	}
+
 	// Get rental equipment to calculate total cost
 	var equipment models.RentalEquipment
 	if err := r.db.First(&equipment, jobRental.EquipmentID).Error; err != nil {
@@ -68,8 +151,22 @@ func (r *RentalEquipmentRepository) AddRentalToJob(jobRental *models.JobRentalEq
 
 	if err == gorm.ErrRecordNotFound {
 		// Create new
-		return r.db.Create(jobRental).Error
+		createErr := r.db.Create(jobRental).Error
+		if createErr != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(createErr, &pgErr) && pgErr.Code == "42P01" {
+				log.Printf("⚠️ Warning: job_rental_equipment table does not exist (42P01); skipping rental equipment addition")
+				return nil
+			}
+		}
+		return createErr
 	} else if err != nil {
+		// Check if this is a missing table error
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			log.Printf("⚠️ Warning: job_rental_equipment table does not exist (42P01); skipping rental equipment addition")
+			return nil
+		}
 		return err
 	} else {
 		// Update existing
@@ -77,7 +174,15 @@ func (r *RentalEquipmentRepository) AddRentalToJob(jobRental *models.JobRentalEq
 		existingRental.DaysUsed = jobRental.DaysUsed
 		existingRental.TotalCost = jobRental.TotalCost
 		existingRental.Notes = jobRental.Notes
-		return r.db.Save(&existingRental).Error
+		updateErr := r.db.Save(&existingRental).Error
+		if updateErr != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(updateErr, &pgErr) && pgErr.Code == "42P01" {
+				log.Printf("⚠️ Warning: job_rental_equipment table does not exist (42P01); skipping rental equipment update")
+				return nil
+			}
+		}
+		return updateErr
 	}
 }
 
@@ -126,13 +231,45 @@ func (r *RentalEquipmentRepository) CreateRentalEquipmentFromManualEntry(request
 }
 
 // GetJobRentalEquipment returns all rental equipment for a specific job
+// Returns an empty slice gracefully if the table doesn't exist (migration not run)
 func (r *RentalEquipmentRepository) GetJobRentalEquipment(jobID uint, jobRentals *[]models.JobRentalEquipment) error {
-	return r.db.Preload("RentalEquipment").Where("job_id = ?", jobID).Find(jobRentals).Error
+	if !r.db.Migrator().HasTable("job_rental_equipment") {
+		*jobRentals = []models.JobRentalEquipment{}
+		return nil
+	}
+
+	err := r.db.Preload("RentalEquipment").Where("job_id = ?", jobID).Find(jobRentals).Error
+	
+	// Handle missing table (42P01 error) gracefully
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			// Table doesn't exist (migration not run yet)
+			log.Printf("⚠️ Warning: job_rental_equipment table does not exist (42P01); migration may not have run. Returning empty list.")
+			*jobRentals = []models.JobRentalEquipment{}
+			return nil
+		}
+		// Return any other errors as-is
+		return err
+	}
+	return nil
 }
 
 // RemoveRentalFromJob removes rental equipment from a job
+// Gracefully handles missing table (migration not run yet)
 func (r *RentalEquipmentRepository) RemoveRentalFromJob(jobID, equipmentID uint) error {
-	return r.db.Where("job_id = ? AND equipment_id = ?", jobID, equipmentID).Delete(&models.JobRentalEquipment{}).Error
+	err := r.db.Where("job_id = ? AND equipment_id = ?", jobID, equipmentID).Delete(&models.JobRentalEquipment{}).Error
+	
+	// Handle missing table gracefully
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42P01" {
+			log.Printf("⚠️ Warning: job_rental_equipment table does not exist (42P01); skipping removal")
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // GetRentalEquipmentAnalytics returns analytics data for rental equipment

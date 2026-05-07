@@ -2,14 +2,25 @@ package repository
 
 import (
 	"go-barcode-webapp/internal/models"
+	"go-barcode-webapp/internal/services/warehousecore"
 )
 
 type CustomerRepository struct {
-	db *Database
+	db                    *Database
+	warehouseClient       *warehousecore.Client
+	useWarehouseCustomers bool
 }
 
 func NewCustomerRepository(db *Database) *CustomerRepository {
 	return &CustomerRepository{db: db}
+}
+
+// WithWarehouseCoreClient attaches a WarehouseCore client and toggles API-backed
+// reads when enabled is true. Writes remain local to RentalCore.
+func (r *CustomerRepository) WithWarehouseCoreClient(client *warehousecore.Client, enabled bool) *CustomerRepository {
+	r.warehouseClient = client
+	r.useWarehouseCustomers = enabled
+	return r
 }
 
 func (r *CustomerRepository) Create(customer *models.Customer) error {
@@ -18,6 +29,19 @@ func (r *CustomerRepository) Create(customer *models.Customer) error {
 }
 
 func (r *CustomerRepository) GetByID(id uint) (*models.Customer, error) {
+	// If API mode enabled, attempt to read from WarehouseCore and map to local model
+	if r.useWarehouseCustomers && r.warehouseClient != nil {
+		if c, err := r.warehouseClient.GetCustomer(id); err == nil {
+			cust := &models.Customer{CustomerID: id}
+			cust.CompanyName = c.CompanyName
+			cust.FirstName = c.FirstName
+			cust.LastName = c.LastName
+			cust.Email = c.Email
+			return cust, nil
+		}
+		// fallback to DB on error
+	}
+
 	var customer models.Customer
 	err := r.db.First(&customer, id).Error
 	if err != nil {
@@ -35,6 +59,28 @@ func (r *CustomerRepository) Delete(id uint) error {
 }
 
 func (r *CustomerRepository) List(params *models.FilterParams) ([]models.Customer, error) {
+	// If API mode enabled, use WarehouseCore listing and map results
+	if r.useWarehouseCustomers && r.warehouseClient != nil {
+		search := ""
+		if params != nil {
+			search = params.SearchTerm
+		}
+		items, err := r.warehouseClient.ListCustomers(search)
+		if err == nil {
+			var out []models.Customer
+			for _, it := range items {
+				cust := models.Customer{CustomerID: it.ID}
+				cust.CompanyName = it.CompanyName
+				cust.FirstName = it.FirstName
+				cust.LastName = it.LastName
+				cust.Email = it.Email
+				out = append(out, cust)
+			}
+			return out, nil
+		}
+		// fall back to DB on error
+	}
+
 	var customers []models.Customer
 
 	query := r.db.Model(&models.Customer{})

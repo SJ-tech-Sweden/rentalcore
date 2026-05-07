@@ -2,15 +2,26 @@ package repository
 
 import (
 	"go-barcode-webapp/internal/models"
+	"go-barcode-webapp/internal/services/warehousecore"
 	"log"
 )
 
 type ProductRepository struct {
-	db *Database
+	db                   *Database
+	warehouseClient      *warehousecore.Client
+	useWarehouseProducts bool
 }
 
 func NewProductRepository(db *Database) *ProductRepository {
 	return &ProductRepository{db: db}
+}
+
+// WithWarehouseCoreClient attaches a WarehouseCore client to the repository and
+// enables API-based product reads when enabled is true.
+func (r *ProductRepository) WithWarehouseCoreClient(client *warehousecore.Client, enabled bool) *ProductRepository {
+	r.warehouseClient = client
+	r.useWarehouseProducts = enabled
+	return r
 }
 
 // GetDB returns the database connection for direct queries
@@ -23,6 +34,18 @@ func (r *ProductRepository) Create(product *models.Product) error {
 }
 
 func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
+	// Try WarehouseCore API first if enabled
+	if r.useWarehouseProducts && r.warehouseClient != nil {
+		if p, err := r.warehouseClient.GetProduct(id); err == nil {
+			prod := &models.Product{
+				ProductID: id,
+				Name:      p.Name,
+			}
+			return prod, nil
+		}
+		// On error fallthrough to DB
+	}
+
 	var product models.Product
 	err := r.db.Preload("Category").
 		Preload("Subcategory").
@@ -44,6 +67,26 @@ func (r *ProductRepository) Delete(id uint) error {
 }
 
 func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product, error) {
+	// If configured to use WarehouseCore, fetch products from API
+	if r.useWarehouseProducts && r.warehouseClient != nil {
+		search := ""
+		if params != nil {
+			search = params.SearchTerm
+		}
+		items, err := r.warehouseClient.ListProducts(search)
+		if err == nil {
+			var out []models.Product
+			for _, it := range items {
+				out = append(out, models.Product{
+					ProductID: it.ID,
+					Name:      it.Name,
+				})
+			}
+			return out, nil
+		}
+		// Fall back to DB on API error
+	}
+
 	var products []models.Product
 
 	query := r.db.Model(&models.Product{}).

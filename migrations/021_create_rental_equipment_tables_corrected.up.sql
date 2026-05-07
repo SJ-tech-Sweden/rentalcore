@@ -3,7 +3,7 @@
 
 -- Table for rental equipment items (master list of available rental items)
 CREATE TABLE IF NOT EXISTS rental_equipment (
-    equipment_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    equipment_id SERIAL PRIMARY KEY,
     product_name VARCHAR(200) NOT NULL,
     supplier_name VARCHAR(100) NOT NULL,
     rental_price DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
@@ -11,35 +11,35 @@ CREATE TABLE IF NOT EXISTS rental_equipment (
     description VARCHAR(1000),
     notes VARCHAR(500),
     is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    created_by INT UNSIGNED,
-
-    INDEX idx_product_name (product_name),
-    INDEX idx_supplier_name (supplier_name),
-    INDEX idx_category (category),
-    INDEX idx_is_active (is_active)
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    created_by INT
 );
 
 -- Bridge table for job-rental equipment assignments
 CREATE TABLE IF NOT EXISTS job_rental_equipment (
     job_id INT NOT NULL,
-    equipment_id INT UNSIGNED NOT NULL,
-    quantity INT UNSIGNED NOT NULL DEFAULT 1,
-    days_used INT UNSIGNED NOT NULL DEFAULT 1,
+    equipment_id INT  NOT NULL,
+    quantity INT  NOT NULL DEFAULT 1,
+    days_used INT  NOT NULL DEFAULT 1,
     total_cost DECIMAL(12, 2) NOT NULL,
     notes VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
 
     PRIMARY KEY (job_id, equipment_id),
-    FOREIGN KEY (job_id) REFERENCES jobs(jobID) ON DELETE CASCADE,
-    FOREIGN KEY (equipment_id) REFERENCES rental_equipment(equipment_id) ON DELETE CASCADE,
-
-    INDEX idx_job_id (job_id),
-    INDEX idx_equipment_id (equipment_id),
-    INDEX idx_created_at (created_at)
+    FOREIGN KEY (job_id) REFERENCES jobs(jobid) ON DELETE CASCADE,
+    FOREIGN KEY (equipment_id) REFERENCES rental_equipment(equipment_id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_job_rental_equipment_job_id ON job_rental_equipment(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_rental_equipment_equipment_id ON job_rental_equipment(equipment_id);
+CREATE INDEX IF NOT EXISTS idx_job_rental_equipment_created_at ON job_rental_equipment(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_rental_equipment_product_name ON rental_equipment(product_name);
+CREATE INDEX IF NOT EXISTS idx_rental_equipment_supplier_name ON rental_equipment(supplier_name);
+CREATE INDEX IF NOT EXISTS idx_rental_equipment_category ON rental_equipment(category);
+CREATE INDEX IF NOT EXISTS idx_rental_equipment_is_active ON rental_equipment(is_active);
 
 -- Insert some example rental equipment items
 INSERT INTO rental_equipment (product_name, supplier_name, rental_price, description, category) VALUES

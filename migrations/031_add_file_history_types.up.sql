@@ -7,16 +7,16 @@
 -- SQLite compatible version (TEXT column, no enum modification needed)
 -- The application model already accepts the new values
 
--- For MySQL, modify the ENUM:
--- Note: This is a no-op if using SQLite since SQLite doesn't have ENUM
-ALTER TABLE job_history 
-MODIFY COLUMN change_type ENUM(
-    'created', 
-    'updated', 
-    'status_changed', 
-    'device_added', 
-    'device_removed', 
-    'deleted',
-    'file_added',
-    'file_removed'
-) NOT NULL;
+DO $$
+BEGIN
+    -- Ensure the change_type column exists and add a CHECK constraint with the new values
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_history' AND column_name = 'change_type') THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint c
+            JOIN pg_class t ON c.conrelid = t.oid
+            WHERE t.relname = 'job_history' AND c.conname = 'chk_job_history_change_type'
+        ) THEN
+            EXECUTE 'ALTER TABLE job_history ADD CONSTRAINT chk_job_history_change_type CHECK (change_type IN (''created'',''updated'',''status_changed'',''device_added'',''device_removed'',''deleted'',''file_added'',''file_removed''))';
+        END IF;
+    END IF;
+END$$;

@@ -37,7 +37,6 @@
     "jobs": "Jobs",
     "customers": "Customers",
     "devices": "Devices",
-    "cables": "Cables",
     "cases": "Cases",
     "invoices": "Invoices",
     "calendar": "Calendar",
@@ -853,18 +852,7 @@
       }
     }
   },
-  "cables_redirect": {
-    "title": "Cable Finder",
-    "description": "Cable management lives in WarehouseCore. Use the button below to search by plug type and length.",
-    "open_button": "Open Cable Search",
-    "info_alert": "We redirected cable inventory to WarehouseCore so you can filter by plug 1/2 and length. Click the button to open {{url}}.",
-    "no_domain": "WarehouseCore domain is not configured. Set {{env}} in your environment so we can link to the cable search.",
-    "list": {
-      "search": "Search cables by plug 1, plug 2, and length range.",
-      "save": "Save and assign cables directly from WarehouseCore.",
-      "return": "Return here when finished; assignments remain synced through the shared database."
-    }
-  },
+  
   "footer": {
     "copyright": "© 2025 RentalCore. All rights reserved."
   },

@@ -65,7 +65,18 @@ func (r *AccessoriesConsumablesRepository) GetProductDependencies(productID uint
 		ORDER BY pd.is_optional ASC, pd.created_at DESC
 	`
 	err := r.db.Raw(query, productID).Scan(&dependencies).Error
-	return dependencies, err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "42P01" || pgErr.Code == "42703" {
+				log.Printf("ℹ️ Dependency schema missing/incompatible, returning empty dependencies for product %d: %v", productID, err)
+				return []models.ProductDependencyView{}, nil
+			}
+		}
+		return nil, err
+	}
+
+	return dependencies, nil
 }
 
 // ============================================================================

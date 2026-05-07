@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,10 +132,171 @@ type JobProductSelection struct {
 }
 
 type RentalEquipmentSelection struct {
-	EquipmentID uint   `json:"equipment_id"`
-	Quantity    uint   `json:"quantity"`
-	DaysUsed    uint   `json:"days_used"`
-	Notes       string `json:"notes"`
+	EquipmentID   uint    `json:"equipment_id"`
+	Quantity      uint    `json:"quantity"`
+	DaysUsed      uint    `json:"days_used"`
+	Notes         string  `json:"notes"`
+	// Equipment details carried from the form so we can upsert locally when using WarehouseCore IDs
+	RentalPrice   float64 `json:"rental_price,omitempty"`
+	CustomerPrice float64 `json:"customer_price,omitempty"`
+	ProductName   string  `json:"product_name,omitempty"`
+	SupplierName  string  `json:"supplier_name,omitempty"`
+	Category      string  `json:"category,omitempty"`
+}
+
+type serviceJobResponse struct {
+	JobID             uint    `json:"job_id"`
+	JobCode           string  `json:"job_code"`
+	Description       *string `json:"description,omitempty"`
+	StartDate         *string `json:"start_date,omitempty"`
+	EndDate           *string `json:"end_date,omitempty"`
+	Status            string  `json:"status"`
+	CustomerFirstName string  `json:"customer_first_name,omitempty"`
+	CustomerLastName  string  `json:"customer_last_name,omitempty"`
+	DeviceCount       int     `json:"device_count"`
+	RequirementsCount int     `json:"requirements_count"`
+}
+
+type serviceJobDeviceResponse struct {
+	DeviceID    string  `json:"device_id"`
+	Status      string  `json:"status"`
+	ProductName string  `json:"product_name"`
+	ZoneName    *string `json:"zone_name,omitempty"`
+	Barcode     *string `json:"barcode,omitempty"`
+	QRCode      *string `json:"qr_code,omitempty"`
+	PackStatus  string  `json:"pack_status"`
+	Scanned     bool    `json:"scanned"`
+}
+
+type serviceJobProductRequirementResponse struct {
+	ProductID   uint   `json:"product_id"`
+	ProductName string `json:"product_name"`
+	Required    int    `json:"required"`
+	Assigned    int    `json:"assigned"`
+}
+
+func serviceAPIKey() string {
+	if key := strings.TrimSpace(os.Getenv("RENTALCORE_API_KEY")); key != "" {
+		return key
+	}
+	return strings.TrimSpace(os.Getenv("WAREHOUSECORE_API_KEY"))
+}
+
+func authorizeServiceRequest(c *gin.Context) bool {
+	expectedKey := serviceAPIKey()
+	if expectedKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key not configured"})
+		return false
+	}
+	if strings.TrimSpace(c.GetHeader("X-API-Key")) != expectedKey {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return false
+	}
+	return true
+}
+
+func formatServiceDate(value *time.Time) *string {
+	if value == nil {
+		return nil
+	}
+	formatted := value.Format("2006-01-02")
+	return &formatted
+}
+
+func splitServiceCustomerName(customer models.Customer, fallback string) (string, string) {
+	if customer.CompanyName != nil && strings.TrimSpace(*customer.CompanyName) != "" {
+		return strings.TrimSpace(*customer.CompanyName), ""
+	}
+	if customer.FirstName != nil && customer.LastName != nil {
+		first := strings.TrimSpace(*customer.FirstName)
+		last := strings.TrimSpace(*customer.LastName)
+		if first != "" || last != "" {
+			return first, last
+		}
+	}
+	trimmed := strings.TrimSpace(fallback)
+	if trimmed == "" {
+		return "", ""
+	}
+	parts := strings.Fields(trimmed)
+	if len(parts) == 1 {
+		return trimmed, ""
+	}
+	return strings.Join(parts[:len(parts)-1], " "), parts[len(parts)-1]
+}
+
+func buildServiceJobSummary(job *models.Job, jobDevices []models.JobDevice, requirements []models.JobProductRequirement, fallbackCustomerName string, fallbackStatus string) gin.H {
+	customerFirstName, customerLastName := splitServiceCustomerName(job.Customer, fallbackCustomerName)
+	status := strings.TrimSpace(fallbackStatus)
+	if status == "" {
+		status = strings.TrimSpace(job.Status.Status)
+	}
+	if status == "" {
+		status = "open"
+	}
+
+	devices := make([]serviceJobDeviceResponse, 0, len(jobDevices))
+	assignedByProduct := make(map[uint]int)
+	for _, jd := range jobDevices {
+		productName := ""
+		var productID uint
+		if jd.Device.Product != nil {
+			productName = strings.TrimSpace(jd.Device.Product.Name)
+			if jd.Device.ProductID != nil {
+				productID = *jd.Device.ProductID
+			}
+		} else if jd.Device.ProductID != nil {
+			productID = *jd.Device.ProductID
+		}
+		if productID != 0 && strings.EqualFold(strings.TrimSpace(jd.Device.Status), "on_job") {
+			assignedByProduct[productID]++
+		}
+
+		devices = append(devices, serviceJobDeviceResponse{
+			DeviceID:    jd.DeviceID,
+			Status:      strings.TrimSpace(jd.Device.Status),
+			ProductName: productName,
+			ZoneName:    jd.Device.CurrentLocation,
+			Barcode:     jd.Device.Barcode,
+			QRCode:      jd.Device.QRCode,
+			PackStatus:  strings.TrimSpace(jd.PackStatus),
+			Scanned:     strings.EqualFold(strings.TrimSpace(jd.Device.Status), "on_job"),
+		})
+	}
+
+	productRequirements := make([]serviceJobProductRequirementResponse, 0, len(requirements))
+	for _, requirement := range requirements {
+		productName := ""
+		if requirement.Product != nil {
+			productName = strings.TrimSpace(requirement.Product.Name)
+		}
+		productRequirements = append(productRequirements, serviceJobProductRequirementResponse{
+			ProductID:   requirement.ProductID,
+			ProductName: productName,
+			Required:    requirement.Quantity,
+			Assigned:    assignedByProduct[requirement.ProductID],
+		})
+	}
+
+	summary := gin.H{
+		"job_id":               job.JobID,
+		"job_code":             job.JobCode,
+		"status":               status,
+		"customer_first_name":  customerFirstName,
+		"customer_last_name":   customerLastName,
+		"devices":              devices,
+		"product_requirements": productRequirements,
+	}
+	if job.Description != nil && strings.TrimSpace(*job.Description) != "" {
+		summary["description"] = *job.Description
+	}
+	if startDate := formatServiceDate(job.StartDate); startDate != nil {
+		summary["start_date"] = *startDate
+	}
+	if endDate := formatServiceDate(job.EndDate); endDate != nil {
+		summary["end_date"] = *endDate
+	}
+	return summary
 }
 
 func parseRentalEquipmentSelections(raw string) ([]RentalEquipmentSelection, error) {
@@ -205,7 +366,7 @@ func (h *JobHandler) processRentalEquipmentSelections(jobID uint, selections []R
 		return nil
 	}
 
-	// First, remove all existing rental equipment for this job
+	// Remove all existing rental equipment links for this job first
 	var existingRentals []models.JobRentalEquipment
 	if err := h.rentalEquipRepo.GetJobRentalEquipment(jobID, &existingRentals); err == nil {
 		for _, rental := range existingRentals {
@@ -213,7 +374,6 @@ func (h *JobHandler) processRentalEquipmentSelections(jobID uint, selections []R
 		}
 	}
 
-	// Add the new selections
 	for _, selection := range selections {
 		if selection.Quantity == 0 {
 			continue
@@ -222,6 +382,21 @@ func (h *JobHandler) processRentalEquipmentSelections(jobID uint, selections []R
 		daysUsed := selection.DaysUsed
 		if daysUsed == 0 {
 			daysUsed = 1
+		}
+
+		// When equipment comes from WarehouseCore it may not exist in the local
+		// rental_equipment table (which job_rental_equipment FKs into). Upsert it
+		// so the FK constraint is satisfied.
+		if selection.ProductName != "" {
+			if err := h.rentalEquipRepo.UpsertEquipmentFromWC(
+				selection.EquipmentID,
+				selection.ProductName,
+				selection.SupplierName,
+				selection.RentalPrice,
+				selection.Category,
+			); err != nil {
+				fmt.Printf("Warning: Failed to upsert rental equipment %d locally: %v\n", selection.EquipmentID, err)
+			}
 		}
 
 		jobRental := &models.JobRentalEquipment{
@@ -236,7 +411,6 @@ func (h *JobHandler) processRentalEquipmentSelections(jobID uint, selections []R
 			return fmt.Errorf("failed to add rental equipment %d: %v", selection.EquipmentID, err)
 		}
 	}
-
 	return nil
 }
 
@@ -247,7 +421,7 @@ func (h *JobHandler) renderJobFormWithError(c *gin.Context, job *models.Job, tit
 	jobCategories, _ := h.jobCategoryRepo.List()
 
 	// Fetch rental equipment from WarehouseCore
-	rentalEquipBySupplier, _ := h.warehouseClient.GetRentalEquipmentBySupplier()
+	rentalEquipByCategory, _ := h.warehouseClient.GetRentalEquipmentByCategory()
 
 	// Get existing job rental equipment if editing
 	var jobRentalEquipment []models.JobRentalEquipment
@@ -263,7 +437,7 @@ func (h *JobHandler) renderJobFormWithError(c *gin.Context, job *models.Job, tit
 		"jobCategories":         jobCategories,
 		"error":                 errorText,
 		"user":                  user,
-		"rentalEquipBySupplier": rentalEquipBySupplier,
+		"rentalEquipByCategory": rentalEquipByCategory,
 		"jobRentalEquipment":    jobRentalEquipment,
 	})
 }
@@ -352,7 +526,7 @@ func (h *JobHandler) NewJobForm(c *gin.Context) {
 	}
 
 	// Fetch rental equipment from WarehouseCore
-	rentalEquipBySupplier, _ := h.warehouseClient.GetRentalEquipmentBySupplier()
+	rentalEquipByCategory, _ := h.warehouseClient.GetRentalEquipmentByCategory()
 
 	// Force no-cache headers to prevent template caching issues
 	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -366,7 +540,7 @@ func (h *JobHandler) NewJobForm(c *gin.Context) {
 		"statuses":              statuses,
 		"jobCategories":         jobCategories,
 		"user":                  user,
-		"rentalEquipBySupplier": rentalEquipBySupplier,
+		"rentalEquipByCategory": rentalEquipByCategory,
 		"jobRentalEquipment":    []models.JobRentalEquipment{},
 	})
 }
@@ -560,6 +734,45 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 }
 
 func (h *JobHandler) EditJobForm(c *gin.Context) {
+	if c.GetHeader("X-Requested-With") == "XMLHttpRequest" || c.Query("modal") == "1" {
+		user, _ := GetCurrentUser(c)
+
+		id, err := strconv.ParseUint(strings.TrimSpace(c.Param("id")), 10, 32)
+		if err != nil {
+			c.HTML(http.StatusBadRequest, "error.html", gin.H{"error": "Invalid job ID", "user": user})
+			return
+		}
+
+		job, err := h.jobRepo.GetByID(uint(id))
+		if err != nil {
+			c.HTML(http.StatusNotFound, "error.html", gin.H{"error": "Job not found", "user": user})
+			return
+		}
+
+		customers, _ := h.customerRepo.List(&models.FilterParams{})
+		statuses, _ := h.statusRepo.List()
+		jobCategories, _ := h.jobCategoryRepo.List()
+		rentalEquipByCategory, _ := h.warehouseClient.GetRentalEquipmentByCategory()
+		var jobRentalEquipment []models.JobRentalEquipment
+		h.rentalEquipRepo.GetJobRentalEquipment(job.JobID, &jobRentalEquipment)
+
+		c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
+
+		c.HTML(http.StatusOK, "job_form.html", gin.H{
+			"title":                 "Edit Job",
+			"job":                   job,
+			"customers":             customers,
+			"statuses":              statuses,
+			"jobCategories":         jobCategories,
+			"user":                  user,
+			"rentalEquipByCategory": rentalEquipByCategory,
+			"jobRentalEquipment":    jobRentalEquipment,
+		})
+		return
+	}
+
 	jobID := strings.TrimSpace(c.Param("id"))
 	target := "/jobs"
 	if jobID != "" {
@@ -891,6 +1104,93 @@ func (h *JobHandler) ListJobsAPI(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"jobs": jobs})
+}
+
+func (h *JobHandler) ListJobsServiceAPI(c *gin.Context) {
+	if !authorizeServiceRequest(c) {
+		return
+	}
+
+	params := &models.FilterParams{}
+	if err := c.ShouldBindQuery(params); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	jobs, err := h.jobRepo.List(params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response := make([]serviceJobResponse, 0, len(jobs))
+	for _, job := range jobs {
+		requirements, err := h.jobRepo.GetJobProductRequirements(job.JobID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		requirementsCount := 0
+		for _, requirement := range requirements {
+			requirementsCount += requirement.Quantity
+		}
+		customerFirstName, customerLastName := splitServiceCustomerName(models.Customer{}, job.CustomerName)
+		status := strings.TrimSpace(job.StatusName)
+		if status == "" {
+			status = "open"
+		}
+		response = append(response, serviceJobResponse{
+			JobID:             job.JobID,
+			JobCode:           job.JobCode,
+			Description:       job.Description,
+			StartDate:         formatServiceDate(job.StartDate),
+			EndDate:           formatServiceDate(job.EndDate),
+			Status:            status,
+			CustomerFirstName: customerFirstName,
+			CustomerLastName:  customerLastName,
+			DeviceCount:       job.DeviceCount,
+			RequirementsCount: requirementsCount,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *JobHandler) GetJobSummaryServiceAPI(c *gin.Context) {
+	if !authorizeServiceRequest(c) {
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
+		return
+	}
+
+	job, err := h.jobRepo.GetByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+		return
+	}
+
+	jobDevices, err := h.jobRepo.GetJobDevices(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	requirements, err := h.jobRepo.GetJobProductRequirements(uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	customerFallback := ""
+	if job.CustomerID != 0 {
+		customerFallback = job.Customer.GetDisplayName()
+	}
+
+	c.JSON(http.StatusOK, buildServiceJobSummary(job, jobDevices, requirements, customerFallback, job.Status.Status))
 }
 
 func (h *JobHandler) resolveProductSelections(job *models.Job, selections []JobProductSelection, currentDevices []models.JobDevice) (map[uint][]string, error) {
@@ -2113,82 +2413,19 @@ func (h *JobHandler) GetJobPackageReservations(c *gin.Context) {
 
 // GetJobCablesAPI handles GET /api/v1/jobs/:id/cables
 func (h *JobHandler) GetJobCablesAPI(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
-		return
-	}
-
-	jobCables, err := h.jobRepo.GetJobCables(uint(id))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"cables": jobCables})
+	// Cable management has been removed from RentalCore and moved to WarehouseCore.
+	// Keep the endpoint for backwards compatibility but indicate the resource is gone.
+	c.JSON(http.StatusGone, gin.H{"error": "Cable management moved to WarehouseCore; use /admin/cables on your WarehouseCore instance"})
 }
 
 // AssignCableToJobAPI handles POST /api/v1/jobs/:id/cables
 func (h *JobHandler) AssignCableToJobAPI(c *gin.Context) {
-	jobID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
-		return
-	}
-
-	var req struct {
-		CableID int `json:"cable_id"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
-	}
-
-	if req.CableID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cable ID"})
-		return
-	}
-
-	if err := h.jobRepo.AssignCable(uint(jobID), req.CableID); err != nil {
-		switch {
-		case errors.Is(err, repository.ErrJobNotFound), errors.Is(err, repository.ErrCableNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		case errors.Is(err, repository.ErrCableAlreadyAssigned):
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		}
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Cable assigned successfully"})
+	c.JSON(http.StatusGone, gin.H{"error": "Cable assignment moved to WarehouseCore; use WarehouseCore APIs to manage cables"})
 }
 
 // RemoveCableFromJobAPI handles DELETE /api/v1/jobs/:id/cables/:cableId
 func (h *JobHandler) RemoveCableFromJobAPI(c *gin.Context) {
-	jobID, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid job ID"})
-		return
-	}
-
-	cableID, err := strconv.Atoi(c.Param("cableId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cable ID"})
-		return
-	}
-
-	if cableID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cable ID"})
-		return
-	}
-
-	if err := h.jobRepo.RemoveCable(uint(jobID), cableID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Cable removed successfully"})
+	c.JSON(http.StatusGone, gin.H{"error": "Cable removal moved to WarehouseCore; use WarehouseCore APIs to manage cables"})
 }
 
 // CablePlanningResponse represents the cable planning data for a job

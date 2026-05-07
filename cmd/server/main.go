@@ -92,6 +92,13 @@ func buildWarehouseProductsURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s/admin/products", scheme, host)
 }
 
+func sessionCookieName() string {
+	if name := strings.TrimSpace(os.Getenv("SESSION_COOKIE_NAME")); name != "" {
+		return name
+	}
+	return "session_id"
+}
+
 func resolvePackageAliasEndpoint() string {
 	aliasURL := strings.TrimSpace(os.Getenv("WAREHOUSECORE_ALIAS_MAP_URL"))
 	if aliasURL != "" {
@@ -390,8 +397,12 @@ func main() {
 	}
 	deviceRepo := repository.NewDeviceRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
+	// Inject warehouse client for customer read fallback when enabled
+	customerRepo.WithWarehouseCoreClient(whClient, cfg.Features.WarehouseCustomersEnabled)
 	statusRepo := repository.NewStatusRepository(db)
 	productRepo := repository.NewProductRepository(db)
+	// Wire WarehouseCore client to productRepo if product API mode is enabled
+	productRepo.WithWarehouseCoreClient(whClient, cfg.Features.WarehouseProductsEnabled)
 	jobCategoryRepo := repository.NewJobCategoryRepository(db)
 	caseRepo := repository.NewCaseRepository(db)
 	equipmentPackageRepo := repository.NewEquipmentPackageRepository(db)
@@ -423,7 +434,7 @@ func main() {
 		jobHandler.SetWarehouseClient(whClient)
 	}
 	jobHistoryHandler := handlers.NewJobHistoryHandler(db.DB)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo)
+	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo, whClient)
 	customerHandler := handlers.NewCustomerHandler(customerRepo)
 	statusHandler := handlers.NewStatusHandler(statusRepo)
 	productHandler := handlers.NewProductHandler(productRepo)
@@ -444,6 +455,8 @@ func main() {
 	pwaHandler := handlers.NewPWAHandler(db.DB)
 	workflowHandler := handlers.NewWorkflowHandler(jobRepo, customerRepo, equipmentPackageRepo, deviceRepo, db.DB, barcodeService)
 	equipmentPackageHandler := handlers.NewEquipmentPackageHandler(equipmentPackageRepo, deviceRepo)
+	// Wire WarehouseCore client into rental equipment repository so reads can use WarehouseCore
+	rentalEquipmentRepo.WithWarehouseCoreClient(whClient)
 	rentalEquipmentHandler := handlers.NewRentalEquipmentHandler(rentalEquipmentRepo)
 	documentHandler := handlers.NewDocumentHandler(db.DB)
 	financialHandler := handlers.NewFinancialHandler(db.DB)
@@ -925,7 +938,7 @@ func setupRoutes(r *gin.Engine,
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {
 		// Check if user is authenticated by looking for session
-		sessionID, err := c.Cookie("session_id")
+		sessionID, err := c.Cookie(sessionCookieName())
 		if err != nil || sessionID == "" {
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return
@@ -959,6 +972,14 @@ func setupRoutes(r *gin.Engine,
 			passkey.POST("/start-authentication", webauthnHandler.StartPasskeyAuthentication)
 			passkey.POST("/complete-authentication", webauthnHandler.CompletePasskeyAuthentication)
 		}
+	}
+
+	// Service-to-service auth lookup routes.
+	// These routes are intentionally outside session-based protected groups and
+	// are guarded by API key checks inside the handler.
+	serviceAuthAPI := r.Group("/api/v1/security/auth")
+	{
+		serviceAuthAPI.GET("/users/:id", authHandler.GetUserAPI)
 	}
 
 	// Protected routes - require authentication
@@ -1045,34 +1066,21 @@ func setupRoutes(r *gin.Engine,
 			rentalEquipment.GET("/analytics", rentalEquipmentHandler.ShowRentalAnalytics)
 		}
 
-		// Cable routes - redirect to WarehouseCore
+		// Cable routes removed from UI; redirect to WarehouseCore if configured
 		redirectToWarehouseCables := func(c *gin.Context) {
-			user, _ := handlers.GetCurrentUser(c)
 			target := buildWarehouseCablesURL(c.Request)
 			if target == "" {
-				c.HTML(http.StatusServiceUnavailable, "cables_redirect.html", gin.H{
-					"title":       "Cable Finder",
-					"user":        user,
-					"timestamp":   time.Now().Unix(),
-					"targetURL":   "",
-					"error":       "WarehouseCore domain not configured",
-					"message":     "Set WAREHOUSECORE_DOMAIN to enable cable search in WarehouseCore.",
-					"currentPage": "cables",
+				c.JSON(http.StatusServiceUnavailable, gin.H{
+					"error":   "WarehouseCore domain not configured",
+					"message": "Cable UI is disabled; set WAREHOUSECORE_DOMAIN to enable external cable search",
 				})
 				return
 			}
-			c.HTML(http.StatusOK, "cables_redirect.html", gin.H{
-				"title":       "Cable Finder",
-				"user":        user,
-				"timestamp":   time.Now().Unix(),
-				"targetURL":   target,
-				"currentPage": "cables",
-			})
+			c.Redirect(http.StatusFound, target)
 		}
 
 		cables := protected.Group("/cables")
 		{
-			// Redirect to WarehouseCore
 			cables.GET("", redirectToWarehouseCables)
 			cables.GET("/new", redirectToWarehouseCables)
 		}
@@ -1414,6 +1422,12 @@ func setupRoutes(r *gin.Engine,
 				}
 			}
 
+			serviceJobs := api.Group("/service/jobs")
+			{
+				serviceJobs.GET("", jobHandler.ListJobsServiceAPI)
+				serviceJobs.GET("/:id/summary", jobHandler.GetJobSummaryServiceAPI)
+			}
+
 			// Job API
 			apiJobs := api.Group("/jobs")
 			{
@@ -1432,10 +1446,7 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
 				apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
 
-				// Job cable routes
-				apiJobs.GET("/:id/cables", jobHandler.GetJobCablesAPI)
-				apiJobs.POST("/:id/cables", jobHandler.AssignCableToJobAPI)
-				apiJobs.DELETE("/:id/cables/:cableId", jobHandler.RemoveCableFromJobAPI)
+				// Job cable routes removed; cable management moved to WarehouseCore
 
 				// Job package routes
 				apiJobs.GET("/:id/packages", jobHandler.GetJobPackages)

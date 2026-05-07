@@ -1,6 +1,7 @@
--- Add total fields to pdf_extractions table
-ALTER TABLE pdf_extractions
-    ADD COLUMN parsed_total DECIMAL(10, 2) NULL COMMENT 'Subtotal before discount',
-    ADD COLUMN discount_percent DECIMAL(5, 2) NULL COMMENT 'Discount percentage';
+-- Migration 027 up (noop)
+DO $$
+BEGIN
+    RAISE NOTICE 'Skipping MySQL-original migration 027_add_pdf_totals.up.sql; converted migration should be used instead.';
+END $$;
 
 -- Note: discount_amount and total_amount columns already exist

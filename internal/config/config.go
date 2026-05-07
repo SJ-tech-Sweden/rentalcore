@@ -132,6 +132,18 @@ type FeaturesConfig struct {
 	// stored in job_cables over a live cross-service DB join to cables table.
 	// Enable this after running go run ./tools/backfill_cable_snapshots.
 	CableSnapshotEnabled bool `json:"cable_snapshot_enabled"`
+	// WarehouseProductsEnabled switches product reads to use WarehouseCore API
+	// instead of the local products table. Use cautiously; the API must be
+	// reachable and produce compatible payloads.
+	WarehouseProductsEnabled bool `json:"warehouse_products_enabled"`
+	// WarehouseCustomersEnabled toggles using WarehouseCore API for customer
+	// reads (Get/List). Creation/updates remain local in RentalCore.
+	WarehouseCustomersEnabled bool `json:"warehouse_customers_enabled"`
+
+	// WarehouseUsersEnabled toggles using WarehouseCore (or RentalCore API)
+	// for reading user information in other services. When enabled, reads
+	// prefer the central auth service; writes remain local to RentalCore.
+	WarehouseUsersEnabled bool `json:"warehouse_users_enabled"`
 }
 
 // WarehouseCoreConfig holds connection details for the WarehouseCore service.
@@ -271,8 +283,9 @@ func getDefaultConfig() *Config {
 			Path:          "backups/",
 		},
 		Features: FeaturesConfig{
-			ScannerEnabled:       false, // Scanner functionality removed
-			CableSnapshotEnabled: false, // Enable after running backfill script
+			ScannerEnabled:           false, // Scanner functionality removed
+			CableSnapshotEnabled:     false, // Enable after running backfill script
+			WarehouseProductsEnabled: false,
 		},
 		WarehouseCore: WarehouseCoreConfig{
 			BaseURL: "",
@@ -419,6 +432,15 @@ func loadFromEnvironment(config *Config) {
 	}
 	if flag := os.Getenv("CABLE_SNAPSHOT_ENABLED"); flag != "" {
 		config.Features.CableSnapshotEnabled = flag == "true" || flag == "1"
+	}
+	if flag := os.Getenv("WAREHOUSE_PRODUCTS_ENABLED"); flag != "" {
+		config.Features.WarehouseProductsEnabled = flag == "true" || flag == "1"
+	}
+	if flag := os.Getenv("WAREHOUSE_CUSTOMERS_ENABLED"); flag != "" {
+		config.Features.WarehouseCustomersEnabled = flag == "true" || flag == "1"
+	}
+	if flag := os.Getenv("WAREHOUSE_USERS_ENABLED"); flag != "" {
+		config.Features.WarehouseUsersEnabled = flag == "true" || flag == "1"
 	}
 }
 

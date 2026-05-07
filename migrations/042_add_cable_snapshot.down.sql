@@ -5,7 +5,8 @@
 --       exists.  The original cross-service FK to cables("cableID") is kept
 --       intact by this migration; it is only removed in a future PR.
 
-DROP INDEX IF EXISTS idx_job_cables_snapshot_backfill;
-
-ALTER TABLE job_cables
-    DROP COLUMN IF EXISTS cable_snapshot;
+-- Migration 042 down (noop)
+DO $$
+BEGIN
+    RAISE NOTICE 'Skipping MySQL-original migration 042_add_cable_snapshot.down.sql; converted migration should be used instead.';
+END $$;
