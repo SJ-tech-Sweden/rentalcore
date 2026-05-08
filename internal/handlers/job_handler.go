@@ -248,8 +248,8 @@ func authorizeServiceRequest(c *gin.Context) bool {
 		return false
 	}
 
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return false
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	return false
 }
 
 func formatServiceDate(value *time.Time) *string {
@@ -2834,34 +2834,34 @@ func (h *JobHandler) GetAvailableJobPackages(c *gin.Context) {
 	var packages []models.ProductPackage
 	if hasProductPackages {
 		if err := db.Order("name ASC").Find(&packages).Error; err == nil {
-		options := make([]packageOption, 0, len(packages))
-		for _, pkg := range packages {
-			description := ""
-			if pkg.Description.Valid {
-				description = strings.TrimSpace(pkg.Description.String)
-			}
-			var descriptionPtr *string
-			if description != "" {
-				descriptionPtr = &description
+			options := make([]packageOption, 0, len(packages))
+			for _, pkg := range packages {
+				description := ""
+				if pkg.Description.Valid {
+					description = strings.TrimSpace(pkg.Description.String)
+				}
+				var descriptionPtr *string
+				if description != "" {
+					descriptionPtr = &description
+				}
+
+				var pricePtr *float64
+				if pkg.Price.Valid {
+					price := pkg.Price.Float64
+					pricePtr = &price
+				}
+
+				options = append(options, packageOption{
+					PackageID:   pkg.PackageID,
+					Name:        strings.TrimSpace(pkg.Name),
+					Description: descriptionPtr,
+					Price:       pricePtr,
+					PackageCode: strings.TrimSpace(pkg.PackageCode),
+				})
 			}
 
-			var pricePtr *float64
-			if pkg.Price.Valid {
-				price := pkg.Price.Float64
-				pricePtr = &price
-			}
-
-			options = append(options, packageOption{
-				PackageID:   pkg.PackageID,
-				Name:        strings.TrimSpace(pkg.Name),
-				Description: descriptionPtr,
-				Price:       pricePtr,
-				PackageCode: strings.TrimSpace(pkg.PackageCode),
-			})
-		}
-
-		c.JSON(http.StatusOK, gin.H{"success": true, "packages": options})
-		return
+			c.JSON(http.StatusOK, gin.H{"success": true, "packages": options})
+			return
 		}
 	}
 
