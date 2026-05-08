@@ -982,6 +982,15 @@ func setupRoutes(r *gin.Engine,
 		serviceAuthAPI.GET("/users/:id", authHandler.GetUserAPI)
 	}
 
+	// Service-to-service job routes.
+	// These routes are intentionally outside session-based protected groups and
+	// are guarded by API key checks inside the handler.
+	serviceJobsAPI := r.Group("/api/v1/service/jobs")
+	{
+		serviceJobsAPI.GET("", jobHandler.ListJobsServiceAPI)
+		serviceJobsAPI.GET("/:id/summary", jobHandler.GetJobSummaryServiceAPI)
+	}
+
 	// Protected routes - require authentication
 	protected := r.Group("/")
 	protected.Use(authHandler.AuthMiddleware())
@@ -1422,17 +1431,12 @@ func setupRoutes(r *gin.Engine,
 				}
 			}
 
-			serviceJobs := api.Group("/service/jobs")
-			{
-				serviceJobs.GET("", jobHandler.ListJobsServiceAPI)
-				serviceJobs.GET("/:id/summary", jobHandler.GetJobSummaryServiceAPI)
-			}
-
 			// Job API
 			apiJobs := api.Group("/jobs")
 			{
 				apiJobs.GET("", jobHandler.ListJobsAPI)
 				apiJobs.POST("", jobHandler.CreateJobAPI)
+				apiJobs.GET("/packages/available", jobHandler.GetAvailableJobPackages)
 				apiJobs.GET("/:id", jobHandler.GetJobAPI)
 				apiJobs.PUT("/:id", jobHandler.UpdateJobAPI)
 				apiJobs.DELETE("/:id", jobHandler.DeleteJobAPI)

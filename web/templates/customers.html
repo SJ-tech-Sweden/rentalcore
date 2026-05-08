@@ -102,11 +102,7 @@
                                 <tr onclick="showCustomerDetails({{.CustomerID}})" style="cursor: pointer;">
                                     <td>
                                         <div class="rc-table-wc-title">
-                                            {{if .CompanyName}}
-                                                {{.CompanyName}}
-                                            {{else}}
-                                                {{.FirstName}} {{.LastName}}
-                                            {{end}}
+                                            {{.GetDisplayName}}
                                         </div>
                                         <div class="rc-table-wc-meta">ID {{.CustomerID}}</div>
                                     </td>
@@ -325,6 +321,28 @@
     </div>
 
     <script>
+    function normalizeCustomerType(value) {
+        const raw = (value || '').toString().trim().toLowerCase();
+        if (!raw || raw === 'kunde' || raw === 'customer' || raw === 'individual' || raw === 'business') {
+            return 'customer';
+        }
+        if (raw === 'lieferant' || raw === 'supplier' || raw === 'vendor') {
+            return 'supplier';
+        }
+        return raw;
+    }
+
+    function customerTypeLabel(value) {
+        const normalized = normalizeCustomerType(value);
+        if (normalized === 'supplier') {
+            return window.t ? window.t('customers.type_options.supplier') : 'Supplier';
+        }
+        if (normalized === 'customer') {
+            return window.t ? window.t('customers.type_options.customer') : 'Customer';
+        }
+        return value || (window.t ? window.t('common.info') : 'Unknown');
+    }
+
     // Customer Details Modal
     function showCustomerDetails(customerID) {
         const modal = document.getElementById('customerDetailsModal');
@@ -364,7 +382,7 @@
                         </div>
                         <div class="rc-form-group">
                             <label class="rc-label">${window.t ? window.t('customers.type_label') : 'Type'}</label>
-                            <div class="rc-badge rc-badge-outline">${_cust.customertype || (window.t ? window.t('common.info') : 'Unknown')}</div>
+                            <div class="rc-badge rc-badge-outline">${customerTypeLabel(_cust.customertype)}</div>
                         </div>
                         ${_cust.companyname ? `
                         <div class="rc-form-group">
@@ -446,6 +464,7 @@
             .then(customer => {
                 console.log('Customer data received:', customer);
                 const c = customer || {};
+                const selectedType = normalizeCustomerType(c.customertype);
                 content.innerHTML = `
                     <form id="editCustomerForm">
                         <div class="rc-grid rc-grid-cols-1 rc-grid-cols-md-2 rc-grid-gap-md rc-mb-lg">
@@ -464,8 +483,8 @@
                             <div class="rc-form-group">
                                 <label class="rc-label">${window.t ? window.t('customers.type_label') : 'Customer Type'}</label>
                                 <select class="rc-select" name="customertype">
-                                    <option value="individual" ${c.customertype === 'individual' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.individual') : 'Individual'}</option>
-                                    <option value="business" ${c.customertype === 'business' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.business') : 'Business'}</option>
+                                    <option value="customer" ${selectedType === 'customer' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.customer') : 'Customer'}</option>
+                                    <option value="supplier" ${selectedType === 'supplier' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.supplier') : 'Supplier'}</option>
                                 </select>
                             </div>
                             <div class="rc-form-group">
@@ -543,8 +562,9 @@
         // Convert FormData to JSON
         const data = {};
         for (let [key, value] of formData.entries()) {
-            data[key] = value;
+            data[key] = value === '' ? null : value;
         }
+        data.customertype = normalizeCustomerType(data.customertype);
         
         fetch('/api/v1/customers/' + customerID, {
             method: 'PUT',
@@ -622,6 +642,7 @@
         for (let [key, value] of formData.entries()) {
             data[key] = value || null; // Convert empty strings to null
         }
+        data.customertype = normalizeCustomerType(data.customertype);
         
         fetch('/api/v1/customers', {
             method: 'POST',

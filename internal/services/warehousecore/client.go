@@ -39,6 +39,28 @@ type Product struct {
 	Price float64 `json:"price,omitempty"`
 }
 
+// ProductPackage represents package data returned by WarehouseCore.
+type ProductPackage struct {
+	PackageID   int     `json:"package_id"`
+	PackageCode string  `json:"package_code,omitempty"`
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
+	Price       float64 `json:"price,omitempty"`
+	TotalItems  int     `json:"total_items,omitempty"`
+}
+
+type ProductPackageItemDetail struct {
+	PackageItemID int    `json:"package_item_id"`
+	ProductID     int    `json:"product_id"`
+	ProductName   string `json:"product_name"`
+	Quantity      int    `json:"quantity"`
+}
+
+type ProductPackageDetail struct {
+	ProductPackage
+	Items []ProductPackageItemDetail `json:"items,omitempty"`
+}
+
 // Customer represents a customer payload returned by WarehouseCore.
 type Customer struct {
 	ID          uint    `json:"id"`
@@ -547,6 +569,74 @@ func (c *Client) ListProducts(search string) ([]Product, error) {
 		return nil, fmt.Errorf("decode products list: %w", err)
 	}
 	return items, nil
+}
+
+// ListProductPackages calls WarehouseCore package listing endpoint.
+func (c *Client) ListProductPackages(search string) ([]ProductPackage, error) {
+	url := fmt.Sprintf("%s/service/product-packages", c.baseURL)
+	if strings.TrimSpace(search) != "" {
+		url = fmt.Sprintf("%s?search=%s", url, strings.ReplaceAll(strings.TrimSpace(search), " ", "%20"))
+	}
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create product packages request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	c.addAuthHeader(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch product packages: %w", err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("product packages API returned status %d", resp.StatusCode)
+	}
+
+	var items []ProductPackage
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+		return nil, fmt.Errorf("decode product packages list: %w", err)
+	}
+	return items, nil
+}
+
+// GetProductPackage fetches a single product package with its items.
+func (c *Client) GetProductPackage(packageID int) (*ProductPackageDetail, error) {
+	url := fmt.Sprintf("%s/service/product-packages/%d", c.baseURL, packageID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create product package request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	c.addAuthHeader(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch product package %d: %w", packageID, err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("product package %d not found", packageID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("product package detail API returned status %d", resp.StatusCode)
+	}
+
+	var item ProductPackageDetail
+	if err := json.NewDecoder(resp.Body).Decode(&item); err != nil {
+		return nil, fmt.Errorf("decode product package detail: %w", err)
+	}
+	return &item, nil
 }
 
 // GetCustomer fetches a single customer by ID from WarehouseCore.

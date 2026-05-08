@@ -32,6 +32,7 @@ func jobDebugLog(format string, args ...interface{}) {
 
 func normalizeProductSelections(selections []JobProductSelection) []JobProductSelection {
 	aggregated := make(map[uint]int)
+	productNames := make(map[uint]string)
 	for _, selection := range selections {
 		if selection.ProductID == 0 {
 			continue
@@ -40,6 +41,13 @@ func normalizeProductSelections(selections []JobProductSelection) []JobProductSe
 			continue
 		}
 		aggregated[selection.ProductID] += selection.Quantity
+		name := strings.TrimSpace(selection.ProductName)
+		if name == "" {
+			continue
+		}
+		if existing := strings.TrimSpace(productNames[selection.ProductID]); existing == "" || strings.EqualFold(existing, fmt.Sprintf("Product %d", selection.ProductID)) {
+			productNames[selection.ProductID] = name
+		}
 	}
 
 	if len(aggregated) == 0 {
@@ -48,7 +56,7 @@ func normalizeProductSelections(selections []JobProductSelection) []JobProductSe
 
 	result := make([]JobProductSelection, 0, len(aggregated))
 	for productID, qty := range aggregated {
-		result = append(result, JobProductSelection{ProductID: productID, Quantity: qty})
+		result = append(result, JobProductSelection{ProductID: productID, Quantity: qty, ProductName: strings.TrimSpace(productNames[productID])})
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -102,6 +110,15 @@ func parseProductSelectionsFromInterface(value interface{}) ([]JobProductSelecti
 					selection.Quantity = qty
 				}
 			}
+			if productNameVal, exists := obj["product_name"]; exists {
+				if name, ok := productNameVal.(string); ok {
+					selection.ProductName = strings.TrimSpace(name)
+				}
+			} else if productNameVal, exists := obj["name"]; exists {
+				if name, ok := productNameVal.(string); ok {
+					selection.ProductName = strings.TrimSpace(name)
+				}
+			}
 			selections = append(selections, selection)
 		}
 		return normalizeProductSelections(selections), nil
@@ -127,8 +144,9 @@ type JobHandler struct {
 }
 
 type JobProductSelection struct {
-	ProductID uint `json:"product_id"`
-	Quantity  int  `json:"quantity"`
+	ProductID   uint   `json:"product_id"`
+	Quantity    int    `json:"quantity"`
+	ProductName string `json:"product_name,omitempty"`
 }
 
 type RentalEquipmentSelection struct {
@@ -142,6 +160,13 @@ type RentalEquipmentSelection struct {
 	ProductName   string  `json:"product_name,omitempty"`
 	SupplierName  string  `json:"supplier_name,omitempty"`
 	Category      string  `json:"category,omitempty"`
+}
+
+type JobPackageSelection struct {
+	PackageID   int      `json:"package_id"`
+	Quantity    uint     `json:"quantity"`
+	CustomPrice *float64 `json:"custom_price,omitempty"`
+	PackageName string   `json:"package_name,omitempty"`
 }
 
 type serviceJobResponse struct {
@@ -175,24 +200,56 @@ type serviceJobProductRequirementResponse struct {
 	Assigned    int    `json:"assigned"`
 }
 
-func serviceAPIKey() string {
-	if key := strings.TrimSpace(os.Getenv("RENTALCORE_API_KEY")); key != "" {
-		return key
+func serviceAPIKeys() []string {
+	keys := []string{}
+	for _, key := range []string{
+		strings.TrimSpace(os.Getenv("RENTALCORE_API_KEY")),
+		strings.TrimSpace(os.Getenv("SERVICE_API_KEY")),
+		strings.TrimSpace(os.Getenv("WAREHOUSECORE_API_KEY")),
+	} {
+		if key == "" {
+			continue
+		}
+
+		duplicate := false
+		for _, existing := range keys {
+			if existing == key {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			keys = append(keys, key)
+		}
 	}
-	return strings.TrimSpace(os.Getenv("WAREHOUSECORE_API_KEY"))
+	return keys
 }
 
 func authorizeServiceRequest(c *gin.Context) bool {
-	expectedKey := serviceAPIKey()
-	if expectedKey == "" {
+	expectedKeys := serviceAPIKeys()
+	if len(expectedKeys) == 0 {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key not configured"})
 		return false
 	}
-	if strings.TrimSpace(c.GetHeader("X-API-Key")) != expectedKey {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+
+	incomingKey := strings.TrimSpace(c.GetHeader("X-API-Key"))
+	for _, expected := range expectedKeys {
+		if incomingKey == expected {
+			return true
+		}
+	}
+
+	if incomingKey != "" {
+		fmt.Printf("Service auth mismatch for %s: incoming key length=%d configured_keys=%d\n", c.Request.URL.Path, len(incomingKey), len(expectedKeys))
+	}
+
+	if incomingKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing api key"})
 		return false
 	}
-	return true
+
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return false
 }
 
 func formatServiceDate(value *time.Time) *string {
@@ -299,6 +356,61 @@ func buildServiceJobSummary(job *models.Job, jobDevices []models.JobDevice, requ
 	return summary
 }
 
+func mergeRequirementsWithJobPackages(requirements []models.JobProductRequirement, jobPackages []models.JobPackage, warehouseClient *warehousecore.Client, jobID uint) []models.JobProductRequirement {
+	if len(jobPackages) == 0 || warehouseClient == nil {
+		return requirements
+	}
+
+	merged := make([]models.JobProductRequirement, len(requirements))
+	copy(merged, requirements)
+	indexByProductID := make(map[uint]int, len(merged))
+	for i, requirement := range merged {
+		indexByProductID[requirement.ProductID] = i
+	}
+
+	for _, jobPackage := range jobPackages {
+		if jobPackage.PackageID <= 0 || jobPackage.Quantity == 0 {
+			continue
+		}
+
+		pkg, err := warehouseClient.GetProductPackage(jobPackage.PackageID)
+		if err != nil {
+			fmt.Printf("Warning: Failed to fetch package %d details for job summary: %v\n", jobPackage.PackageID, err)
+			continue
+		}
+
+		for _, item := range pkg.Items {
+			if item.ProductID <= 0 || item.Quantity <= 0 {
+				continue
+			}
+
+			productID := uint(item.ProductID)
+			quantity := int(jobPackage.Quantity) * item.Quantity
+			if idx, exists := indexByProductID[productID]; exists {
+				merged[idx].Quantity += quantity
+				if merged[idx].Product == nil && strings.TrimSpace(item.ProductName) != "" {
+					merged[idx].Product = &models.Product{ProductID: productID, Name: strings.TrimSpace(item.ProductName)}
+				}
+				continue
+			}
+
+			requirement := models.JobProductRequirement{
+				JobID:     int(jobID),
+				ProductID: productID,
+				Quantity:  quantity,
+			}
+			if strings.TrimSpace(item.ProductName) != "" {
+				requirement.Product = &models.Product{ProductID: productID, Name: strings.TrimSpace(item.ProductName)}
+			}
+
+			indexByProductID[productID] = len(merged)
+			merged = append(merged, requirement)
+		}
+	}
+
+	return merged
+}
+
 func parseRentalEquipmentSelections(raw string) ([]RentalEquipmentSelection, error) {
 	clean := strings.TrimSpace(raw)
 	if clean == "" {
@@ -311,6 +423,147 @@ func parseRentalEquipmentSelections(raw string) ([]RentalEquipmentSelection, err
 	}
 
 	return selections, nil
+}
+
+func normalizeJobPackageSelections(selections []JobPackageSelection) []JobPackageSelection {
+	aggregated := make(map[int]JobPackageSelection)
+	for _, selection := range selections {
+		if selection.PackageID <= 0 || selection.Quantity == 0 {
+			continue
+		}
+		existing := aggregated[selection.PackageID]
+		existing.PackageID = selection.PackageID
+		existing.Quantity += selection.Quantity
+		if selection.CustomPrice != nil {
+			price := *selection.CustomPrice
+			existing.CustomPrice = &price
+		}
+		if strings.TrimSpace(selection.PackageName) != "" {
+			existing.PackageName = strings.TrimSpace(selection.PackageName)
+		}
+		aggregated[selection.PackageID] = existing
+	}
+
+	if len(aggregated) == 0 {
+		return nil
+	}
+
+	result := make([]JobPackageSelection, 0, len(aggregated))
+	for _, selection := range aggregated {
+		result = append(result, selection)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].PackageID < result[j].PackageID
+	})
+
+	return result
+}
+
+func parseJobPackageSelectionsFromString(raw string) ([]JobPackageSelection, error) {
+	clean := strings.TrimSpace(raw)
+	if clean == "" {
+		return nil, nil
+	}
+
+	var selections []JobPackageSelection
+	if err := json.Unmarshal([]byte(clean), &selections); err != nil {
+		return nil, err
+	}
+
+	return normalizeJobPackageSelections(selections), nil
+}
+
+func parseJobPackageSelectionsFromInterface(value interface{}) ([]JobPackageSelection, error) {
+	switch v := value.(type) {
+	case string:
+		return parseJobPackageSelectionsFromString(v)
+	case []interface{}:
+		selections := make([]JobPackageSelection, 0, len(v))
+		for _, item := range v {
+			obj, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			selection := JobPackageSelection{}
+			if packageIDVal, exists := obj["package_id"]; exists {
+				switch id := packageIDVal.(type) {
+				case float64:
+					selection.PackageID = int(id)
+				case int:
+					selection.PackageID = id
+				case int64:
+					selection.PackageID = int(id)
+				}
+			}
+			if quantityVal, exists := obj["quantity"]; exists {
+				switch qty := quantityVal.(type) {
+				case float64:
+					if qty > 0 {
+						selection.Quantity = uint(qty)
+					}
+				case int:
+					if qty > 0 {
+						selection.Quantity = uint(qty)
+					}
+				case int64:
+					if qty > 0 {
+						selection.Quantity = uint(qty)
+					}
+				}
+			}
+			if customPriceVal, exists := obj["custom_price"]; exists {
+				switch price := customPriceVal.(type) {
+				case float64:
+					p := price
+					selection.CustomPrice = &p
+				case int:
+					p := float64(price)
+					selection.CustomPrice = &p
+				}
+			}
+			if packageNameVal, exists := obj["package_name"]; exists {
+				if name, ok := packageNameVal.(string); ok {
+					selection.PackageName = strings.TrimSpace(name)
+				}
+			}
+			selections = append(selections, selection)
+		}
+		return normalizeJobPackageSelections(selections), nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported selected_job_packages payload")
+	}
+}
+
+func summarizeProductSelections(selections []JobProductSelection) string {
+	total := 0
+	for _, selection := range selections {
+		total += selection.Quantity
+	}
+	return fmt.Sprintf("Updated product requirements (%d products, %d total units)", len(selections), total)
+}
+
+func summarizeRentalSelections(selections []RentalEquipmentSelection) string {
+	var itemCount int
+	var unitCount uint
+	for _, selection := range selections {
+		if selection.Quantity == 0 {
+			continue
+		}
+		itemCount++
+		unitCount += selection.Quantity
+	}
+	return fmt.Sprintf("Updated rental equipment (%d items, %d total units)", itemCount, unitCount)
+}
+
+func summarizePackageSelections(selections []JobPackageSelection) string {
+	var unitCount uint
+	for _, selection := range selections {
+		unitCount += selection.Quantity
+	}
+	return fmt.Sprintf("Updated rental packages (%d packages, %d total units)", len(selections), unitCount)
 }
 
 func formatUserDisplayName(user *models.User) string {
@@ -412,6 +665,51 @@ func (h *JobHandler) processRentalEquipmentSelections(jobID uint, selections []R
 		}
 	}
 	return nil
+}
+
+func (h *JobHandler) processJobPackageSelections(jobID uint, selections []JobPackageSelection, actingUserID uint) error {
+	if h.jobPackageRepo == nil {
+		return nil
+	}
+
+	current, err := h.jobPackageRepo.GetJobPackagesByJobID(int(jobID))
+	if err != nil {
+		return fmt.Errorf("failed to load existing job packages: %w", err)
+	}
+
+	for _, existing := range current {
+		if err := h.jobPackageRepo.RemoveJobPackage(existing.JobPackageID); err != nil {
+			return fmt.Errorf("failed to remove existing package %d: %w", existing.JobPackageID, err)
+		}
+	}
+
+	for _, selection := range selections {
+		if selection.PackageID <= 0 || selection.Quantity == 0 {
+			continue
+		}
+		if _, err := h.jobPackageRepo.AssignPackageToJob(int(jobID), selection.PackageID, selection.Quantity, selection.CustomPrice, actingUserID); err != nil {
+			return fmt.Errorf("failed to assign package %d: %w", selection.PackageID, err)
+		}
+	}
+
+	return nil
+}
+
+func (h *JobHandler) logCustomJobHistory(c *gin.Context, jobID uint, changeType, description string) {
+	if h.jobHistoryService == nil || strings.TrimSpace(description) == "" {
+		return
+	}
+
+	user, _ := GetCurrentUser(c)
+	var userID *uint
+	if user != nil {
+		userID = &user.UserID
+	}
+	ipAddress := c.ClientIP()
+	userAgent := c.Request.UserAgent()
+	if err := h.jobHistoryService.LogCustomChange(jobID, changeType, description, userID, ipAddress, userAgent); err != nil {
+		fmt.Printf("Warning: Failed to log custom job history (%s): %v\n", changeType, err)
+	}
 }
 
 func (h *JobHandler) renderJobFormWithError(c *gin.Context, job *models.Job, title, errorText string) {
@@ -706,6 +1004,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 			h.renderJobFormWithError(c, &job, "New Job", err.Error())
 			return
 		}
+		h.logCustomJobHistory(c, job.JobID, "product_requirements_updated", summarizeProductSelections(selections))
 	}
 
 	// Process rental equipment selections
@@ -714,10 +1013,36 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		if err != nil {
 			// Log but don't fail - rental equipment is optional
 			fmt.Printf("Warning: Failed to parse rental equipment selections: %v\n", err)
-		} else if len(rentalSelections) > 0 {
+		} else {
 			if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
 				fmt.Printf("Warning: Failed to process rental equipment: %v\n", err)
+			} else if len(rentalSelections) > 0 {
+				h.logCustomJobHistory(c, job.JobID, "rental_equipment_updated", summarizeRentalSelections(rentalSelections))
 			}
+		}
+	}
+
+	if packageStr := c.PostForm("selected_job_packages"); packageStr != "" {
+		packageSelections, err := parseJobPackageSelectionsFromString(packageStr)
+		if err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			h.renderJobFormWithError(c, &job, "New Job", "Invalid package selection payload")
+			return
+		}
+
+		actingUserID := uint(0)
+		if user, ok := GetCurrentUser(c); ok && user != nil {
+			actingUserID = user.UserID
+		}
+
+		if err := h.processJobPackageSelections(job.JobID, packageSelections, actingUserID); err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			h.renderJobFormWithError(c, &job, "New Job", err.Error())
+			return
+		}
+
+		if len(packageSelections) > 0 {
+			h.logCustomJobHistory(c, job.JobID, "job_packages_updated", summarizePackageSelections(packageSelections))
 		}
 	}
 
@@ -939,7 +1264,7 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 		}
 	}
 
-	if selectionsStr := c.PostForm("selected_products"); selectionsStr != "" {
+	if selectionsStr, exists := c.GetPostForm("selected_products"); exists {
 		selections, err := parseProductSelectionsFromString(selectionsStr)
 		if err != nil {
 			h.renderJobFormWithError(c, job, "Edit Job", "Invalid product selection payload")
@@ -949,20 +1274,59 @@ func (h *JobHandler) UpdateJob(c *gin.Context) {
 			h.renderJobFormWithError(c, job, "Edit Job", err.Error())
 			return
 		}
+		h.logCustomJobHistory(c, job.JobID, "product_requirements_updated", summarizeProductSelections(selections))
 	}
 
 	// Process rental equipment selections
-	if rentalStr := c.PostForm("selected_rental_equipment"); rentalStr != "" {
+	if rentalStr, exists := c.GetPostForm("selected_rental_equipment"); exists {
 		rentalSelections, err := parseRentalEquipmentSelections(rentalStr)
 		if err != nil {
 			// Log but don't fail - rental equipment is optional
 			fmt.Printf("Warning: Failed to parse rental equipment selections: %v\n", err)
-		} else if len(rentalSelections) > 0 {
+		} else {
+			hadExistingRentals := false
+			if h.rentalEquipRepo != nil {
+				var existing []models.JobRentalEquipment
+				if err := h.rentalEquipRepo.GetJobRentalEquipment(job.JobID, &existing); err == nil {
+					hadExistingRentals = len(existing) > 0
+				}
+			}
+
 			if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
 				fmt.Printf("Warning: Failed to process rental equipment: %v\n", err)
+			} else if len(rentalSelections) > 0 || hadExistingRentals {
+				h.logCustomJobHistory(c, job.JobID, "rental_equipment_updated", summarizeRentalSelections(rentalSelections))
 			}
 		}
 	}
+
+	if packageStr, exists := c.GetPostForm("selected_job_packages"); exists {
+		packageSelections, err := parseJobPackageSelectionsFromString(packageStr)
+		if err != nil {
+			h.renderJobFormWithError(c, job, "Edit Job", "Invalid package selection payload")
+			return
+		}
+
+		actingUserID := uint(0)
+		if user, ok := GetCurrentUser(c); ok && user != nil {
+			actingUserID = user.UserID
+		}
+
+		hadExistingPackages := false
+		if existingPackages, err := h.jobPackageRepo.GetJobPackagesByJobID(int(job.JobID)); err == nil {
+			hadExistingPackages = len(existingPackages) > 0
+		}
+
+		if err := h.processJobPackageSelections(job.JobID, packageSelections, actingUserID); err != nil {
+			h.renderJobFormWithError(c, job, "Edit Job", err.Error())
+			return
+		}
+		if len(packageSelections) > 0 || hadExistingPackages {
+			h.logCustomJobHistory(c, job.JobID, "job_packages_updated", summarizePackageSelections(packageSelections))
+		}
+	}
+
+	h.logCustomJobHistory(c, job.JobID, "job_updated", "Job details saved")
 
 	// Only recalculate revenue automatically if no manual revenue was provided
 	// This preserves manual revenue entries while still updating when dates change
@@ -1185,6 +1549,14 @@ func (h *JobHandler) GetJobSummaryServiceAPI(c *gin.Context) {
 		return
 	}
 
+	jobPackages := job.JobPackages
+	if len(jobPackages) == 0 && h.jobPackageRepo != nil {
+		if existingPackages, pkgErr := h.jobPackageRepo.GetJobPackagesByJobID(int(id)); pkgErr == nil {
+			jobPackages = existingPackages
+		}
+	}
+	requirements = mergeRequirementsWithJobPackages(requirements, jobPackages, h.warehouseClient, uint(id))
+
 	customerFallback := ""
 	if job.CustomerID != 0 {
 		customerFallback = job.Customer.GetDisplayName()
@@ -1336,14 +1708,19 @@ func (h *JobHandler) applyProductSelections(job *models.Job, selections []JobPro
 	selections = normalizeProductSelections(selections)
 
 	requirements := make([]models.JobProductRequirement, 0, len(selections))
+	productNames := make(map[uint]string, len(selections))
 	for _, sel := range selections {
 		requirements = append(requirements, models.JobProductRequirement{
 			ProductID: sel.ProductID,
 			Quantity:  sel.Quantity,
 		})
+		name := strings.TrimSpace(sel.ProductName)
+		if name != "" {
+			productNames[sel.ProductID] = name
+		}
 	}
 
-	return h.jobRepo.SetJobProductRequirements(job.JobID, requirements)
+	return h.jobRepo.SetJobProductRequirements(job.JobID, requirements, productNames)
 }
 
 // ApplyProductSelections exposes product selection logic for programmatic consumers
@@ -1510,6 +1887,53 @@ func (h *JobHandler) CreateJobAPI(c *gin.Context) {
 			_ = h.jobRepo.Delete(job.JobID)
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
+		}
+		h.logCustomJobHistory(c, job.JobID, "product_requirements_updated", summarizeProductSelections(selections))
+	}
+
+	if rentalValue, exists := requestData["selected_rental_equipment"]; exists {
+		rentalRaw, err := json.Marshal(rentalValue)
+		if err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment selection payload"})
+			return
+		}
+		rentalSelections, err := parseRentalEquipmentSelections(string(rentalRaw))
+		if err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment selection payload"})
+			return
+		}
+		if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if len(rentalSelections) > 0 {
+			h.logCustomJobHistory(c, job.JobID, "rental_equipment_updated", summarizeRentalSelections(rentalSelections))
+		}
+	}
+
+	if packageValue, exists := requestData["selected_job_packages"]; exists {
+		packageSelections, err := parseJobPackageSelectionsFromInterface(packageValue)
+		if err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid package selection payload"})
+			return
+		}
+
+		actingUserID := uint(0)
+		if user, ok := GetCurrentUser(c); ok && user != nil {
+			actingUserID = user.UserID
+		}
+
+		if err := h.processJobPackageSelections(job.JobID, packageSelections, actingUserID); err != nil {
+			_ = h.jobRepo.Delete(job.JobID)
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if len(packageSelections) > 0 {
+			h.logCustomJobHistory(c, job.JobID, "job_packages_updated", summarizePackageSelections(packageSelections))
 		}
 	}
 
@@ -1723,7 +2147,64 @@ func (h *JobHandler) UpdateJobAPI(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
+		h.logCustomJobHistory(c, job.JobID, "product_requirements_updated", summarizeProductSelections(selections))
 	}
+
+	if rentalValue, exists := requestData["selected_rental_equipment"]; exists {
+		rentalRaw, err := json.Marshal(rentalValue)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment selection payload"})
+			return
+		}
+		rentalSelections, err := parseRentalEquipmentSelections(string(rentalRaw))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental equipment selection payload"})
+			return
+		}
+		hadExistingRentals := false
+		if h.rentalEquipRepo != nil {
+			var existing []models.JobRentalEquipment
+			if err := h.rentalEquipRepo.GetJobRentalEquipment(job.JobID, &existing); err == nil {
+				hadExistingRentals = len(existing) > 0
+			}
+		}
+
+		if err := h.processRentalEquipmentSelections(job.JobID, rentalSelections); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if len(rentalSelections) > 0 || hadExistingRentals {
+			h.logCustomJobHistory(c, job.JobID, "rental_equipment_updated", summarizeRentalSelections(rentalSelections))
+		}
+	}
+
+	if packageValue, exists := requestData["selected_job_packages"]; exists {
+		packageSelections, err := parseJobPackageSelectionsFromInterface(packageValue)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid package selection payload"})
+			return
+		}
+
+		actingUserID := uint(0)
+		if user, ok := GetCurrentUser(c); ok && user != nil {
+			actingUserID = user.UserID
+		}
+
+		hadExistingPackages := false
+		if existingPackages, err := h.jobPackageRepo.GetJobPackagesByJobID(int(job.JobID)); err == nil {
+			hadExistingPackages = len(existingPackages) > 0
+		}
+
+		if err := h.processJobPackageSelections(job.JobID, packageSelections, actingUserID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if len(packageSelections) > 0 || hadExistingPackages {
+			h.logCustomJobHistory(c, job.JobID, "job_packages_updated", summarizePackageSelections(packageSelections))
+		}
+	}
+
+	h.logCustomJobHistory(c, job.JobID, "job_updated", "Job details saved")
 
 	if h.twentyService != nil {
 		// Reload the job with associations (Status etc.) so the stage mapping is accurate.
@@ -2291,6 +2772,138 @@ func (h *JobHandler) AssignPackageToJob(c *gin.Context) {
 		"message":     "Package assigned successfully",
 		"job_package": jobPackage,
 	})
+}
+
+// GetAvailableJobPackages handles GET /api/v1/jobs/packages/available
+func (h *JobHandler) GetAvailableJobPackages(c *gin.Context) {
+	type packageOption struct {
+		PackageID   int      `json:"package_id"`
+		Name        string   `json:"name"`
+		Description *string  `json:"description,omitempty"`
+		Price       *float64 `json:"price,omitempty"`
+		PackageCode string   `json:"package_code,omitempty"`
+	}
+
+	// Primary source: WarehouseCore service API, so package picker matches
+	// the package list users manage in WarehouseCore.
+	if h.warehouseClient != nil {
+		if wcPackages, err := h.warehouseClient.ListProductPackages(""); err == nil {
+			options := make([]packageOption, 0, len(wcPackages))
+			for _, pkg := range wcPackages {
+				name := strings.TrimSpace(pkg.Name)
+				if name == "" || pkg.PackageID <= 0 {
+					continue
+				}
+
+				description := strings.TrimSpace(pkg.Description)
+				var descriptionPtr *string
+				if description != "" {
+					descriptionPtr = &description
+				}
+
+				var pricePtr *float64
+				if pkg.Price > 0 {
+					price := pkg.Price
+					pricePtr = &price
+				}
+
+				options = append(options, packageOption{
+					PackageID:   pkg.PackageID,
+					Name:        name,
+					Description: descriptionPtr,
+					Price:       pricePtr,
+					PackageCode: strings.TrimSpace(pkg.PackageCode),
+				})
+			}
+
+			c.JSON(http.StatusOK, gin.H{"success": true, "packages": options})
+			return
+		}
+	}
+
+	db := h.jobRepo.GetDB()
+	hasProductPackages := db.Migrator().HasTable(&models.ProductPackage{})
+	hasEquipmentPackages := db.Migrator().HasTable(&models.EquipmentPackage{})
+
+	if !hasProductPackages && !hasEquipmentPackages {
+		// No package source is available in this deployment yet.
+		c.JSON(http.StatusOK, gin.H{"success": true, "packages": []packageOption{}})
+		return
+	}
+
+	var packages []models.ProductPackage
+	if hasProductPackages {
+		if err := db.Order("name ASC").Find(&packages).Error; err == nil {
+		options := make([]packageOption, 0, len(packages))
+		for _, pkg := range packages {
+			description := ""
+			if pkg.Description.Valid {
+				description = strings.TrimSpace(pkg.Description.String)
+			}
+			var descriptionPtr *string
+			if description != "" {
+				descriptionPtr = &description
+			}
+
+			var pricePtr *float64
+			if pkg.Price.Valid {
+				price := pkg.Price.Float64
+				pricePtr = &price
+			}
+
+			options = append(options, packageOption{
+				PackageID:   pkg.PackageID,
+				Name:        strings.TrimSpace(pkg.Name),
+				Description: descriptionPtr,
+				Price:       pricePtr,
+				PackageCode: strings.TrimSpace(pkg.PackageCode),
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "packages": options})
+		return
+		}
+	}
+
+	// Fallback for installations that only have the legacy equipment_packages table.
+	var equipmentPackages []models.EquipmentPackage
+	if !hasEquipmentPackages {
+		c.JSON(http.StatusOK, gin.H{"success": true, "packages": []packageOption{}})
+		return
+	}
+
+	if err := db.
+		Where("is_active = ?", true).
+		Order("name ASC").
+		Find(&equipmentPackages).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": true, "packages": []packageOption{}})
+		return
+	}
+
+	options := make([]packageOption, 0, len(equipmentPackages))
+	for _, pkg := range equipmentPackages {
+		description := strings.TrimSpace(pkg.Description)
+		var descriptionPtr *string
+		if description != "" {
+			descriptionPtr = &description
+		}
+
+		var pricePtr *float64
+		if pkg.PackagePrice != nil {
+			price := *pkg.PackagePrice
+			pricePtr = &price
+		}
+
+		options = append(options, packageOption{
+			PackageID:   int(pkg.PackageID),
+			Name:        strings.TrimSpace(pkg.Name),
+			Description: descriptionPtr,
+			Price:       pricePtr,
+			PackageCode: "",
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "packages": options})
 }
 
 // GetJobPackages handles GET /api/jobs/:id/packages

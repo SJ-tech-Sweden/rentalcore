@@ -123,12 +123,18 @@ func (r *JobRepository) Create(job *models.Job) error {
 
 func (r *JobRepository) GetByID(id uint) (*models.Job, error) {
 	var job models.Job
-	err := r.db.
+	query := r.db.
 		Preload("JobDevices.Device").
-		Preload("JobPackages.Package").
 		Preload("JobProductRequirements.Product").
-		Preload("Creator"). // Load the user who created the job
-		First(&job, id).Error
+		Preload("Creator") // Load the user who created the job
+
+	if r.db.Migrator().HasTable(&models.ProductPackage{}) {
+		query = query.Preload("JobPackages.Package")
+	} else {
+		query = query.Preload("JobPackages")
+	}
+
+	err := query.First(&job, id).Error
 	if err != nil {
 		jobRepoDebugLog("🔧 DEBUG JobRepo.GetByID: Error loading job %d: %v\n", id, err)
 		return nil, err
@@ -301,7 +307,7 @@ func (r *JobRepository) GetJobProductRequirements(jobID uint) ([]models.JobProdu
 // SetJobProductRequirements replaces all product requirements for the given job.
 // Passing an empty or nil slice removes all existing requirements.
 // Non-existent product IDs are gracefully skipped with a warning logged.
-func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []models.JobProductRequirement) error {
+func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []models.JobProductRequirement, productNames map[uint]string) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		if !tx.Migrator().HasTable(&models.JobProductRequirement{}) {
 			log.Printf("⚠️ Warning: job_product_requirements table does not exist; skipping requirement save for job_id %d", jobID)
@@ -335,7 +341,13 @@ func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []mod
 			}
 			if count == 0 {
 				// Ensure a placeholder product row exists so requirement FK can be saved.
-				placeholderName := fmt.Sprintf("Warehouse Product %d", req.ProductID)
+				placeholderName := ""
+				if productNames != nil {
+					placeholderName = strings.TrimSpace(productNames[req.ProductID])
+				}
+				if placeholderName == "" {
+					placeholderName = fmt.Sprintf("Product %d", req.ProductID)
+				}
 				insertSQL := fmt.Sprintf("INSERT INTO products (%s, name) VALUES (?, ?) ON CONFLICT (%s) DO NOTHING", productIDColumn, productIDColumn)
 				if err := tx.Exec(insertSQL, req.ProductID, placeholderName).Error; err != nil {
 					log.Printf("⚠️ Warning: Failed to create placeholder product %d; skipping requirement (error: %v)", req.ProductID, err)

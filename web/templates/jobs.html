@@ -1461,7 +1461,7 @@
                     email: valueOrNull('email'),
                     phonenumber: valueOrNull('phone_number'),
                     notes: valueOrNull('notes'),
-                    customertype: valueOrNull('customer_type') || 'Kunde',
+                    customertype: valueOrNull('customer_type') || 'customer',
                 };
 
                 if (!payload.companyname && !(payload.firstname && payload.lastname)) {

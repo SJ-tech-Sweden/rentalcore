@@ -200,15 +200,15 @@
 
                 <form id="jobForm" method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
 
-                    <div class="rc-flex rc-flex-between rc-mb-md" style="position: sticky; top: 0; z-index: 20; align-items: center; padding: 0.65rem 0.75rem; border: 1px solid var(--surface-3); border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 92%, #ffffff 8%); backdrop-filter: blur(4px);">
+                    <div id="quickSaveBar" class="rc-flex rc-flex-between rc-mb-md quick-save-bar">
                         <div class="rc-text-sm rc-text-secondary">
                             <i class="bi bi-save"></i> Quick save actions
                         </div>
                         <div class="rc-flex" style="gap: 0.5rem; align-items: center;">
-                            <a href="/jobs" class="rc-btn rc-btn-secondary rc-btn-sm">
+                            <a href="/jobs" class="rc-btn rc-btn-secondary rc-btn-sm" data-quick-save-cancel>
                                 <i class="bi bi-x-lg"></i> Cancel
                             </a>
-                            <button type="submit" class="rc-btn rc-btn-primary rc-btn-sm">
+                            <button type="submit" form="jobForm" class="rc-btn rc-btn-primary rc-btn-sm" data-quick-save-submit>
                                 {{if .job.JobID}}
                                     <i class="bi bi-check-lg"></i> Update Job
                                 {{else}}
@@ -372,6 +372,68 @@
                         </div>
                     </div>
 
+                    <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title" style="color: #0ea5e9;">
+                                <i class="bi bi-box2"></i> Rental Packages
+                            </h4>
+                            <div class="rc-text-sm rc-text-secondary">
+                                Add predefined rental packages to this job.
+                            </div>
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="jobPackageLoading" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                Loading packages...
+                            </div>
+                            <div id="jobPackageEmpty" class="rc-alert rc-alert-info" style="display: none;">
+                                <i class="bi bi-info-circle"></i> No rental packages available.
+                            </div>
+                            <div class="rc-table-scroll" id="jobPackageTableWrap" style="display: none;">
+                                <table class="rc-table rc-table-compact" id="jobPackageTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Package</th>
+                                            <th style="width: 120px;">Default Price</th>
+                                            <th style="width: 80px;">Qty</th>
+                                            <th style="width: 130px;">Custom Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobPackageBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
+                            <div>
+                                <h5 style="color: #0ea5e9;">Selected Rental Packages</h5>
+                                <div id="selectedJobPackagesEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                    No rental packages selected yet.
+                                </div>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="selectedJobPackagesTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Package</th>
+                                                <th style="width: 80px;">Qty</th>
+                                                <th style="width: 120px;">Unit Price</th>
+                                                <th style="width: 120px;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedJobPackagesBody"></tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="3" style="text-align: right; font-weight: 600;">Total:</td>
+                                                <td id="selectedJobPackagesTotal" style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9; font-weight: 700;">0.00 EUR</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="selected_job_packages" id="selectedJobPackagesInput" value="[]">
+                        </div>
+                    </div>
+
                     <!-- Rental Equipment Section -->
                     <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
                         <div class="rc-card-header">
@@ -515,6 +577,8 @@
                         </div>
                     </div>
 
+                    
+
                     <div class="rc-form-group rc-mb-xl">
                         <label class="rc-label">Description</label>
                         <textarea class="rc-textarea" name="description" rows="4" placeholder="Additional job details and notes...">{{derefString .job.Description}}</textarea>
@@ -551,9 +615,9 @@
                                     </div>
                                     <div class="rc-form-group">
                                         <label class="rc-label">Customer Type</label>
-                                        <select class="rc-select" data-field="customer_type" data-default-value="Kunde">
-                                            <option value="Kunde" selected>Customer</option>
-                                            <option value="Lieferant">Supplier</option>
+                                        <select class="rc-select" data-field="customer_type" data-default-value="customer">
+                                            <option value="customer" selected>Customer</option>
+                                            <option value="supplier">Supplier</option>
                                         </select>
                                     </div>
                                     <div class="rc-form-group">
@@ -620,6 +684,70 @@
 
     <!-- Product Tree Styles -->
     <style>
+        .quick-save-bar {
+            display: flex;
+            gap: 0.75rem;
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            top: auto;
+            z-index: 10020;
+            align-items: center;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--surface-3);
+            border-radius: 10px;
+            background: var(--surface-1);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+            max-width: calc(100vw - 2rem);
+            pointer-events: auto;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        .quick-save-bar .rc-btn {
+            pointer-events: auto;
+        }
+
+        .quick-save-floating-portal {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 10030;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--surface-3);
+            border-radius: 10px;
+            background: var(--surface-1);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        }
+
+        .quick-save-bar.quick-save-in-modal {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .quick-save-bar {
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: 0.75rem;
+                width: auto;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .quick-save-floating-portal {
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: 0.75rem;
+                width: auto;
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
         .pdf-modal-overlay {
             position: fixed;
             inset: 0;
@@ -1382,7 +1510,7 @@
                         email: valueOrNull('email'),
                         phonenumber: valueOrNull('phone_number'),
                         notes: valueOrNull('notes'),
-                        customertype: valueOrNull('customer_type') || 'Kunde',
+                        customertype: valueOrNull('customer_type') || 'customer',
                     };
 
                     if (!payload.companyname && !(payload.firstname && payload.lastname)) {
@@ -1454,7 +1582,30 @@
         function getJobIdFromUrl() {
             const path = window.location.pathname;
             const matches = path.match(/\/jobs\/([^\/]+)\/edit/);
-            return matches ? matches[1] : null;
+            if (matches && matches[1]) {
+                return matches[1];
+            }
+
+            const form = document.getElementById('jobForm');
+            if (form) {
+                const action = form.getAttribute('action') || '';
+                const actionMatches = action.match(/\/jobs\/(\d+)\/update/);
+                if (actionMatches && actionMatches[1]) {
+                    return actionMatches[1];
+                }
+
+                const explicitJobInput = form.querySelector('input[name="job_id"], input[name="jobID"]');
+                if (explicitJobInput && explicitJobInput.value) {
+                    return explicitJobInput.value;
+                }
+            }
+
+            const templateJobID = '{{if .job.JobID}}{{.job.JobID}}{{end}}';
+            if (templateJobID) {
+                return templateJobID;
+            }
+
+            return null;
         }
 
         const currentJobId = getJobIdFromUrl();
@@ -2474,23 +2625,33 @@
                 if (!Number.isFinite(productId) || productId <= 0 || qty <= 0) {
                     return;
                 }
-                const existing = byProduct.get(productId) || { product_id: productId, quantity: 0 };
-                // If the same product is rendered in more than one tree branch,
-                // keep the highest chosen quantity rather than duplicating it.
-                if (qty > existing.quantity) {
-                    byProduct.set(productId, { product_id: productId, quantity: qty });
-                }
-
-                // Keep in-memory summary aligned with what user can currently see.
                 const key = String(productId);
                 const prev = productSelections.get(key) || { id: productId, name: '' };
                 const readableName = (productNameNode && productNameNode.textContent) ? productNameNode.textContent.trim() : prev.name;
+                const existing = byProduct.get(productId) || { product_id: productId, quantity: 0, product_name: '' };
+                // If the same product is rendered in more than one tree branch,
+                // keep the highest chosen quantity rather than duplicating it.
+                if (qty > existing.quantity) {
+                    byProduct.set(productId, { product_id: productId, quantity: qty, product_name: readableName || '' });
+                }
+
+                // Keep in-memory summary aligned with what user can currently see
+                // without clobbering a better user-facing name when duplicate IDs
+                // appear with different labels across tree branches.
+                const prevName = (prev.name || '').trim();
+                const prevIsGeneric = /^Product\s+\d+$/i.test(prevName);
+                const readableIsGeneric = /^Product\s+\d+$/i.test(readableName || '');
+                const resolvedName = (!prevName || prevIsGeneric)
+                    ? ((readableName && !readableIsGeneric) ? readableName : (readableName || `Product ${productId}`))
+                    : prevName;
+                const currentQty = Number(prev.quantity || 0);
+                const nextQty = Math.max(currentQty, qty);
                 productSelections.set(key, {
                     id: productId,
-                    name: readableName || prev.name || `Product ${productId}`,
+                    name: resolvedName,
                     available: prev.available || 0,
                     total: prev.total || 0,
-                    quantity: qty
+                    quantity: nextQty
                 });
             });
 
@@ -2718,9 +2879,311 @@
             input.value = JSON.stringify(selections);
         }
 
+        // Job Package Selection Functionality
+        const jobPackageSelections = new Map(); // packageId -> { packageId, packageName, quantity, defaultPrice, customPrice }
+        const availableJobPackages = new Map(); // packageId -> { packageId, name, description, price, packageCode }
+
+        function readCustomPriceValue(rawValue) {
+            if (rawValue === undefined || rawValue === null) {
+                return null;
+            }
+            if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+                return rawValue;
+            }
+            if (typeof rawValue === 'object') {
+                if (rawValue.Valid && Number.isFinite(rawValue.Float64)) {
+                    return Number(rawValue.Float64);
+                }
+                if (Number.isFinite(rawValue.value)) {
+                    return Number(rawValue.value);
+                }
+            }
+            const parsed = parseFloat(String(rawValue));
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        async function initializeJobPackages() {
+            try {
+                await loadAvailableJobPackages();
+                await loadExistingJobPackageSelections();
+                updateJobPackageSummary();
+                updateJobPackageHiddenInput();
+            } catch (error) {
+                console.error('Failed to initialize job packages:', error);
+            }
+        }
+
+        async function loadAvailableJobPackages() {
+            const loadingEl = document.getElementById('jobPackageLoading');
+            const emptyEl = document.getElementById('jobPackageEmpty');
+            const tableWrap = document.getElementById('jobPackageTableWrap');
+            const tbody = document.getElementById('jobPackageBody');
+
+            if (!tbody) return;
+
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (tableWrap) tableWrap.style.display = 'none';
+
+            let payload = { packages: [] };
+            try {
+                const response = await fetch('/api/v1/jobs/packages/available', { credentials: 'include' });
+                payload = response.ok ? await response.json() : { packages: [] };
+            } catch (error) {
+                console.error('Error loading available job packages:', error);
+                payload = { packages: [] };
+            }
+
+            const packages = Array.isArray(payload?.packages) ? payload.packages : [];
+            availableJobPackages.clear();
+            packages.forEach(pkg => {
+                const packageId = parseInt(pkg.package_id, 10);
+                if (!Number.isFinite(packageId) || packageId <= 0) return;
+                availableJobPackages.set(packageId, {
+                    packageId,
+                    name: (pkg.name || `Package ${packageId}`).toString(),
+                    description: (pkg.description || '').toString(),
+                    price: readCustomPriceValue(pkg.price) || 0,
+                    packageCode: (pkg.package_code || '').toString()
+                });
+            });
+
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            if (availableJobPackages.size === 0) {
+                tbody.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (tableWrap) tableWrap.style.display = 'none';
+                return;
+            }
+
+            const rows = Array.from(availableJobPackages.values())
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(pkg => {
+                    const descriptionHtml = pkg.description ? `<div class="rc-text-xs rc-text-secondary" style="margin-top: 2px;">${escapeHtml(pkg.description)}</div>` : '';
+                    const codeHtml = pkg.packageCode ? `<span class="rc-chip rc-chip-neutral rc-chip-pill" style="font-size: 0.65rem;">${escapeHtml(pkg.packageCode)}</span>` : '';
+                    return `
+                        <tr data-package-id="${pkg.packageId}">
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <strong>${escapeHtml(pkg.name)}</strong>
+                                    ${codeHtml}
+                                </div>
+                                ${descriptionHtml}
+                            </td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9;">${Number(pkg.price || 0).toFixed(2)} EUR</td>
+                            <td>
+                                <input type="number"
+                                       class="rc-input job-package-qty-input"
+                                       min="0"
+                                       step="1"
+                                       value="0"
+                                       style="width: 70px; padding: 4px 8px; text-align: center;"
+                                       data-package-id="${pkg.packageId}">
+                            </td>
+                            <td>
+                                <input type="number"
+                                       class="rc-input job-package-price-input"
+                                       min="0"
+                                       step="0.01"
+                                       placeholder="Default"
+                                       style="width: 110px; padding: 4px 8px; text-align: center;"
+                                       data-package-id="${pkg.packageId}">
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join('');
+
+            tbody.innerHTML = rows;
+            if (tableWrap) tableWrap.style.display = 'block';
+
+            tbody.querySelectorAll('.job-package-qty-input, .job-package-price-input').forEach(input => {
+                input.addEventListener('input', updateJobPackageSelection);
+                input.addEventListener('change', updateJobPackageSelection);
+            });
+        }
+
+        async function loadExistingJobPackageSelections() {
+            const jobID = currentJobId;
+            if (!jobID) return;
+
+            try {
+                const response = await fetch(`/api/v1/jobs/${jobID}/packages`, { credentials: 'include' });
+                if (!response.ok) return;
+                const payload = await response.json();
+                const existing = Array.isArray(payload?.packages) ? payload.packages : [];
+
+                existing.forEach(pkg => {
+                    const packageId = parseInt(pkg.package_id, 10);
+                    if (!Number.isFinite(packageId) || packageId <= 0) return;
+
+                    const qtyInput = document.querySelector(`.job-package-qty-input[data-package-id="${packageId}"]`);
+                    const priceInput = document.querySelector(`.job-package-price-input[data-package-id="${packageId}"]`);
+                    const qty = parseInt(pkg.quantity, 10) || 0;
+                    if (qtyInput) qtyInput.value = String(qty);
+
+                    const customPrice = readCustomPriceValue(pkg.custom_price);
+                    if (priceInput) {
+                        priceInput.value = customPrice === null ? '' : customPrice.toFixed(2);
+                    }
+
+                    updateJobPackageSelectionForPackage(packageId);
+                });
+            } catch (error) {
+                console.error('Error loading existing job packages:', error);
+            }
+        }
+
+        function updateJobPackageSelection(event) {
+            const input = event.target;
+            const packageId = parseInt(input?.dataset?.packageId || '', 10);
+            if (!Number.isFinite(packageId) || packageId <= 0) return;
+            updateJobPackageSelectionForPackage(packageId);
+        }
+
+        function updateJobPackageSelectionForPackage(packageId) {
+            const qtyInput = document.querySelector(`.job-package-qty-input[data-package-id="${packageId}"]`);
+            const priceInput = document.querySelector(`.job-package-price-input[data-package-id="${packageId}"]`);
+            const pkg = availableJobPackages.get(packageId) || { packageId, name: `Package ${packageId}`, price: 0 };
+
+            const quantity = qtyInput ? (parseInt(qtyInput.value || '0', 10) || 0) : 0;
+            const customPrice = priceInput ? readCustomPriceValue(priceInput.value) : null;
+
+            if (quantity > 0) {
+                jobPackageSelections.set(packageId, {
+                    packageId,
+                    packageName: pkg.name,
+                    quantity,
+                    defaultPrice: Number(pkg.price || 0),
+                    customPrice: customPrice,
+                });
+            } else {
+                jobPackageSelections.delete(packageId);
+            }
+
+            updateJobPackageSummary();
+            updateJobPackageHiddenInput();
+        }
+
+        function updateJobPackageSummary() {
+            const emptyEl = document.getElementById('selectedJobPackagesEmpty');
+            const table = document.getElementById('selectedJobPackagesTable');
+            const tbody = document.getElementById('selectedJobPackagesBody');
+            const totalEl = document.getElementById('selectedJobPackagesTotal');
+            if (!tbody) return;
+
+            if (jobPackageSelections.size === 0) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (table) table.style.display = 'none';
+                if (totalEl) totalEl.textContent = '0.00 EUR';
+                tbody.innerHTML = '';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (table) table.style.display = 'table';
+
+            let total = 0;
+            let html = '';
+            Array.from(jobPackageSelections.values())
+                .sort((a, b) => a.packageName.localeCompare(b.packageName))
+                .forEach(selection => {
+                    const unitPrice = selection.customPrice === null ? selection.defaultPrice : selection.customPrice;
+                    const lineTotal = unitPrice * selection.quantity;
+                    total += lineTotal;
+
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(selection.packageName)}</td>
+                            <td style="text-align: center;">${selection.quantity}</td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9;">${unitPrice.toFixed(2)} EUR</td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9; font-weight: 600;">${lineTotal.toFixed(2)} EUR</td>
+                        </tr>
+                    `;
+                });
+
+            tbody.innerHTML = html;
+            if (totalEl) totalEl.textContent = total.toFixed(2) + ' EUR';
+        }
+
+        function updateJobPackageHiddenInput() {
+            const input = document.getElementById('selectedJobPackagesInput');
+            if (!input) return;
+
+            const payload = [];
+            jobPackageSelections.forEach(selection => {
+                const item = {
+                    package_id: selection.packageId,
+                    quantity: selection.quantity,
+                    package_name: selection.packageName,
+                };
+                if (selection.customPrice !== null) {
+                    item.custom_price = selection.customPrice;
+                }
+                payload.push(item);
+            });
+
+            payload.sort((a, b) => a.package_id - b.package_id);
+            input.value = JSON.stringify(payload);
+        }
+
         // Initialize job form - can be called manually from modal
+        function removeQuickSavePortal() {
+            const existingPortal = document.getElementById('quickSaveFloatingPortal');
+            if (existingPortal) {
+                existingPortal.remove();
+            }
+        }
+
+        function configureQuickSaveBar() {
+            const bar = document.getElementById('quickSaveBar');
+            if (!bar) return;
+
+            const isInModal = !!bar.closest('#jobEditContent, #jobNewContent');
+            bar.classList.toggle('quick-save-in-modal', isInModal);
+
+            removeQuickSavePortal();
+            if (!isInModal) {
+                return;
+            }
+
+            const submitButton = bar.querySelector('[data-quick-save-submit]');
+            const cancelButton = bar.querySelector('[data-quick-save-cancel]');
+            if (!submitButton || !cancelButton) {
+                return;
+            }
+
+            const portal = document.createElement('div');
+            portal.id = 'quickSaveFloatingPortal';
+            portal.className = 'quick-save-floating-portal';
+            portal.innerHTML = `
+                <button type="button" class="rc-btn rc-btn-secondary rc-btn-sm" data-portal-cancel>
+                    <i class="bi bi-x-lg"></i> Cancel
+                </button>
+                <button type="submit" form="jobForm" class="rc-btn rc-btn-primary rc-btn-sm" data-portal-submit>
+                    ${submitButton.innerHTML}
+                </button>
+            `;
+
+            portal.querySelector('[data-portal-cancel]').addEventListener('click', () => {
+                if (typeof window.closeEditJobModal === 'function' && document.getElementById('jobEditContent')) {
+                    window.closeEditJobModal();
+                    return;
+                }
+                if (typeof window.closeNewJobModal === 'function' && document.getElementById('jobNewContent')) {
+                    window.closeNewJobModal();
+                    return;
+                }
+                window.location.href = '/jobs';
+            });
+
+            document.body.appendChild(portal);
+        }
+
         function initializeJobForm() {
             console.log('initializeJobForm called');
+            configureQuickSaveBar();
 
             if (typeof window.setupCustomerInlineCreation === 'function') {
                 window.setupCustomerInlineCreation(document);
@@ -2728,6 +3191,7 @@
 
             // Initialize rental equipment selection
             initializeRentalEquipment();
+            initializeJobPackages();
 
             const startDateInput = document.querySelector('input[name="start_date"]');
             const endDateInput = document.querySelector('input[name="end_date"]');
@@ -2881,6 +3345,10 @@
                 const attachments = await response.json();
 
                 const container = document.getElementById('attachmentsList');
+                if (!container) {
+                    console.warn('attachmentsList container not found; skipping attachment render');
+                    return;
+                }
                 if (!attachments || attachments.length === 0) {
                     container.innerHTML = '<p style="color: var(--text-muted); font-style: italic; margin: 0;">No files attached yet.</p>';
                     return;
@@ -2911,7 +3379,10 @@
                 `).join('');
             } catch (error) {
                 console.error('Error loading attachments:', error);
-                document.getElementById('attachmentsList').innerHTML = '<p style="color: var(--error); margin: 0;">Error loading attachments.</p>';
+                const container = document.getElementById('attachmentsList');
+                if (container) {
+                    container.innerHTML = '<p style="color: var(--error); margin: 0;">Error loading attachments.</p>';
+                }
             }
         }
 
@@ -3080,15 +3551,27 @@
 
         function showJobHistoryModal() {
             {{if .job.JobID}}
+            const jobID = {{.job.JobID}};
             const modal = document.getElementById('jobHistoryModal');
-            modal.style.display = 'flex';
-            loadJobHistoryData();
+            if (modal) {
+                modal.style.display = 'flex';
+                loadJobHistoryData();
+                return;
+            }
+
+            // Fallback when the form is rendered inside the jobs page modal,
+            // where the inline history modal markup is not part of injected HTML.
+            if (typeof window.showJobHistoryInModal === 'function') {
+                window.showJobHistoryInModal(jobID);
+            }
             {{end}}
         }
 
         function hideJobHistoryModal() {
             const modal = document.getElementById('jobHistoryModal');
-            modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         function loadJobHistoryData() {
@@ -3096,14 +3579,19 @@
             const historyContent = document.getElementById('job-history-content');
             const loadingIndicator = document.getElementById('loading-job-history');
 
+            if (!historyContent) {
+                return;
+            }
+
             if (loadingIndicator) loadingIndicator.style.display = 'block';
 
             fetch(`/api/v1/jobs/${jobID}/history`)
                 .then(response => response.json())
                 .then(data => {
+                    const history = Array.isArray(data) ? data : (data.history || data.entries || []);
                     if (loadingIndicator) loadingIndicator.style.display = 'none';
-                    if (data.success && data.history && data.history.length > 0) {
-                        displayJobHistoryData(data.history);
+                    if (history.length > 0) {
+                        displayJobHistoryData(history);
                     } else {
                         historyContent.innerHTML = `
                             <div class="rc-text-center rc-p-lg">

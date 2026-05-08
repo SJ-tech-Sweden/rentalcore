@@ -79,8 +79,12 @@ func (al *AuditLogger) LogEventWithContext(
 		}
 	}
 
-	// Get username if not provided
+	// Get username if not provided. Treat userID=0 as system/anonymous to
+	// avoid pointless user table lookups and noisy "record not found" logs.
 	if username == "" {
+		if userID == 0 {
+			username = "system"
+		} else {
 		var user struct {
 			Username string
 		}
@@ -88,6 +92,7 @@ func (al *AuditLogger) LogEventWithContext(
 			username = user.Username
 		} else {
 			username = fmt.Sprintf("user_%d", userID)
+		}
 		}
 	}
 

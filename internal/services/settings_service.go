@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-barcode-webapp/internal/models"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -91,15 +92,32 @@ func (s *SettingsService) readCurrencyFromDB() (string, bool) {
 		var m map[string]interface{}
 		if json.Unmarshal([]byte(setting.Value), &m) == nil {
 			if sym, ok := m["symbol"].(string); ok && sym != "" {
-				return sym, cacheable
+				return normalizeCurrencySymbol(sym), cacheable
 			}
+		}
+		// Some legacy rows store a JSON string value like "\"€\"".
+		var jsonString string
+		if json.Unmarshal([]byte(setting.Value), &jsonString) == nil && jsonString != "" {
+			return normalizeCurrencySymbol(jsonString), cacheable
 		}
 		// Fall back to treating the raw value as the symbol (plain-text legacy rows).
 		if setting.Value != "" {
-			return setting.Value, cacheable
+			return normalizeCurrencySymbol(setting.Value), cacheable
 		}
 	}
 	return defaultCurrencySymbol, cacheable
+}
+
+func normalizeCurrencySymbol(symbol string) string {
+	normalized := strings.TrimSpace(symbol)
+	normalized = strings.TrimPrefix(normalized, "\"")
+	normalized = strings.TrimSuffix(normalized, "\"")
+	normalized = strings.TrimPrefix(normalized, "'")
+	normalized = strings.TrimSuffix(normalized, "'")
+	if normalized == "" {
+		return defaultCurrencySymbol
+	}
+	return normalized
 }
 
 // UpdateCurrencySymbol persists a new currency symbol and invalidates the cache.

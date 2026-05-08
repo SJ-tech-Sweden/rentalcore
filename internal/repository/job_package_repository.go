@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"gorm.io/gorm/clause"
+	"gorm.io/gorm"
 )
 
 type JobPackageRepository struct {
@@ -23,18 +23,40 @@ func NewJobPackageRepository(db *Database) *JobPackageRepository {
 func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quantity uint, customPrice *float64, userID uint) (*models.JobPackage, error) {
 	log.Printf("=== AssignPackageToJob v5.0 START: jobID=%d, packageID=%d, qty=%d ===", jobID, packageID, quantity)
 
-	// Verify package exists
-	var pkg models.ProductPackage
-	if err := r.db.Where("package_id = ?", packageID).First(&pkg).Error; err != nil {
-		return nil, fmt.Errorf("package %d not found: %w", packageID, err)
+	defaultPrice := sql.NullFloat64{Valid: false}
+	foundPackage := false
+
+	if r.db.Migrator().HasTable(&models.ProductPackage{}) {
+		var pkg models.ProductPackage
+		if err := r.db.Where("package_id = ?", packageID).First(&pkg).Error; err == nil {
+			foundPackage = true
+			if pkg.Price.Valid {
+				defaultPrice = sql.NullFloat64{Float64: pkg.Price.Float64, Valid: true}
+			}
+		}
+	}
+
+	if !foundPackage && r.db.Migrator().HasTable(&models.EquipmentPackage{}) {
+		// Fallback for installations still using equipment_packages.
+		var legacyPkg models.EquipmentPackage
+		if fallbackErr := r.db.Where("packageID = ?", packageID).First(&legacyPkg).Error; fallbackErr == nil {
+			foundPackage = true
+			if legacyPkg.PackagePrice != nil {
+				defaultPrice = sql.NullFloat64{Float64: *legacyPkg.PackagePrice, Valid: true}
+			}
+		}
+	}
+
+	if !foundPackage {
+		log.Printf("⚠️ package %d not found in local package tables; recording assignment without local package metadata", packageID)
 	}
 
 	// Build price value
 	var priceValue sql.NullFloat64
 	if customPrice != nil {
 		priceValue = sql.NullFloat64{Float64: *customPrice, Valid: true}
-	} else if pkg.Price.Valid {
-		priceValue = sql.NullFloat64{Float64: pkg.Price.Float64, Valid: true}
+	} else if defaultPrice.Valid {
+		priceValue = defaultPrice
 	}
 
 	jobPackage := &models.JobPackage{
@@ -46,17 +68,23 @@ func (r *JobPackageRepository) AssignPackageToJob(jobID int, packageID int, quan
 		AddedBy:     &userID,
 	}
 
-	if err := r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "job_id"}, {Name: "package_id"}},
-		DoNothing: false,
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"quantity":     quantity,
-			"custom_price": priceValue,
-			"added_at":     time.Now(),
-			"added_by":     userID,
-		}),
-	}).Create(jobPackage).Error; err != nil {
-		return nil, fmt.Errorf("failed to upsert job_package: %w", err)
+	var existing models.JobPackage
+	err := r.db.Where("job_id = ? AND package_id = ?", jobID, packageID).First(&existing).Error
+	if err == nil {
+		existing.Quantity = quantity
+		existing.CustomPrice = priceValue
+		existing.AddedAt = time.Now()
+		existing.AddedBy = &userID
+		if saveErr := r.db.Save(&existing).Error; saveErr != nil {
+			return nil, fmt.Errorf("failed to update job_package: %w", saveErr)
+		}
+		jobPackage = &existing
+	} else if err == gorm.ErrRecordNotFound {
+		if createErr := r.db.Create(jobPackage).Error; createErr != nil {
+			return nil, fmt.Errorf("failed to create job_package: %w", createErr)
+		}
+	} else {
+		return nil, fmt.Errorf("failed to check existing job_package: %w", err)
 	}
 
 	log.Printf("=== AssignPackageToJob v5.0 RECORDED package %d on job %d (qty=%d, price=%v) ===", packageID, jobID, quantity, priceValue)
@@ -194,13 +222,19 @@ func (r *JobPackageRepository) findAvailableDevicesByProduct(tx *Database, produ
 // GetJobPackageByID retrieves a job package by ID with associations
 func (r *JobPackageRepository) GetJobPackageByID(id uint) (*models.JobPackage, error) {
 	var jobPackage models.JobPackage
-	err := r.db.
-		Preload("Package").
-		Preload("Reservations").
-		Preload("Reservations.Device").
+	query := r.db.
 		Preload("AddedByUser").
-		Where("job_package_id = ?", id).
-		First(&jobPackage).Error
+		Where("job_package_id = ?", id)
+
+	if r.db.Migrator().HasTable(&models.JobPackageReservation{}) {
+		query = query.Preload("Reservations").Preload("Reservations.Device")
+	}
+
+	if r.db.Migrator().HasTable(&models.ProductPackage{}) {
+		query = query.Preload("Package")
+	}
+
+	err := query.First(&jobPackage).Error
 
 	if err != nil {
 		return nil, err
@@ -212,14 +246,20 @@ func (r *JobPackageRepository) GetJobPackageByID(id uint) (*models.JobPackage, e
 // GetJobPackagesByJobID retrieves all packages for a job
 func (r *JobPackageRepository) GetJobPackagesByJobID(jobID int) ([]models.JobPackage, error) {
 	var packages []models.JobPackage
-	err := r.db.
-		Preload("Package").
-		Preload("Reservations").
-		Preload("Reservations.Device").
+	query := r.db.
 		Preload("AddedByUser").
 		Where("job_id = ?", jobID).
-		Order("added_at DESC").
-		Find(&packages).Error
+		Order("added_at DESC")
+
+	if r.db.Migrator().HasTable(&models.JobPackageReservation{}) {
+		query = query.Preload("Reservations").Preload("Reservations.Device")
+	}
+
+	if r.db.Migrator().HasTable(&models.ProductPackage{}) {
+		query = query.Preload("Package")
+	}
+
+	err := query.Find(&packages).Error
 
 	return packages, err
 }
@@ -259,15 +299,17 @@ func (r *JobPackageRepository) RemoveJobPackage(jobPackageID uint) error {
 		}
 	}()
 
-	// Update reservation status to released
-	if err := tx.Model(&models.JobPackageReservation{}).
-		Where("job_package_id = ?", jobPackageID).
-		Updates(map[string]interface{}{
-			"reservation_status": "released",
-			"released_at":        time.Now(),
-		}).Error; err != nil {
-		tx.Rollback()
-		return err
+	// Update reservation status to released when reservation table exists.
+	if tx.Migrator().HasTable(&models.JobPackageReservation{}) {
+		if err := tx.Model(&models.JobPackageReservation{}).
+			Where("job_package_id = ?", jobPackageID).
+			Updates(map[string]interface{}{
+				"reservation_status": "released",
+				"released_at":        time.Now(),
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	// Delete the job package (cascades to reservations via DB constraints)
@@ -281,6 +323,10 @@ func (r *JobPackageRepository) RemoveJobPackage(jobPackageID uint) error {
 
 // GetPackageDeviceReservations retrieves all device reservations for a package
 func (r *JobPackageRepository) GetPackageDeviceReservations(jobPackageID uint) ([]models.JobPackageReservation, error) {
+	if !r.db.Migrator().HasTable(&models.JobPackageReservation{}) {
+		return []models.JobPackageReservation{}, nil
+	}
+
 	var reservations []models.JobPackageReservation
 	err := r.db.
 		Preload("Device").
@@ -294,6 +340,10 @@ func (r *JobPackageRepository) GetPackageDeviceReservations(jobPackageID uint) (
 
 // ReleasePackageReservations releases all device reservations for a package
 func (r *JobPackageRepository) ReleasePackageReservations(jobPackageID uint) error {
+	if !r.db.Migrator().HasTable(&models.JobPackageReservation{}) {
+		return nil
+	}
+
 	return r.db.Model(&models.JobPackageReservation{}).
 		Where("job_package_id = ? AND reservation_status = 'reserved'", jobPackageID).
 		Updates(map[string]interface{}{
@@ -304,13 +354,22 @@ func (r *JobPackageRepository) ReleasePackageReservations(jobPackageID uint) err
 
 // GetJobPackagesWithDetails retrieves packages with computed details for display
 func (r *JobPackageRepository) GetJobPackagesWithDetails(jobID int) ([]models.JobPackageWithDetails, error) {
+	hasProductPackages := r.db.Migrator().HasTable(&models.ProductPackage{})
+	hasProductPackageItems := r.db.Migrator().HasTable(&models.ProductPackageItem{})
+	hasReservations := r.db.Migrator().HasTable(&models.JobPackageReservation{})
+
 	var packages []models.JobPackage
-	err := r.db.
-		Preload("Package").
-		Preload("Reservations").
+	query := r.db.
 		Where("job_id = ?", jobID).
-		Order("added_at DESC").
-		Find(&packages).Error
+		Order("added_at DESC")
+	if hasReservations {
+		query = query.Preload("Reservations")
+	}
+	if hasProductPackages {
+		query = query.Preload("Package")
+	}
+
+	err := query.Find(&packages).Error
 
 	if err != nil {
 		return nil, err
@@ -332,9 +391,13 @@ func (r *JobPackageRepository) GetJobPackagesWithDetails(jobID int) ([]models.Jo
 			}
 
 			// Count items in the package from product_package_items
-			var itemCount int64
-			r.db.Model(&models.ProductPackageItem{}).Where("package_id = ?", pkg.Package.PackageID).Count(&itemCount)
-			details.DeviceCount = int(itemCount)
+			if hasProductPackageItems {
+				var itemCount int64
+				r.db.Model(&models.ProductPackageItem{}).Where("package_id = ?", pkg.Package.PackageID).Count(&itemCount)
+				details.DeviceCount = int(itemCount)
+			}
+		} else {
+			details.PackageName = fmt.Sprintf("Package #%d", pkg.PackageID)
 		}
 
 		// Calculate effective price
