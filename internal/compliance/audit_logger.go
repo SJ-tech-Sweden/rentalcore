@@ -88,7 +88,7 @@ func (al *AuditLogger) LogEventWithContext(
 			var user struct {
 				Username string
 			}
-			if err := al.db.Table("users").Select("username").Where("userID = ?", userID).First(&user).Error; err == nil {
+			if err := al.db.Table("users").Select("username").Where("userid = ?", userID).First(&user).Error; err == nil {
 				username = user.Username
 			} else {
 				username = fmt.Sprintf("user_%d", userID)

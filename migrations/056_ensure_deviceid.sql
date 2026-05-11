@@ -11,7 +11,7 @@ BEGIN
     -- Populate deviceid from best available source
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'id') THEN
       EXECUTE 'UPDATE devices SET deviceid = id::text WHERE deviceid IS NULL';
-    ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = '"deviceID"') THEN
+    ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'deviceID') THEN
       EXECUTE 'UPDATE devices SET deviceid = "deviceID" WHERE deviceid IS NULL';
     ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'serialnumber') THEN
       EXECUTE 'UPDATE devices SET deviceid = serialnumber WHERE deviceid IS NULL';

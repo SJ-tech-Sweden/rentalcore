@@ -22,6 +22,8 @@ type Database struct {
 	*gorm.DB
 }
 
+const startupMigrationsLockKey int64 = 73043001
+
 // NewDatabase erstellt eine neue PostgreSQL-Datenbankverbindung
 func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 	dsn := cfg.DSN()
@@ -68,6 +70,15 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 		if migrationsDir == "" {
 			migrationsDir = "migrations"
 		}
+		if _, err := sqlDB.Exec("SELECT pg_advisory_lock($1)", startupMigrationsLockKey); err != nil {
+			return nil, fmt.Errorf("acquire startup migration lock: %w", err)
+		}
+		defer func() {
+			if _, err := sqlDB.Exec("SELECT pg_advisory_unlock($1)", startupMigrationsLockKey); err != nil {
+				log.Printf("WARNING: failed to release startup migration lock: %v", err)
+			}
+		}()
+
 		absDir, _ := filepath.Abs(migrationsDir)
 		log.Printf("Running SQL migrations from %s", absDir)
 		if err := migrations.ApplyMigrations(sqlDB, migrationsDir); err != nil {

@@ -1,5 +1,5 @@
--- Idempotent seed: create an `admin` user with a temporary password and force password change
--- Uses pgcrypto to hash the temporary password in-database. Change password on first login.
+-- Idempotent seed: create an `admin` user with an unpredictable generated password hash.
+-- Uses pgcrypto and avoids storing a known default password in the repository.
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -7,13 +7,13 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.seed_marker (name text PRIMARY KEY, applied_at timestamptz DEFAULT now());
 INSERT INTO public.seed_marker (name) VALUES ('admin_seed') ON CONFLICT DO NOTHING;
 
--- Insert admin user with bcrypt-hashed temporary password and force a password change on first login.
--- Change the temporary password below if you want a different initial password.
+-- Insert admin user with a bcrypt hash generated from cryptographically random bytes.
+-- Password reset should be performed through approved user-management/admin flows.
 INSERT INTO users (username, email, password_hash, is_active, force_password_change, created_at)
 VALUES (
 	'admin',
 	'admin@example.test',
-	crypt('TemporaryAdmin!2026', gen_salt('bf', 12)),
+	crypt(encode(gen_random_bytes(24), 'base64'), gen_salt('bf', 12)),
 	TRUE,
 	TRUE,
 	NOW()

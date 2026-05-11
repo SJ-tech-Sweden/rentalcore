@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -42,7 +43,7 @@ func main() {
 	}
 	defer rows.Close()
 
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	for rows.Next() {
 		var (
 			jobid   int
@@ -53,7 +54,11 @@ func main() {
 			continue
 		}
 		url := fmt.Sprintf("%s/admin/cables/%d", rcBase, cableID)
-		req, _ := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			log.Printf("request create: %v", err)
+			continue
+		}
 		if apiKey != "" {
 			req.Header.Set("X-API-Key", apiKey)
 		}
@@ -62,23 +67,28 @@ func main() {
 			log.Printf("api call: %v", err)
 			continue
 		}
-		if resp.StatusCode != 200 {
-			log.Printf("api status %d for cable %d", resp.StatusCode, cableID)
-			resp.Body.Close()
-			continue
-		}
-		var snapshot map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&snapshot); err != nil {
-			log.Printf("decode: %v", err)
-			resp.Body.Close()
-			continue
-		}
-		resp.Body.Close()
-		bs, _ := json.Marshal(snapshot)
-		if _, err := db.Exec(`UPDATE job_cables SET cable_snapshot = $1::jsonb WHERE jobid = $2 AND "cableID" = $3`, string(bs), jobid, cableID); err != nil {
-			log.Printf("update job_cables %d/%d: %v", jobid, cableID, err)
-			continue
-		}
-		log.Printf("updated job_cables %d/%d", jobid, cableID)
+		func() {
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				log.Printf("api status %d for cable %d", resp.StatusCode, cableID)
+				return
+			}
+			var snapshot map[string]interface{}
+			if err := json.NewDecoder(resp.Body).Decode(&snapshot); err != nil {
+				log.Printf("decode: %v", err)
+				return
+			}
+			bs, err := json.Marshal(snapshot)
+			if err != nil {
+				log.Printf("marshal: %v", err)
+				return
+			}
+			if _, err := db.Exec(`UPDATE job_cables SET cable_snapshot = $1::jsonb WHERE jobid = $2 AND "cableID" = $3`, string(bs), jobid, cableID); err != nil {
+				log.Printf("update job_cables %d/%d: %v", jobid, cableID, err)
+				return
+			}
+			log.Printf("updated job_cables %d/%d", jobid, cableID)
+		}()
 	}
 }
