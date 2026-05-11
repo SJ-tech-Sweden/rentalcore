@@ -12,8 +12,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Simple backfill tool: queries jobs needing denorm data and calls WarehouseCore API
-// to retrieve authoritative snapshots and updates the jobs table.
+// Simple backfill tool: queries job_cables rows missing snapshots and calls
+// WarehouseCore API to retrieve authoritative snapshots for each cable.
 
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
@@ -27,7 +27,7 @@ func main() {
 	apiKey := os.Getenv("WAREHOUSECORE_API_KEY")
 
 	var limit int
-	flag.IntVar(&limit, "limit", 100, "jobs per run")
+	flag.IntVar(&limit, "limit", 100, "job_cables rows per run")
 	flag.Parse()
 
 	db, err := sql.Open("postgres", dsn)
@@ -36,20 +36,23 @@ func main() {
 	}
 	defer db.Close()
 
-	rows, err := db.Query("SELECT jobid FROM jobs WHERE cable_snapshot IS NULL LIMIT $1", limit)
+	rows, err := db.Query(`SELECT jobid, "cableID" FROM job_cables WHERE cable_snapshot IS NULL LIMIT $1`, limit)
 	if err != nil {
-		log.Fatalf("select jobs: %v", err)
+		log.Fatalf("select job_cables: %v", err)
 	}
 	defer rows.Close()
 
 	client := &http.Client{}
 	for rows.Next() {
-		var jobid int
-		if err := rows.Scan(&jobid); err != nil {
+		var (
+			jobid   int
+			cableID int
+		)
+		if err := rows.Scan(&jobid, &cableID); err != nil {
 			log.Printf("scan: %v", err)
 			continue
 		}
-		url := fmt.Sprintf("%s/admin/jobs/%d/denorm", rcBase, jobid)
+		url := fmt.Sprintf("%s/admin/cables/%d", rcBase, cableID)
 		req, _ := http.NewRequest("GET", url, nil)
 		if apiKey != "" {
 			req.Header.Set("X-API-Key", apiKey)
@@ -60,7 +63,7 @@ func main() {
 			continue
 		}
 		if resp.StatusCode != 200 {
-			log.Printf("api status %d for job %d", resp.StatusCode, jobid)
+			log.Printf("api status %d for cable %d", resp.StatusCode, cableID)
 			resp.Body.Close()
 			continue
 		}
@@ -72,10 +75,10 @@ func main() {
 		}
 		resp.Body.Close()
 		bs, _ := json.Marshal(snapshot)
-		if _, err := db.Exec("UPDATE jobs SET cable_snapshot = $1, updated_at = NOW() WHERE jobid = $2", string(bs), jobid); err != nil {
-			log.Printf("update job %d: %v", jobid, err)
+		if _, err := db.Exec(`UPDATE job_cables SET cable_snapshot = $1::jsonb WHERE jobid = $2 AND "cableID" = $3`, string(bs), jobid, cableID); err != nil {
+			log.Printf("update job_cables %d/%d: %v", jobid, cableID, err)
 			continue
 		}
-		log.Printf("updated job %d", jobid)
+		log.Printf("updated job_cables %d/%d", jobid, cableID)
 	}
 }

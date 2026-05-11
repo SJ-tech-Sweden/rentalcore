@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -125,14 +126,9 @@ func (c *Client) GetProduct(ctx context.Context, productID int) (*Product, error
 // SearchCables allows a simple search call to /admin/cables?search=...
 func (c *Client) SearchCables(ctx context.Context, query string) ([]Cable, error) {
 	var items []Cable
-	path := fmt.Sprintf("/admin/cables?search=%s", urlQueryEscape(query))
+	path := fmt.Sprintf("/admin/cables?search=%s", url.QueryEscape(strings.TrimSpace(query)))
 	if err := c.doGet(ctx, path, &items); err != nil {
 		return nil, err
 	}
 	return items, nil
-}
-
-// minimal URL query escaper – keeps stdlib import surface small
-func urlQueryEscape(s string) string {
-	return strings.ReplaceAll(strings.TrimSpace(s), " ", "%20")
 }

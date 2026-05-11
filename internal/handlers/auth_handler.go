@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -37,6 +38,19 @@ func sessionCookieName() string {
 		return name
 	}
 	return "session_id"
+}
+
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request != nil && c.Request.TLS != nil {
+		return true
+	}
+	forwardedProto := strings.TrimSpace(strings.Split(c.GetHeader("X-Forwarded-Proto"), ",")[0])
+	return strings.EqualFold(forwardedProto, "https")
+}
+
+func setAuthCookie(c *gin.Context, name, value string, maxAge int, domain string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, value, maxAge, "/", domain, isSecureRequest(c), true)
 }
 
 // LoginForm displays the login page
@@ -112,7 +126,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 		// Redirect to 2FA verification page
 		cookieDomain := getCookieDomain(c)
-		c.SetCookie("temp_session_id", tempSessionID, 300, "/", cookieDomain, false, true) // 5 minutes
+		setAuthCookie(c, "temp_session_id", tempSessionID, 300, cookieDomain) // 5 minutes
 		c.Redirect(http.StatusSeeOther, "/login/2fa")
 		return
 	}
@@ -144,10 +158,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Set cookie with shared domain for SSO
 	cookieDomain := getCookieDomain(c)
-	c.SetCookie(sessionCookieName(), sessionID, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+	setAuthCookie(c, sessionCookieName(), sessionID, h.config.Security.SessionTimeout, cookieDomain)
 	// Generate SSO JWT and set as cookie for subdomain SSO
 	if token, err := auth.GenerateSSOToken(&user, h.config.Security.SessionTimeout); err == nil {
-		c.SetCookie("sso_token", token, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+		setAuthCookie(c, "sso_token", token, h.config.Security.SessionTimeout, cookieDomain)
 	}
 	fmt.Printf("DEBUG: Login successful, session created: %s with cookie domain: %s\n", sessionID, cookieDomain)
 
@@ -171,7 +185,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// Clear cookie with same domain used for setting
 	cookieDomain := getCookieDomain(c)
-	c.SetCookie(sessionCookieName(), "", -1, "/", cookieDomain, false, true)
+	setAuthCookie(c, sessionCookieName(), "", -1, cookieDomain)
+	setAuthCookie(c, "sso_token", "", -1, cookieDomain)
 
 	// Redirect to login
 	c.Redirect(http.StatusSeeOther, "/login")
@@ -382,7 +397,7 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 	// Delete temporary session
 	cookieDomain := getCookieDomain(c)
 	h.db.Delete(&tempSession)
-	c.SetCookie("temp_session_id", "", -1, "/", cookieDomain, false, true)
+	setAuthCookie(c, "temp_session_id", "", -1, cookieDomain)
 
 	// Create full session
 	sessionID := h.generateSessionID()
@@ -408,10 +423,10 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 	h.db.Save(&user)
 
 	// Set cookie with shared domain for SSO
-	c.SetCookie(sessionCookieName(), sessionID, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+	setAuthCookie(c, sessionCookieName(), sessionID, h.config.Security.SessionTimeout, cookieDomain)
 	// Generate SSO JWT and set as cookie for subdomain SSO
 	if token, err := auth.GenerateSSOToken(&user, h.config.Security.SessionTimeout); err == nil {
-		c.SetCookie("sso_token", token, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+		setAuthCookie(c, "sso_token", token, h.config.Security.SessionTimeout, cookieDomain)
 	}
 
 	// Redirect to home
@@ -444,7 +459,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 			log.Printf("DEBUG: AuthMiddleware: Session validation failed for %s: %v", sessionID, err)
 			// Clean up invalid session cookie
 			cookieDomain := getCookieDomain(c)
-			c.SetCookie(sessionCookieName(), "", -1, "/", cookieDomain, false, true)
+			setAuthCookie(c, sessionCookieName(), "", -1, cookieDomain)
 
 			if isAPI {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Session expired", "code": "SESSION_EXPIRED"})
@@ -462,7 +477,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 			// Delete the session since user is inactive/deleted
 			cookieDomain := getCookieDomain(c)
 			h.db.Where("session_id = ?", sessionID).Delete(&models.Session{})
-			c.SetCookie(sessionCookieName(), "", -1, "/", cookieDomain, false, true)
+			setAuthCookie(c, sessionCookieName(), "", -1, cookieDomain)
 
 			if isAPI {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User inactive", "code": "USER_INACTIVE"})
@@ -947,7 +962,11 @@ func (h *AuthHandler) GetUserAPI(c *gin.Context) {
 
 	// Require API key for service-to-service calls
 	apiKey := c.GetHeader("X-API-Key")
-	if h.config == nil || (h.config.WarehouseCore.APIKey != "" && apiKey != h.config.WarehouseCore.APIKey) {
+	configuredAPIKey := ""
+	if h.config != nil {
+		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
+	}
+	if configuredAPIKey == "" || subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}

@@ -15,17 +15,17 @@ VALUES (1, 'devadmin', 'devadmin@example.test', '', NOW())
 ON CONFLICT (userid) DO NOTHING;
 
 -- Product samples
-INSERT INTO products (productid, name, sku, created_at)
-VALUES (1, 'Widget A', 'WIDGET-A', NOW()) ON CONFLICT DO NOTHING;
-INSERT INTO products (productid, name, sku, created_at)
-VALUES (2, 'Cable 1m', 'CABLE-1M', NOW()) ON CONFLICT DO NOTHING;
+INSERT INTO products (productid, name)
+VALUES (1, 'Widget A') ON CONFLICT DO NOTHING;
+INSERT INTO products (productid, name)
+VALUES (2, 'Cable 1m') ON CONFLICT DO NOTHING;
 
 -- Customer sample
-INSERT INTO customers (customerid, name, email, created_at)
+INSERT INTO customers (customerid, companyname, email, created_at)
 VALUES (1, 'Acme Events', 'ops@acme.test', NOW()) ON CONFLICT DO NOTHING;
 
 -- Job sample
-INSERT INTO jobs (jobid, customerid, title, status, created_at)
+INSERT INTO jobs (jobid, customerid, name, status, created_at)
 VALUES (1, 1, 'Init job', 'open', NOW()) ON CONFLICT DO NOTHING;
 
 COMMIT;

@@ -31,7 +31,7 @@ RUN python3 -m venv /opt/ocr-venv && \
 # Build the application with CGO enabled for SQLite
 # Output binary into /app so production stage can copy it from that path
 RUN CGO_ENABLED=1 GOOS=linux go build -o /app/server ./cmd/server
-RUN CGO_ENABLED=1 GOOS=linux go build -o /app/migrate ./cmd/migrate || true
+RUN CGO_ENABLED=1 GOOS=linux go build -o /app/migrate ./cmd/migrate
 
 # Production stage
 FROM alpine:latest

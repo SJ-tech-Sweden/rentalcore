@@ -22,9 +22,10 @@ func NewJobHistoryService(db *gorm.DB) *JobHistoryService {
 }
 
 func normalizeHistoryChangeType(changeType string) string {
-	switch strings.TrimSpace(changeType) {
+	normalized := strings.TrimSpace(changeType)
+	switch normalized {
 	case "created", "updated", "status_changed", "device_added", "device_removed", "deleted", "file_added", "file_removed":
-		return changeType
+		return normalized
 	default:
 		return "updated"
 	}

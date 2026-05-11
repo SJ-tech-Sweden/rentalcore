@@ -10,36 +10,6 @@
 				"./..."
 			],
 			"isBackground": false
-		},
-		{
-			"label": "Build rentalcore",
-			"type": "shell",
-			"command": "go",
-			"args": [
-				"build",
-				"./..."
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build rentalcore",
-			"type": "shell",
-			"command": "go",
-			"args": [
-				"build",
-				"./..."
-			],
-			"isBackground": false
-		},
-		{
-			"label": "Build rentalcore",
-			"type": "shell",
-			"command": "go",
-			"args": [
-				"build",
-				"./..."
-			],
-			"isBackground": false
 		}
 	]
 }
