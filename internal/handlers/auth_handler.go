@@ -966,7 +966,11 @@ func (h *AuthHandler) GetUserAPI(c *gin.Context) {
 	if h.config != nil {
 		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
 	}
-	if configuredAPIKey == "" || subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
+	if configuredAPIKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
