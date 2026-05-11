@@ -92,7 +92,7 @@ func main() {
 		}()
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("row iteration: %v", err)
+		log.Printf("error during job_cables row iteration: %v", err)
 		return
 	}
 }
