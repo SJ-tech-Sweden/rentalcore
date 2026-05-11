@@ -16,5 +16,7 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 -- Seed the default currency symbol so existing installations are consistent.
 INSERT INTO app_settings (key, value)
-VALUES ('app.currency', '€')
-ON CONFLICT DO NOTHING;
+SELECT 'app.currency', '€'
+WHERE NOT EXISTS (
+    SELECT 1 FROM app_settings WHERE key = 'app.currency'
+);
