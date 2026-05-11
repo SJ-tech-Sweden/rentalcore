@@ -33,18 +33,18 @@ BEGIN
 
   SELECT column_name INTO user_col
   FROM information_schema.columns
-  WHERE table_name='user_roles' AND column_name IN ('userid','user_id')
+  WHERE table_schema='public' AND table_name='user_roles' AND column_name IN ('userid','user_id')
   LIMIT 1;
 
   SELECT column_name INTO role_col
   FROM information_schema.columns
-  WHERE table_name='user_roles' AND column_name IN ('role_id','roleid','role')
+  WHERE table_schema='public' AND table_name='user_roles' AND column_name IN ('role_id','roleid','role')
   LIMIT 1;
 
   -- detect primary key column on roles table (commonly 'id' or 'role_id')
   SELECT column_name INTO roles_pk
   FROM information_schema.columns
-  WHERE table_name='roles' AND column_name IN ('id','role_id','roleid')
+  WHERE table_schema='public' AND table_name='roles' AND column_name IN ('id','role_id','roleid')
   LIMIT 1;
 
   IF roles_pk IS NULL THEN
@@ -55,7 +55,7 @@ BEGIN
   -- detect users primary key / id column
   SELECT column_name INTO users_pk
   FROM information_schema.columns
-  WHERE table_name='users' AND column_name IN ('userid','id','user_id','userID')
+  WHERE table_schema='public' AND table_name='users' AND column_name IN ('userid','id','user_id','userID')
   LIMIT 1;
 
   IF users_pk IS NULL THEN

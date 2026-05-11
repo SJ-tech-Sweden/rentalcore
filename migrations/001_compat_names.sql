@@ -56,6 +56,7 @@ BEGIN
           sel_cols := sel_cols || ', NULL::timestamp AS pack_ts';
         END IF;
 
+        -- col_jobid/sel_cols are built only from fixed literals in this migration.
         EXECUTE format('CREATE VIEW jobdevices AS SELECT %s %s FROM job_devices', col_jobid, sel_cols);
       END;
     END IF;
@@ -114,6 +115,7 @@ BEGIN
           sel_cols := sel_cols || ', NULL::timestamp AS pack_ts';
         END IF;
 
+        -- col_jobid/sel_cols are built only from fixed literals in this migration.
         EXECUTE format('CREATE VIEW job_devices AS SELECT %s %s FROM jobdevices', col_jobid, sel_cols);
       END;
     END IF;
