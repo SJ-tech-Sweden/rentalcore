@@ -106,8 +106,15 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 }
 
 func parseEnvBool(name string) bool {
-	value, err := strconv.ParseBool(os.Getenv(name))
-	return err == nil && value
+	raw := os.Getenv(name)
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		if raw != "" {
+			log.Printf("WARNING: invalid boolean value for %s=%q; treating as false", name, raw)
+		}
+		return false
+	}
+	return value
 }
 
 // Close schließt die Datenbankverbindung
