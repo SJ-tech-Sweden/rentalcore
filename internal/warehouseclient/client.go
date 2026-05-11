@@ -125,8 +125,13 @@ func (c *Client) GetProduct(ctx context.Context, productID int) (*Product, error
 
 // SearchCables allows a simple search call to /admin/cables?search=...
 func (c *Client) SearchCables(ctx context.Context, query string) ([]Cable, error) {
+	trimmedQuery := strings.TrimSpace(query)
+	if trimmedQuery == "" {
+		return nil, errors.New("search query is required")
+	}
+
 	var items []Cable
-	path := fmt.Sprintf("/admin/cables?search=%s", url.QueryEscape(strings.TrimSpace(query)))
+	path := fmt.Sprintf("/admin/cables?search=%s", url.QueryEscape(trimmedQuery))
 	if err := c.doGet(ctx, path, &items); err != nil {
 		return nil, err
 	}

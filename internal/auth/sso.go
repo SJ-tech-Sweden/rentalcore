@@ -25,7 +25,7 @@ type Claims struct {
 func getSigningKey() ([]byte, error) {
 	if k := strings.TrimSpace(os.Getenv("SSO_JWT_SECRET")); k != "" {
 		if len(k) < minSigningKeyLength {
-			return nil, errors.New("SSO_JWT_SECRET is too short")
+			return nil, errors.New("SSO_JWT_SECRET must be at least 32 characters")
 		}
 		return []byte(k), nil
 	}
@@ -34,7 +34,7 @@ func getSigningKey() ([]byte, error) {
 		return nil, errors.New("missing SSO_JWT_SECRET or ENCRYPTION_KEY")
 	}
 	if len(k) < minSigningKeyLength {
-		return nil, errors.New("ENCRYPTION_KEY is too short")
+		return nil, errors.New("ENCRYPTION_KEY must be at least 32 characters")
 	}
 	return []byte(k), nil
 }
