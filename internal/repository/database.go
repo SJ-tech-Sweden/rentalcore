@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"go-barcode-webapp/internal/config"
@@ -69,8 +70,8 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 	// - SEED_ON_STARTUP=true applies seeds (default: false)
 	// The migrations directory can be overridden with MIGRATIONS_DIR
 	// (default: "migrations").
-	migrateOnStartup := os.Getenv("MIGRATE_ON_STARTUP") == "true"
-	seedOnStartup := os.Getenv("SEED_ON_STARTUP") == "true"
+	migrateOnStartup := parseEnvBool("MIGRATE_ON_STARTUP")
+	seedOnStartup := parseEnvBool("SEED_ON_STARTUP")
 	if migrateOnStartup || seedOnStartup {
 		migrationsDir := os.Getenv("MIGRATIONS_DIR")
 		if migrationsDir == "" {
@@ -102,6 +103,11 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 		}
 	}
 	return &Database{db}, nil
+}
+
+func parseEnvBool(name string) bool {
+	value, err := strconv.ParseBool(os.Getenv(name))
+	return err == nil && value
 }
 
 // Close schließt die Datenbankverbindung

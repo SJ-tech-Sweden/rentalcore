@@ -59,13 +59,13 @@ func (r *CustomerRepository) Delete(id uint) error {
 }
 
 func (r *CustomerRepository) List(params *models.FilterParams) ([]models.Customer, error) {
+	if params == nil {
+		params = &models.FilterParams{}
+	}
+
 	// If API mode enabled, use WarehouseCore listing and map results
 	if r.useWarehouseCustomers && r.warehouseClient != nil {
-		search := ""
-		if params != nil {
-			search = params.SearchTerm
-		}
-		items, err := r.warehouseClient.ListCustomers(search)
+		items, err := r.warehouseClient.ListCustomers(params.SearchTerm)
 		if err == nil {
 			var out []models.Customer
 			for _, it := range items {

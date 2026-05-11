@@ -23,4 +23,10 @@ VALUES (1, 'Acme Events', 'ops@acme.test', NOW()) ON CONFLICT DO NOTHING;
 INSERT INTO jobs (jobid, customerid, name, status, created_at)
 VALUES (1, 1, 'Init job', 'open', NOW()) ON CONFLICT DO NOTHING;
 
+-- Keep sequences aligned after explicit ID inserts
+SELECT setval(pg_get_serial_sequence('roles', 'roleid'), COALESCE((SELECT MAX(roleid) FROM roles), 1), true);
+SELECT setval(pg_get_serial_sequence('products', 'productid'), COALESCE((SELECT MAX(productid) FROM products), 1), true);
+SELECT setval(pg_get_serial_sequence('customers', 'customerid'), COALESCE((SELECT MAX(customerid) FROM customers), 1), true);
+SELECT setval(pg_get_serial_sequence('jobs', 'jobid'), COALESCE((SELECT MAX(jobid) FROM jobs), 1), true);
+
 COMMIT;

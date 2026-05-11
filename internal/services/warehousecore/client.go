@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -541,7 +542,7 @@ func (c *Client) GetProduct(id uint) (*Product, error) {
 func (c *Client) ListProducts(search string) ([]Product, error) {
 	url := fmt.Sprintf("%s/service/products", c.baseURL)
 	if strings.TrimSpace(search) != "" {
-		url = fmt.Sprintf("%s?search=%s", url, strings.ReplaceAll(strings.TrimSpace(search), " ", "%20"))
+		url = withSearchQuery(url, search)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -575,7 +576,7 @@ func (c *Client) ListProducts(search string) ([]Product, error) {
 func (c *Client) ListProductPackages(search string) ([]ProductPackage, error) {
 	url := fmt.Sprintf("%s/service/product-packages", c.baseURL)
 	if strings.TrimSpace(search) != "" {
-		url = fmt.Sprintf("%s?search=%s", url, strings.ReplaceAll(strings.TrimSpace(search), " ", "%20"))
+		url = withSearchQuery(url, search)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -680,7 +681,7 @@ func (c *Client) GetCustomer(id uint) (*Customer, error) {
 func (c *Client) ListCustomers(search string) ([]Customer, error) {
 	url := fmt.Sprintf("%s/admin/customers", c.baseURL)
 	if strings.TrimSpace(search) != "" {
-		url = fmt.Sprintf("%s?search=%s", url, strings.ReplaceAll(strings.TrimSpace(search), " ", "%20"))
+		url = withSearchQuery(url, search)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -751,7 +752,7 @@ func (c *Client) GetUser(id uint) (*User, error) {
 func (c *Client) ListUsers(search string) ([]User, error) {
 	url := fmt.Sprintf("%s/admin/users", c.baseURL)
 	if strings.TrimSpace(search) != "" {
-		url = fmt.Sprintf("%s?search=%s", url, strings.ReplaceAll(strings.TrimSpace(search), " ", "%20"))
+		url = withSearchQuery(url, search)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -787,4 +788,16 @@ func (c *Client) ClearCache() {
 	c.cache = nil
 	c.cacheTime = time.Time{}
 	c.mu.Unlock()
+}
+
+func withSearchQuery(baseURL, search string) string {
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Sprintf("%s?search=%s", baseURL, url.QueryEscape(strings.TrimSpace(search)))
+	}
+
+	values := parsed.Query()
+	values.Set("search", strings.TrimSpace(search))
+	parsed.RawQuery = values.Encode()
+	return parsed.String()
 }
