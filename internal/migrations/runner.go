@@ -201,12 +201,19 @@ func matchDollarTag(sqlText string, start int) (string, bool) {
 		if ch == '$' {
 			return sqlText[start : end+1], true
 		}
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+		if !isValidDollarTagChar(ch) {
 			return "", false
 		}
 		end++
 	}
 	return "", false
+}
+
+func isValidDollarTagChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= '0' && ch <= '9') ||
+		ch == '_'
 }
 
 func isExecutableSQL(stmt string) bool {
