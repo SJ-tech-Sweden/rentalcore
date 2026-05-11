@@ -32,9 +32,6 @@ type HTTPStatusError struct {
 }
 
 func (e *HTTPStatusError) Error() string {
-	if e == nil {
-		return "warehousecore http status error"
-	}
 	return fmt.Sprintf("WarehouseCore returned %d for %s", e.StatusCode, e.Resource)
 }
 
