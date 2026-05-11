@@ -64,10 +64,14 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 
 	log.Printf("PostgreSQL database connected: %s:%d/%s", cfg.Host, cfg.Port, cfg.Name)
 
-	// Optionally run SQL migrations and seeds on startup. Controlled by
-	// env var MIGRATE_ON_STARTUP (default: "false"). The migrations directory
-	// can be overridden with MIGRATIONS_DIR (default: "migrations").
-	if os.Getenv("MIGRATE_ON_STARTUP") == "true" {
+	// Optionally run SQL migrations and/or seeds on startup.
+	// - MIGRATE_ON_STARTUP=true applies migrations (default: false)
+	// - SEED_ON_STARTUP=true applies seeds (default: false)
+	// The migrations directory can be overridden with MIGRATIONS_DIR
+	// (default: "migrations").
+	migrateOnStartup := os.Getenv("MIGRATE_ON_STARTUP") == "true"
+	seedOnStartup := os.Getenv("SEED_ON_STARTUP") == "true"
+	if migrateOnStartup || seedOnStartup {
 		migrationsDir := os.Getenv("MIGRATIONS_DIR")
 		if migrationsDir == "" {
 			migrationsDir = "migrations"
@@ -82,14 +86,20 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 		}()
 
 		absDir, _ := filepath.Abs(migrationsDir)
-		log.Printf("Running SQL migrations from %s", absDir)
-		if err := migrations.ApplyMigrations(sqlDB, migrationsDir); err != nil {
-			return nil, fmt.Errorf("apply migrations: %w", err)
+		if migrateOnStartup {
+			log.Printf("Running SQL migrations from %s", absDir)
+			if err := migrations.ApplyMigrations(sqlDB, migrationsDir); err != nil {
+				return nil, fmt.Errorf("apply migrations: %w", err)
+			}
+			log.Println("Startup migrations applied")
 		}
-		if err := migrations.ApplySeeds(sqlDB, filepath.Join(migrationsDir, "seeds")); err != nil {
-			return nil, fmt.Errorf("apply seeds: %w", err)
+		if seedOnStartup {
+			log.Printf("Running startup seeds from %s", filepath.Join(absDir, "seeds"))
+			if err := migrations.ApplySeeds(sqlDB, filepath.Join(migrationsDir, "seeds")); err != nil {
+				return nil, fmt.Errorf("apply seeds: %w", err)
+			}
+			log.Println("Startup seeds applied")
 		}
-		log.Println("Migrations and startup seeds applied")
 	}
 	return &Database{db}, nil
 }

@@ -11,15 +11,19 @@ INSERT INTO public.seed_marker (name) VALUES ('admin_seed') ON CONFLICT DO NOTHI
 -- Password reset should be performed through approved user-management/admin flows
 -- (for example create-production-user.sh or the admin reset endpoint/tooling).
 INSERT INTO users (username, email, password_hash, is_active, force_password_change, created_at)
-VALUES (
+SELECT
 	'admin',
 	'admin@example.test',
 	crypt(encode(gen_random_bytes(24), 'base64'), gen_salt('bf', 12)),
 	TRUE,
 	TRUE,
 	NOW()
+WHERE NOT EXISTS (
+	SELECT 1
+	FROM users
+	WHERE username = 'admin' OR email = 'admin@example.test'
 )
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT DO NOTHING;
 
 -- Assign the admin role to the seeded user if roles table contains an `admin` role
 INSERT INTO user_roles (userid, roleid, assigned_by, assigned_at, is_active)
