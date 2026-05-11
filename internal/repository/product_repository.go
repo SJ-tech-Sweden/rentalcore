@@ -46,7 +46,8 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 				PricePerUnit: &p.Price,
 			}
 			if sku := strings.TrimSpace(p.SKU); sku != "" {
-				prod.GenericBarcode = &sku
+				prod.GenericBarcode = new(string)
+				*prod.GenericBarcode = sku
 			}
 			return prod, nil
 		} else if !shouldFallbackToDBFromWarehouseProductError(err) {
@@ -106,7 +107,8 @@ func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product,
 					PricePerUnit: &it.Price,
 				}
 				if sku := strings.TrimSpace(it.SKU); sku != "" {
-					product.GenericBarcode = &sku
+					product.GenericBarcode = new(string)
+					*product.GenericBarcode = sku
 				}
 				out = append(out, product)
 			}
