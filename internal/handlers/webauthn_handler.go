@@ -370,7 +370,7 @@ func (h *WebAuthnHandler) CompletePasskeyAuthentication(c *gin.Context) {
 	// Set session cookie with shared domain for SSO
 	cookieDomain := getCookieDomain(c)
 	fmt.Printf("DEBUG: WebAuthn login - setting cookie with domain: '%s' for session: %s\n", cookieDomain, userSession.SessionID)
-	setAuthCookie(c, sessionCookieName(), userSession.SessionID, 24*60*60, cookieDomain)
+	setAuthCookie(c, SessionCookieName(), userSession.SessionID, 24*60*60, cookieDomain)
 
 	// Clean up WebAuthn session
 	h.db.Delete(&session)
