@@ -22,6 +22,8 @@ type Database struct {
 	*gorm.DB
 }
 
+// startupMigrationsLockKey is a fixed, repository-scoped advisory lock key used
+// only for startup migration/seed execution to prevent concurrent runners.
 const startupMigrationsLockKey int64 = 73043001
 
 // NewDatabase erstellt eine neue PostgreSQL-Datenbankverbindung

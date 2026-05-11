@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS public.seed_marker (name text PRIMARY KEY, applied_at
 INSERT INTO public.seed_marker (name) VALUES ('admin_seed') ON CONFLICT DO NOTHING;
 
 -- Insert admin user with a bcrypt hash generated from cryptographically random bytes.
--- Password reset should be performed through approved user-management/admin flows.
+-- Password reset should be performed through approved user-management/admin flows
+-- (for example create-production-user.sh or the admin reset endpoint/tooling).
 INSERT INTO users (username, email, password_hash, is_active, force_password_change, created_at)
 VALUES (
 	'admin',
