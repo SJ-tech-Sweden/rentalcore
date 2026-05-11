@@ -6,9 +6,8 @@
 -- Migration 025 (DOWN): Drop user dashboard widget preferences table
 -- ================================================================
 
-START TRANSACTION;
+BEGIN;
 
 DROP TABLE IF EXISTS user_dashboard_widgets;
 
 COMMIT;
-

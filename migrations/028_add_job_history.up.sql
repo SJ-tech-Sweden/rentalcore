@@ -11,15 +11,33 @@ CREATE TABLE IF NOT EXISTS job_history (
         ip_address VARCHAR(45) NULL,
         user_agent VARCHAR(255) NULL
 );
-ALTER TABLE job_history
-    ADD CONSTRAINT chk_job_history_type CHECK (change_type IN ('created','updated','status_changed','device_added','device_removed','deleted'));
 CREATE INDEX IF NOT EXISTS idx_job_id ON job_history(job_id);
 CREATE INDEX IF NOT EXISTS idx_user_id ON job_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_changed_at ON job_history(changed_at);
-ALTER TABLE job_history
-    ADD CONSTRAINT fk_job_history_job FOREIGN KEY (job_id) REFERENCES jobs(jobid) ON DELETE CASCADE;
-ALTER TABLE job_history
-    ADD CONSTRAINT fk_job_history_user FOREIGN KEY (user_id) REFERENCES users(userid) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF to_regclass('public.job_history') IS NULL THEN
+        RAISE NOTICE 'job_history relation not found; skipping job_history constraints';
+        RETURN;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_job_history_type') THEN
+        ALTER TABLE job_history
+            ADD CONSTRAINT chk_job_history_type CHECK (change_type IN ('created','updated','status_changed','device_added','device_removed','deleted'));
+    END IF;
+
+    IF to_regclass('public.jobs') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_job_history_job') THEN
+        ALTER TABLE job_history
+            ADD CONSTRAINT fk_job_history_job FOREIGN KEY (job_id) REFERENCES jobs(jobid) ON DELETE CASCADE;
+    END IF;
+
+    IF to_regclass('public.users') IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_job_history_user') THEN
+        ALTER TABLE job_history
+            ADD CONSTRAINT fk_job_history_user FOREIGN KEY (user_id) REFERENCES users(userid) ON DELETE SET NULL;
+    END IF;
+END$$;
 
 -- Add created_by and updated_by fields to jobs table
 ALTER TABLE jobs
