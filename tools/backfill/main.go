@@ -92,8 +92,7 @@ func main() {
 		}()
 	}
 	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		_ = db.Close()
-		log.Fatalf("row iteration: %v", err)
+		log.Printf("row iteration: %v", err)
+		return
 	}
 }
