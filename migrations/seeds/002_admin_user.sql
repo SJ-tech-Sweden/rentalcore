@@ -22,8 +22,7 @@ WHERE NOT EXISTS (
 	SELECT 1
 	FROM users
 	WHERE username = 'admin' OR email = 'admin@example.test'
-)
-ON CONFLICT DO NOTHING;
+);
 
 -- Assign the admin role to the seeded user if roles table contains an `admin` role
 INSERT INTO user_roles (userid, roleid, assigned_by, assigned_at, is_active)
