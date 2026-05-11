@@ -794,7 +794,7 @@ func (c *Client) ClearCache() {
 func withSearchQuery(baseURL, search string) string {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		log.Printf("WARNING: unable to parse WarehouseCore URL %q: %v", baseURL, err)
+		log.Printf("WARNING: unable to parse base URL for WarehouseCore %q: %v", baseURL, err)
 		return fmt.Sprintf("%s?search=%s", baseURL, url.QueryEscape(strings.TrimSpace(search)))
 	}
 
