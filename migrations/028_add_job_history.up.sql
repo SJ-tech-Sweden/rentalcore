@@ -16,11 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_user_id ON job_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_changed_at ON job_history(changed_at);
 DO $$
 BEGIN
-    IF to_regclass('public.job_history') IS NULL THEN
-        RAISE NOTICE 'job_history relation not found; skipping job_history constraints';
-        RETURN;
-    END IF;
-
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_job_history_type') THEN
         ALTER TABLE job_history
             ADD CONSTRAINT chk_job_history_type CHECK (change_type IN ('created','updated','status_changed','device_added','device_removed','deleted'));
