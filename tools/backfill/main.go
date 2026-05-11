@@ -92,7 +92,7 @@ func main() {
 		}()
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("error during job_cables row iteration: %v", err)
+		log.Printf("critical error during job_cables row iteration, backfill incomplete: %v", err)
 		return
 	}
 }
