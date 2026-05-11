@@ -42,7 +42,7 @@ BEGIN
   -- detect users primary key / id column
   SELECT column_name INTO users_pk
   FROM information_schema.columns
-  WHERE table_schema='public' AND table_name='users' AND column_name IN ('userid','id','user_id','userID')
+  WHERE table_schema='public' AND table_name='users' AND column_name IN ('userid','id','user_id')
   LIMIT 1;
 
   IF users_pk IS NULL THEN
