@@ -472,7 +472,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 
 		// Load the user and verify they are still active
 		var user models.User
-		if err := h.db.Where("userID = ? AND is_active = ?", session.UserID, true).First(&user).Error; err != nil {
+		if err := h.db.Where("userid = ? AND is_active = ?", session.UserID, true).First(&user).Error; err != nil {
 			log.Printf("DEBUG: AuthMiddleware: User not found or inactive for session %s (UserID: %d): %v", sessionID, session.UserID, err)
 			// Delete the session since user is inactive/deleted
 			cookieDomain := getCookieDomain(c)
@@ -504,7 +504,7 @@ func (h *AuthHandler) validateSession(sessionID string) bool {
 
 	// Also check if the user is still active
 	var user models.User
-	return h.db.Where("userID = ? AND is_active = ?", session.UserID, true).First(&user).Error == nil
+	return h.db.Where("userid = ? AND is_active = ?", session.UserID, true).First(&user).Error == nil
 }
 
 // generateSessionID creates a new session ID

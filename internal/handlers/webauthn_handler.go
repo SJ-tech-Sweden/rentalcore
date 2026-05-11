@@ -338,7 +338,7 @@ func (h *WebAuthnHandler) CompletePasskeyAuthentication(c *gin.Context) {
 
 	// Get the user
 	var user models.User
-	if err := h.db.Where("userID = ? AND is_active = ?", passkey.UserID, true).First(&user).Error; err != nil {
+	if err := h.db.Where("userid = ? AND is_active = ?", passkey.UserID, true).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
 		return
 	}
@@ -370,7 +370,7 @@ func (h *WebAuthnHandler) CompletePasskeyAuthentication(c *gin.Context) {
 	// Set session cookie with shared domain for SSO
 	cookieDomain := getCookieDomain(c)
 	fmt.Printf("DEBUG: WebAuthn login - setting cookie with domain: '%s' for session: %s\n", cookieDomain, userSession.SessionID)
-	c.SetCookie(sessionCookieName(), userSession.SessionID, 24*60*60, "/", cookieDomain, false, true)
+	setAuthCookie(c, sessionCookieName(), userSession.SessionID, 24*60*60, cookieDomain)
 
 	// Clean up WebAuthn session
 	h.db.Delete(&session)
