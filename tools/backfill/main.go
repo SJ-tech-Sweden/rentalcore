@@ -91,4 +91,7 @@ func main() {
 			log.Printf("updated job_cables %d/%d", jobid, cableID)
 		}()
 	}
+	if err := rows.Err(); err != nil {
+		log.Fatalf("row iteration: %v", err)
+	}
 }

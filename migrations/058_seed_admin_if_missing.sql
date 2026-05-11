@@ -4,14 +4,14 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Insert admin user if not present
+-- Insert admin user if not present with an unpredictable generated password hash.
 INSERT INTO users (username, email, password_hash, is_active, is_admin, force_password_change, created_at)
-SELECT 'admin','admin@example.com', crypt('TemporaryAdmin!2026', gen_salt('bf', 12)), true, true, true, now()
+SELECT 'admin','admin@example.com', crypt(encode(gen_random_bytes(24), 'base64'), gen_salt('bf', 12)), true, true, true, now()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username='admin');
 
--- If admin exists but has no password, set a temporary password without overwriting non-empty hashes
+-- If admin exists but has no password, set an unpredictable password without overwriting non-empty hashes
 UPDATE users
-SET password_hash = crypt('TemporaryAdmin!2026', gen_salt('bf', 12)),
+SET password_hash = crypt(encode(gen_random_bytes(24), 'base64'), gen_salt('bf', 12)),
     force_password_change = true,
     is_active = true
 WHERE username = 'admin'

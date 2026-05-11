@@ -9,11 +9,6 @@ INSERT INTO public.seed_marker (name) VALUES ('initial_seed') ON CONFLICT DO NOT
 INSERT INTO roles (roleid, name) VALUES (1, 'admin') ON CONFLICT DO NOTHING;
 INSERT INTO roles (roleid, name) VALUES (2, 'user') ON CONFLICT DO NOTHING;
 
--- Sample user
-INSERT INTO users (userid, username, email, password_hash, created_at)
-VALUES (1, 'devadmin', 'devadmin@example.test', '', NOW())
-ON CONFLICT (userid) DO NOTHING;
-
 -- Product samples
 INSERT INTO products (productid, name)
 VALUES (1, 'Widget A') ON CONFLICT DO NOTHING;

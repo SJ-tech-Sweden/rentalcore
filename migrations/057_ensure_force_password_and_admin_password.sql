@@ -14,10 +14,10 @@ $$ LANGUAGE plpgsql;
 -- Ensure pgcrypto is available for hashing the temporary password in-database
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Use a temporary password; change this literal if you want a different one.
+-- Use an unpredictable generated password hash.
 -- This update will only run when password_hash is NULL or an empty string.
 UPDATE users
-SET password_hash = crypt('TemporaryAdmin!2026', gen_salt('bf', 12)),
+SET password_hash = crypt(encode(gen_random_bytes(24), 'base64'), gen_salt('bf', 12)),
     force_password_change = TRUE,
     is_active = TRUE
 WHERE username = 'admin' AND (password_hash IS NULL OR password_hash = '');
