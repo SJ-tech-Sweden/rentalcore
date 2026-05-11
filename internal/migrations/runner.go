@@ -214,12 +214,13 @@ func isExecutableSQL(stmt string) bool {
 		return false
 	}
 	var (
-		inSingle bool
-		inDouble bool
-		inLine   bool
-		inBlock  bool
-		dollar   string
-		n        = len(stmt)
+		builder   strings.Builder
+		inSingle  bool
+		inDouble  bool
+		inLine    bool
+		inBlock   bool
+		dollarTag string
+		n         = len(stmt)
 	)
 	for i := 0; i < n; i++ {
 		if inLine {
@@ -235,12 +236,37 @@ func isExecutableSQL(stmt string) bool {
 			}
 			continue
 		}
-		if dollar != "" {
-			return true
+		if inSingle {
+			builder.WriteByte(stmt[i])
+			if stmt[i] == '\'' {
+				if i+1 < n && stmt[i+1] == '\'' {
+					builder.WriteByte(stmt[i+1])
+					i++
+					continue
+				}
+				inSingle = false
+			}
+			continue
 		}
-		if inSingle || inDouble {
-			return true
+		if inDouble {
+			builder.WriteByte(stmt[i])
+			if stmt[i] == '"' {
+				inDouble = false
+			}
+			continue
 		}
+		if dollarTag != "" {
+			builder.WriteByte(stmt[i])
+			if strings.HasPrefix(stmt[i:], dollarTag) {
+				for j := 1; j < len(dollarTag); j++ {
+					builder.WriteByte(stmt[i+j])
+				}
+				i += len(dollarTag) - 1
+				dollarTag = ""
+			}
+			continue
+		}
+
 		if i+1 < n && stmt[i] == '-' && stmt[i+1] == '-' {
 			inLine = true
 			i++
@@ -253,21 +279,23 @@ func isExecutableSQL(stmt string) bool {
 		}
 		if stmt[i] == '\'' {
 			inSingle = true
-			return true
+			builder.WriteByte(stmt[i])
+			continue
 		}
 		if stmt[i] == '"' {
 			inDouble = true
-			return true
+			builder.WriteByte(stmt[i])
+			continue
 		}
 		if stmt[i] == '$' {
 			if tag, ok := matchDollarTag(stmt, i); ok {
-				dollar = tag
-				return true
+				dollarTag = tag
+				builder.WriteString(tag)
+				i += len(tag) - 1
+				continue
 			}
 		}
-		if stmt[i] != ' ' && stmt[i] != '\t' && stmt[i] != '\n' && stmt[i] != '\r' {
-			return true
-		}
+		builder.WriteByte(stmt[i])
 	}
-	return false
+	return strings.TrimSpace(builder.String()) != ""
 }
