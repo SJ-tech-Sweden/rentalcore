@@ -6,6 +6,7 @@ import (
 	"go-barcode-webapp/internal/services/warehousecore"
 	"log"
 	"net"
+	"strings"
 )
 
 type ProductRepository struct {
@@ -40,8 +41,12 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 	if r.useWarehouseProducts && r.warehouseClient != nil {
 		if p, err := r.warehouseClient.GetProduct(id); err == nil {
 			prod := &models.Product{
-				ProductID: id,
-				Name:      p.Name,
+				ProductID:    id,
+				Name:         p.Name,
+				PricePerUnit: &p.Price,
+			}
+			if sku := strings.TrimSpace(p.SKU); sku != "" {
+				prod.GenericBarcode = &sku
 			}
 			return prod, nil
 		} else if !shouldFallbackToDBFromWarehouseProductError(err) {
@@ -95,10 +100,15 @@ func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product,
 		if err == nil {
 			var out []models.Product
 			for _, it := range items {
-				out = append(out, models.Product{
-					ProductID: it.ID,
-					Name:      it.Name,
-				})
+				product := models.Product{
+					ProductID:    it.ID,
+					Name:         it.Name,
+					PricePerUnit: &it.Price,
+				}
+				if sku := strings.TrimSpace(it.SKU); sku != "" {
+					product.GenericBarcode = &sku
+				}
+				out = append(out, product)
 			}
 			return out, nil
 		}

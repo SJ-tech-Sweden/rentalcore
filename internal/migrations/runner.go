@@ -55,8 +55,10 @@ func ApplyMigrations(db *sql.DB, dir string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.Exec(string(b)); err != nil {
-			return err
+		for _, stmt := range splitSQLStatements(string(b)) {
+			if _, err := db.Exec(stmt); err != nil {
+				return err
+			}
 		}
 		if _, err := db.Exec("INSERT INTO schema_migrations (name) VALUES ($1)", name); err != nil {
 			return err
@@ -89,10 +91,183 @@ func ApplySeeds(db *sql.DB, dir string) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.Exec(string(b)); err != nil {
-			return err
+		for _, stmt := range splitSQLStatements(string(b)) {
+			if _, err := db.Exec(stmt); err != nil {
+				return err
+			}
 		}
 		log.Printf("applied seed %s", name)
 	}
 	return nil
+}
+
+func splitSQLStatements(sqlText string) []string {
+	var (
+		statements   []string
+		start        int
+		inSingle     bool
+		inDouble     bool
+		inLine       bool
+		inBlock      bool
+		dollarTag    string
+		textLen      = len(sqlText)
+	)
+
+	for i := 0; i < textLen; i++ {
+		if inLine {
+			if sqlText[i] == '\n' {
+				inLine = false
+			}
+			continue
+		}
+		if inBlock {
+			if i+1 < textLen && sqlText[i] == '*' && sqlText[i+1] == '/' {
+				inBlock = false
+				i++
+			}
+			continue
+		}
+		if dollarTag != "" {
+			if strings.HasPrefix(sqlText[i:], dollarTag) {
+				i += len(dollarTag) - 1
+				dollarTag = ""
+			}
+			continue
+		}
+		if inSingle {
+			if sqlText[i] == '\'' {
+				if i+1 < textLen && sqlText[i+1] == '\'' {
+					i++
+					continue
+				}
+				inSingle = false
+			}
+			continue
+		}
+		if inDouble {
+			if sqlText[i] == '"' {
+				inDouble = false
+			}
+			continue
+		}
+
+		if i+1 < textLen && sqlText[i] == '-' && sqlText[i+1] == '-' {
+			inLine = true
+			i++
+			continue
+		}
+		if i+1 < textLen && sqlText[i] == '/' && sqlText[i+1] == '*' {
+			inBlock = true
+			i++
+			continue
+		}
+		if sqlText[i] == '\'' {
+			inSingle = true
+			continue
+		}
+		if sqlText[i] == '"' {
+			inDouble = true
+			continue
+		}
+		if sqlText[i] == '$' {
+			if tag, ok := matchDollarTag(sqlText, i); ok {
+				dollarTag = tag
+				i += len(tag) - 1
+				continue
+			}
+		}
+		if sqlText[i] == ';' {
+			stmt := strings.TrimSpace(sqlText[start:i])
+			if isExecutableSQL(stmt) {
+				statements = append(statements, stmt)
+			}
+			start = i + 1
+		}
+	}
+
+	if tail := strings.TrimSpace(sqlText[start:]); isExecutableSQL(tail) {
+		statements = append(statements, tail)
+	}
+	return statements
+}
+
+func matchDollarTag(sqlText string, start int) (string, bool) {
+	if start >= len(sqlText) || sqlText[start] != '$' {
+		return "", false
+	}
+	end := start + 1
+	for end < len(sqlText) {
+		ch := sqlText[end]
+		if ch == '$' {
+			return sqlText[start : end+1], true
+		}
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+			return "", false
+		}
+		end++
+	}
+	return "", false
+}
+
+func isExecutableSQL(stmt string) bool {
+	if stmt == "" {
+		return false
+	}
+	var (
+		inSingle bool
+		inDouble bool
+		inLine   bool
+		inBlock  bool
+		dollar   string
+		n        = len(stmt)
+	)
+	for i := 0; i < n; i++ {
+		if inLine {
+			if stmt[i] == '\n' {
+				inLine = false
+			}
+			continue
+		}
+		if inBlock {
+			if i+1 < n && stmt[i] == '*' && stmt[i+1] == '/' {
+				inBlock = false
+				i++
+			}
+			continue
+		}
+		if dollar != "" {
+			return true
+		}
+		if inSingle || inDouble {
+			return true
+		}
+		if i+1 < n && stmt[i] == '-' && stmt[i+1] == '-' {
+			inLine = true
+			i++
+			continue
+		}
+		if i+1 < n && stmt[i] == '/' && stmt[i+1] == '*' {
+			inBlock = true
+			i++
+			continue
+		}
+		if stmt[i] == '\'' {
+			inSingle = true
+			return true
+		}
+		if stmt[i] == '"' {
+			inDouble = true
+			return true
+		}
+		if stmt[i] == '$' {
+			if tag, ok := matchDollarTag(stmt, i); ok {
+				dollar = tag
+				return true
+			}
+		}
+		if stmt[i] != ' ' && stmt[i] != '\t' && stmt[i] != '\n' && stmt[i] != '\r' {
+			return true
+		}
+	}
+	return false
 }
