@@ -6,36 +6,116 @@ BEGIN
   -- If job_devices table exists and jobdevices view does not, create jobdevices view
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_devices') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'jobdevices') THEN
-      EXECUTE $q$
-        CREATE VIEW jobdevices AS
-        SELECT
-          jobid,
-          deviceid,
-          custom_price,
-          package_id,
-          is_package_item,
-          pack_status,
-          pack_ts
-        FROM job_devices;
-      $q$;
+      DECLARE
+        sel_cols text := '';
+        col_jobid text := 'jobid';
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'jobid') THEN
+          col_jobid := 'jobid';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'job_id') THEN
+          col_jobid := 'job_id AS jobid';
+        ELSE
+          col_jobid := 'NULL::bigint AS jobid';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'deviceid') THEN
+          sel_cols := sel_cols || ', deviceid';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'device_id') THEN
+          sel_cols := sel_cols || ', device_id AS deviceid';
+        ELSE
+          sel_cols := sel_cols || ', NULL::varchar AS deviceid';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'custom_price') THEN
+          sel_cols := sel_cols || ', custom_price';
+        ELSE
+          sel_cols := sel_cols || ', NULL::numeric AS custom_price';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'package_id') THEN
+          sel_cols := sel_cols || ', package_id';
+        ELSE
+          sel_cols := sel_cols || ', NULL::int AS package_id';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'is_package_item') THEN
+          sel_cols := sel_cols || ', is_package_item';
+        ELSE
+          sel_cols := sel_cols || ', false AS is_package_item';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'pack_status') THEN
+          sel_cols := sel_cols || ', pack_status';
+        ELSE
+          sel_cols := sel_cols || ', ''pending''::varchar AS pack_status';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'pack_ts') THEN
+          sel_cols := sel_cols || ', pack_ts';
+        ELSE
+          sel_cols := sel_cols || ', NULL::timestamp AS pack_ts';
+        END IF;
+
+        EXECUTE format('CREATE VIEW jobdevices AS SELECT %s %s FROM job_devices', col_jobid, sel_cols);
+      END;
     END IF;
   END IF;
 
   -- If jobdevices table exists and no real `job_devices` table exists, create job_devices view
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jobdevices') THEN
     IF to_regclass('public.job_devices') IS NULL AND NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'job_devices') THEN
-      EXECUTE $q$
-        CREATE VIEW job_devices AS
-        SELECT
-          jobid,
-          deviceid,
-          custom_price,
-          package_id,
-          is_package_item,
-          pack_status,
-          pack_ts
-        FROM jobdevices;
-      $q$;
+      DECLARE
+        sel_cols text := '';
+        col_jobid text := 'jobid';
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'jobid') THEN
+          col_jobid := 'jobid';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'job_id') THEN
+          col_jobid := 'job_id AS jobid';
+        ELSE
+          col_jobid := 'NULL::bigint AS jobid';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'deviceid') THEN
+          sel_cols := sel_cols || ', deviceid';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'device_id') THEN
+          sel_cols := sel_cols || ', device_id AS deviceid';
+        ELSE
+          sel_cols := sel_cols || ', NULL::varchar AS deviceid';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'custom_price') THEN
+          sel_cols := sel_cols || ', custom_price';
+        ELSE
+          sel_cols := sel_cols || ', NULL::numeric AS custom_price';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'package_id') THEN
+          sel_cols := sel_cols || ', package_id';
+        ELSE
+          sel_cols := sel_cols || ', NULL::int AS package_id';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'is_package_item') THEN
+          sel_cols := sel_cols || ', is_package_item';
+        ELSE
+          sel_cols := sel_cols || ', false AS is_package_item';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'pack_status') THEN
+          sel_cols := sel_cols || ', pack_status';
+        ELSE
+          sel_cols := sel_cols || ', ''pending''::varchar AS pack_status';
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'jobdevices' AND column_name = 'pack_ts') THEN
+          sel_cols := sel_cols || ', pack_ts';
+        ELSE
+          sel_cols := sel_cols || ', NULL::timestamp AS pack_ts';
+        END IF;
+
+        EXECUTE format('CREATE VIEW job_devices AS SELECT %s %s FROM jobdevices', col_jobid, sel_cols);
+      END;
     END IF;
   END IF;
 
