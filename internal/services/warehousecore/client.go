@@ -25,6 +25,25 @@ var ErrProductNotFound = errors.New("product not found in WarehouseCore")
 // ErrCustomerNotFound is returned by GetCustomer when WarehouseCore responds with 404.
 var ErrCustomerNotFound = errors.New("customer not found in WarehouseCore")
 
+// HTTPStatusError captures non-success HTTP responses from WarehouseCore.
+type HTTPStatusError struct {
+	StatusCode int
+	Resource   string
+}
+
+func (e *HTTPStatusError) Error() string {
+	if e == nil {
+		return "warehousecore http status error"
+	}
+	return fmt.Sprintf("WarehouseCore returned %d for %s", e.StatusCode, e.Resource)
+}
+
+// IsServerStatusError returns true when err contains a 5xx WarehouseCore HTTP status.
+func IsServerStatusError(err error) bool {
+	var statusErr *HTTPStatusError
+	return errors.As(err, &statusErr) && statusErr.StatusCode >= 500 && statusErr.StatusCode <= 599
+}
+
 // RentalEquipmentItem represents a rental equipment item from WarehouseCore
 type RentalEquipmentItem struct {
 	EquipmentID   uint    `json:"equipment_id"`
@@ -532,7 +551,7 @@ func (c *Client) GetProduct(id uint) (*Product, error) {
 		return nil, fmt.Errorf("%w (id=%d)", ErrProductNotFound, id)
 	}
 	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("WarehouseCore returned %d for product %d", resp.StatusCode, id)
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Resource: fmt.Sprintf("product %d", id)}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d fetching product %d", resp.StatusCode, id)
@@ -671,7 +690,7 @@ func (c *Client) GetCustomer(id uint) (*Customer, error) {
 		return nil, fmt.Errorf("%w (id=%d)", ErrCustomerNotFound, id)
 	}
 	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("WarehouseCore returned %d for customer %d", resp.StatusCode, id)
+		return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Resource: fmt.Sprintf("customer %d", id)}
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d fetching customer %d", resp.StatusCode, id)

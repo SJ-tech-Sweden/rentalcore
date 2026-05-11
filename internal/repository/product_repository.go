@@ -6,7 +6,6 @@ import (
 	"go-barcode-webapp/internal/services/warehousecore"
 	"log"
 	"net"
-	"strings"
 )
 
 type ProductRepository struct {
@@ -74,7 +73,7 @@ func shouldFallbackToDBFromWarehouseProductError(err error) bool {
 	if errors.As(err, &netErr) {
 		return true
 	}
-	return strings.Contains(err.Error(), "WarehouseCore returned 5")
+	return warehousecore.IsServerStatusError(err)
 }
 
 func (r *ProductRepository) Update(product *models.Product) error {
