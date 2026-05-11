@@ -23,7 +23,7 @@ Testing
 SSO and users/auth guidance
 - Current approach: keep authentication and user records in RentalCore and expose a small SSO integration layer to WarehouseCore.
 - Recommended SSO pattern:
-  - Use JWTs signed by RentalCore with a shared HMAC or RSA key distributed via environment variables (e.g. `SSO_JWT_KEY`).
+  - Use JWTs signed by RentalCore with a shared HMAC or RSA key distributed via environment variables (e.g. `SSO_JWT_SECRET`, or `ENCRYPTION_KEY` fallback).
   - WarehouseCore accepts and verifies JWTs on incoming requests and maps the token to a local session.
   - For delegated user queries (e.g., user details), WarehouseCore can call RentalCore's user API with `X-API-Key` or via mutual TLS.
 

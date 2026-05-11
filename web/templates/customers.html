@@ -335,10 +335,10 @@
     function customerTypeLabel(value) {
         const normalized = normalizeCustomerType(value);
         if (normalized === 'supplier') {
-            return window.t ? window.t('customers.type_options.supplier') : 'Supplier';
+            return window.t ? window.t('customers.type_options.supplier', 'Supplier') : 'Supplier';
         }
         if (normalized === 'customer') {
-            return window.t ? window.t('customers.type_options.customer') : 'Customer';
+            return window.t ? window.t('customers.type_options.customer', 'Customer') : 'Customer';
         }
         return value || (window.t ? window.t('common.info') : 'Unknown');
     }
@@ -483,8 +483,8 @@
                             <div class="rc-form-group">
                                 <label class="rc-label">${window.t ? window.t('customers.type_label') : 'Customer Type'}</label>
                                 <select class="rc-select" name="customertype">
-                                    <option value="customer" ${selectedType === 'customer' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.customer') : 'Customer'}</option>
-                                    <option value="supplier" ${selectedType === 'supplier' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.supplier') : 'Supplier'}</option>
+                                    <option value="customer" ${selectedType === 'customer' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.customer', 'Customer') : 'Customer'}</option>
+                                    <option value="supplier" ${selectedType === 'supplier' ? 'selected' : ''}>${window.t ? window.t('customers.type_options.supplier', 'Supplier') : 'Supplier'}</option>
                                 </select>
                             </div>
                             <div class="rc-form-group">
