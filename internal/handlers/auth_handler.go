@@ -33,11 +33,15 @@ func NewAuthHandler(db *gorm.DB, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{db: db, config: cfg}
 }
 
-func sessionCookieName() string {
+func SessionCookieName() string {
 	if name := strings.TrimSpace(os.Getenv("SESSION_COOKIE_NAME")); name != "" {
 		return name
 	}
 	return "session_id"
+}
+
+func sessionCookieName() string {
+	return SessionCookieName()
 }
 
 func isSecureRequest(c *gin.Context) bool {

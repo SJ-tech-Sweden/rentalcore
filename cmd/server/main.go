@@ -92,13 +92,6 @@ func buildWarehouseProductsURL(r *http.Request) string {
 	return fmt.Sprintf("%s://%s/admin/products", scheme, host)
 }
 
-func sessionCookieName() string {
-	if name := strings.TrimSpace(os.Getenv("SESSION_COOKIE_NAME")); name != "" {
-		return name
-	}
-	return "session_id"
-}
-
 func resolvePackageAliasEndpoint() string {
 	aliasURL := strings.TrimSpace(os.Getenv("WAREHOUSECORE_ALIAS_MAP_URL"))
 	if aliasURL != "" {
@@ -938,7 +931,7 @@ func setupRoutes(r *gin.Engine,
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {
 		// Check if user is authenticated by looking for session
-		sessionID, err := c.Cookie(sessionCookieName())
+		sessionID, err := c.Cookie(handlers.SessionCookieName())
 		if err != nil || sessionID == "" {
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return
@@ -1449,8 +1442,9 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
 				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
 				apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
-
-				// Job cable routes removed; cable management moved to WarehouseCore
+				apiJobs.GET("/:id/cables", jobHandler.GetJobCablesAPI)
+				apiJobs.POST("/:id/cables", jobHandler.AssignCableToJobAPI)
+				apiJobs.DELETE("/:id/cables/:cableId", jobHandler.RemoveCableFromJobAPI)
 
 				// Job package routes
 				apiJobs.GET("/:id/packages", jobHandler.GetJobPackages)

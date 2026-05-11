@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"errors"
 	"go-barcode-webapp/internal/models"
 	"go-barcode-webapp/internal/services/warehousecore"
 	"log"
+	"net"
+	"strings"
 )
 
 type ProductRepository struct {
@@ -42,8 +45,10 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 				Name:      p.Name,
 			}
 			return prod, nil
+		} else if !shouldFallbackToDBFromWarehouseProductError(err) {
+			return nil, err
 		}
-		// On error fallthrough to DB
+		// Fall back to DB only on transient upstream errors.
 	}
 
 	var product models.Product
@@ -56,6 +61,20 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 		return nil, err
 	}
 	return &product, nil
+}
+
+func shouldFallbackToDBFromWarehouseProductError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, warehousecore.ErrProductNotFound) {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	return strings.Contains(err.Error(), "WarehouseCore returned 5")
 }
 
 func (r *ProductRepository) Update(product *models.Product) error {

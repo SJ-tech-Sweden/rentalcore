@@ -19,6 +19,12 @@ import (
 // ErrCableNotFound is returned by GetCable when WarehouseCore responds with 404.
 var ErrCableNotFound = errors.New("cable not found in WarehouseCore")
 
+// ErrProductNotFound is returned by GetProduct when WarehouseCore responds with 404.
+var ErrProductNotFound = errors.New("product not found in WarehouseCore")
+
+// ErrCustomerNotFound is returned by GetCustomer when WarehouseCore responds with 404.
+var ErrCustomerNotFound = errors.New("customer not found in WarehouseCore")
+
 // RentalEquipmentItem represents a rental equipment item from WarehouseCore
 type RentalEquipmentItem struct {
 	EquipmentID   uint    `json:"equipment_id"`
@@ -523,7 +529,7 @@ func (c *Client) GetProduct(id uint) (*Product, error) {
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("product %d not found", id)
+		return nil, fmt.Errorf("%w (id=%d)", ErrProductNotFound, id)
 	}
 	if resp.StatusCode >= 500 {
 		return nil, fmt.Errorf("WarehouseCore returned %d for product %d", resp.StatusCode, id)
@@ -662,7 +668,7 @@ func (c *Client) GetCustomer(id uint) (*Customer, error) {
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("customer %d not found", id)
+		return nil, fmt.Errorf("%w (id=%d)", ErrCustomerNotFound, id)
 	}
 	if resp.StatusCode >= 500 {
 		return nil, fmt.Errorf("WarehouseCore returned %d for customer %d", resp.StatusCode, id)
