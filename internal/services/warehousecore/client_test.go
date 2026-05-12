@@ -125,3 +125,51 @@ func TestNewClientWithConfig_TrailingSlash(t *testing.T) {
 		t.Errorf("trailing slash not stripped: %q", c.GetBaseURL())
 	}
 }
+
+func TestListProducts_ServerErrorReturnsHTTPStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/service/products" {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	c := NewClientWithConfig(srv.URL, "")
+	_, err := c.ListProducts("")
+	if err == nil {
+		t.Fatal("ListProducts() expected error for 500, got nil")
+	}
+	var statusErr *HTTPStatusError
+	if !errors.As(err, &statusErr) {
+		t.Fatalf("ListProducts() expected HTTPStatusError, got: %v", err)
+	}
+	if statusErr.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("ListProducts() status code = %d, want %d", statusErr.StatusCode, http.StatusInternalServerError)
+	}
+}
+
+func TestListCustomers_ServerErrorReturnsHTTPStatusError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/admin/customers" {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	c := NewClientWithConfig(srv.URL, "")
+	_, err := c.ListCustomers("")
+	if err == nil {
+		t.Fatal("ListCustomers() expected error for 500, got nil")
+	}
+	var statusErr *HTTPStatusError
+	if !errors.As(err, &statusErr) {
+		t.Fatalf("ListCustomers() expected HTTPStatusError, got: %v", err)
+	}
+	if statusErr.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("ListCustomers() status code = %d, want %d", statusErr.StatusCode, http.StatusInternalServerError)
+	}
+}

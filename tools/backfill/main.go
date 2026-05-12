@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -68,7 +69,10 @@ func main() {
 			continue
 		}
 		func() {
-			defer resp.Body.Close()
+			defer func() {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}()
 
 			if resp.StatusCode != 200 {
 				log.Printf("api status %d for cable %d", resp.StatusCode, cableID)

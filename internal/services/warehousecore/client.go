@@ -585,6 +585,9 @@ func (c *Client) ListProducts(search string) ([]Product, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode >= 500 {
+			return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Resource: "products list"}
+		}
 		return nil, fmt.Errorf("products API returned status %d", resp.StatusCode)
 	}
 
@@ -724,6 +727,9 @@ func (c *Client) ListCustomers(search string) ([]Customer, error) {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode >= 500 {
+			return nil, &HTTPStatusError{StatusCode: resp.StatusCode, Resource: "customers list"}
+		}
 		return nil, fmt.Errorf("customers API returned status %d", resp.StatusCode)
 	}
 

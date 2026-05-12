@@ -145,3 +145,29 @@ func TestProductRepository_List_APIMode_NonTransientErrorDoesNotFallback(t *test
 		t.Fatalf("expected no DB fallback results on non-transient API error, got: %#v", list)
 	}
 }
+
+func TestProductRepository_List_APIMode_TransientServerErrorFallsBackToDB(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/service/products" {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	db := newTestProductDB(t)
+	seedProduct(t, db, 1, "DB Product Fallback")
+
+	repo := NewProductRepository(db)
+	wc := warehousecore.NewClientWithConfig(srv.URL, "")
+	repo.WithWarehouseCoreClient(wc, true)
+
+	list, err := repo.List(nil)
+	if err != nil {
+		t.Fatalf("expected DB fallback on transient API error, got error: %v", err)
+	}
+	if len(list) == 0 || list[0].Name != "DB Product Fallback" {
+		t.Fatalf("expected DB fallback results on transient API error, got: %#v", list)
+	}
+}
