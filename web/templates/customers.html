@@ -340,7 +340,7 @@
         if (normalized === 'customer') {
             return window.t ? window.t('customers.type_options.customer', 'Customer') : 'Customer';
         }
-        return value || (window.t ? window.t('common.info') : 'Unknown');
+        return value || (window.t ? window.t('common.unknown', 'Unknown') : 'Unknown');
     }
 
     // Customer Details Modal

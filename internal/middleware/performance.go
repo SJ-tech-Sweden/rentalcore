@@ -113,6 +113,9 @@ func (pm *PerformanceMonitor) PerformanceMiddleware() gin.HandlerFunc {
 
 // updateMetrics updates performance metrics
 func (pm *PerformanceMonitor) updateMetrics(endpoint string, duration time.Duration, isError bool) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -134,10 +137,7 @@ func (pm *PerformanceMonitor) updateMetrics(endpoint string, duration time.Durat
 
 	pm.metrics.EndpointStats[endpoint] = stats
 
-	// Update memory stats while holding the lock so readers never observe
-	// partially updated metric snapshots.
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
+	// Update memory stats snapshot.
 	pm.metrics.MemoryUsage = MemoryStats{
 		Allocated:    m.Alloc,
 		TotalAlloc:   m.TotalAlloc,
