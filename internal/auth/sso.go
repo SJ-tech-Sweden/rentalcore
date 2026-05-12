@@ -13,6 +13,8 @@ import (
 
 const minSigningKeyLength = 32
 
+const maxSSOTokenTTLSeconds = 30 * 24 * 60 * 60
+
 // Claims contains the fields encoded into the SSO JWT.
 type Claims struct {
 	UserID   uint   `json:"user_id"`
@@ -43,6 +45,12 @@ func getSigningKey() ([]byte, error) {
 func GenerateSSOToken(u *models.User, ttlSeconds int) (string, error) {
 	if u == nil {
 		return "", errors.New("nil user")
+	}
+	if ttlSeconds <= 0 {
+		return "", errors.New("ttlSeconds must be > 0")
+	}
+	if ttlSeconds > maxSSOTokenTTLSeconds {
+		return "", errors.New("ttlSeconds exceeds maximum allowed value")
 	}
 	now := time.Now()
 	claims := &Claims{
