@@ -103,14 +103,14 @@ func ApplySeeds(db *sql.DB, dir string) error {
 
 func splitSQLStatements(sqlText string) []string {
 	var (
-		statements   []string
-		start        int
-		inSingle     bool
-		inDouble     bool
-		inLine       bool
-		inBlock      bool
-		dollarTag    string
-		textLen      = len(sqlText)
+		statements []string
+		start      int
+		inSingle   bool
+		inDouble   bool
+		inLine     bool
+		inBlock    bool
+		dollarTag  string
+		textLen    = len(sqlText)
 	)
 
 	for i := 0; i < textLen; i++ {

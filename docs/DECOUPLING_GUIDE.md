@@ -13,7 +13,7 @@ Environment variables
 - `WAREHOUSE_PRODUCTS_ENABLED`, `WAREHOUSE_CUSTOMERS_ENABLED` — set to `true` to enable API-backed reads.
 
 Behavioral notes
-- Reads are best-effort: the code falls back to the local DB on any API error to avoid outages.
+- Reads are best-effort for transient upstream failures: the code falls back to the local DB on network/server errors (timeouts/5xx), but returns not-found when WarehouseCore returns not-found.
 - Writes (create/update/delete) for customers remain local in RentalCore to avoid surprising cross-service side-effects.
 - Product listing in API mode maps a minimal set of fields into the local `models.Product` structure. Complex filters should be handled by WarehouseCore when possible.
 

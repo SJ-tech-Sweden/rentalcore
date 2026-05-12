@@ -1,4 +1,4 @@
--- 086_restore_rental_assignment_tables.sql
+-- 088_restore_rental_assignment_tables.sql
 -- Recreate rental assignment tables for RentalCore job form persistence.
 -- These tables may have been removed by legacy cleanup migrations.
 

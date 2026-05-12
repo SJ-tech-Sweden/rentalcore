@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS job_devices (
   id SERIAL PRIMARY KEY,
   jobid INT NOT NULL REFERENCES jobs(jobid) ON DELETE CASCADE,
-  device_id VARCHAR(255) NOT NULL,
+  deviceid VARCHAR(255) NOT NULL,
   productid INT,
   quantity INT DEFAULT 1
 );
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS job_devices (
 -- Create compatibility view `jobdevices` and INSTEAD OF triggers
 -- Simple compatibility view `jobdevices` (read-only). Triggers omitted for now.
 CREATE OR REPLACE VIEW jobdevices AS
-  SELECT jobid, device_id AS deviceid, NULL::numeric AS custom_price, NULL::int AS package_id,
+  SELECT jobid, deviceid, NULL::numeric AS custom_price, NULL::int AS package_id,
     false AS is_package_item, 'pending'::varchar AS pack_status, NULL::timestamp AS pack_ts
   FROM job_devices;
 
@@ -133,6 +133,7 @@ CREATE INDEX IF NOT EXISTS idx_job_history_user ON job_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_job_history_changed_at ON job_history(changed_at);
 
 CREATE TABLE IF NOT EXISTS job_edit_sessions (
+  session_id BIGSERIAL PRIMARY KEY,
   job_id INT NOT NULL REFERENCES jobs(jobid) ON DELETE CASCADE,
   user_id INT NOT NULL REFERENCES users(userid) ON DELETE CASCADE,
   username VARCHAR(255) NOT NULL,
@@ -140,7 +141,7 @@ CREATE TABLE IF NOT EXISTS job_edit_sessions (
   started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (job_id, user_id)
+  CONSTRAINT uq_job_edit_sessions_job_user UNIQUE (job_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_job_edit_sessions_last_seen ON job_edit_sessions(last_seen);
 

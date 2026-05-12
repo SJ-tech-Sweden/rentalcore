@@ -1072,9 +1072,13 @@ func setupRoutes(r *gin.Engine,
 		redirectToWarehouseCables := func(c *gin.Context) {
 			target := buildWarehouseCablesURL(c.Request)
 			if target == "" {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"error":   "WarehouseCore domain not configured",
-					"message": "Cable UI is disabled; set WAREHOUSECORE_DOMAIN to enable external cable search",
+				c.HTML(http.StatusServiceUnavailable, "error_page.html", gin.H{
+					"error_code":    http.StatusServiceUnavailable,
+					"error_message": "WarehouseCore domain not configured",
+					"error_details": "Cable UI is disabled; set WAREHOUSECORE_DOMAIN to enable external cable search.",
+					"request_id":    c.GetHeader("X-Request-Id"),
+					"timestamp":     time.Now().Format("2006-01-02 15:04:05"),
+					"user":          nil,
 				})
 				return
 			}
