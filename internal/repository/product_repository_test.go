@@ -57,7 +57,7 @@ func TestProductRepository_GetByID_APIMode(t *testing.T) {
 		}
 		// return a product for any /service/products/{id}
 		if r.URL.Path == "/service/products/42" {
-			json.NewEncoder(w).Encode(map[string]interface{}{"id": 42, "name": "API Speaker"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"id": 42, "name": "API Speaker", "price": 12.5})
 			return
 		}
 		// list
@@ -81,6 +81,9 @@ func TestProductRepository_GetByID_APIMode(t *testing.T) {
 	}
 	if got == nil || got.Name == "" {
 		t.Fatalf("expected API product, got: %#v", got)
+	}
+	if got.PricePerUnit == nil || *got.PricePerUnit != 12.5 {
+		t.Fatalf("expected API product price, got: %#v", got)
 	}
 }
 
@@ -114,5 +117,31 @@ func TestProductRepository_List_APIMode(t *testing.T) {
 	}
 	if *list[0].PricePerUnit != 10.5 || *list[1].PricePerUnit != 20.25 {
 		t.Fatalf("unexpected prices in API list: %#v", list)
+	}
+}
+
+func TestProductRepository_List_APIMode_NonTransientErrorDoesNotFallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/service/products" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	db := newTestProductDB(t)
+	seedProduct(t, db, 1, "DB Product Should Not Be Returned")
+
+	repo := NewProductRepository(db)
+	wc := warehousecore.NewClientWithConfig(srv.URL, "")
+	repo.WithWarehouseCoreClient(wc, true)
+
+	list, err := repo.List(nil)
+	if err == nil {
+		t.Fatalf("expected list error for non-transient API failure, got nil")
+	}
+	if len(list) != 0 {
+		t.Fatalf("expected no DB fallback results on non-transient API error, got: %#v", list)
 	}
 }

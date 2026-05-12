@@ -96,7 +96,10 @@ func (r *CustomerRepository) List(params *models.FilterParams) ([]models.Custome
 			}
 			return out, nil
 		}
-		// fall back to DB on error
+		if !shouldFallbackToDBFromWarehouseCustomerError(err) {
+			return nil, err
+		}
+		// Fall back to DB only on transient upstream errors.
 	}
 
 	var customers []models.Customer

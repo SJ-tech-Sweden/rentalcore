@@ -98,3 +98,29 @@ func TestCustomerRepository_List_APIMode(t *testing.T) {
 		t.Fatalf("unexpected list result: %#v", list)
 	}
 }
+
+func TestCustomerRepository_List_APIMode_NonTransientErrorDoesNotFallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/admin/customers" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	db := newTestCustomerDB(t)
+	seedCustomer(t, db, 1, "DB Customer Should Not Be Returned")
+
+	repo := NewCustomerRepository(db)
+	wc := warehousecore.NewClientWithConfig(srv.URL, "")
+	repo.WithWarehouseCoreClient(wc, true)
+
+	list, err := repo.List(nil)
+	if err == nil {
+		t.Fatalf("expected list error for non-transient API failure, got nil")
+	}
+	if len(list) != 0 {
+		t.Fatalf("expected no DB fallback results on non-transient API error, got: %#v", list)
+	}
+}

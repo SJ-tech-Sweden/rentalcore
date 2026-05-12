@@ -40,10 +40,11 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 	// Try WarehouseCore API first if enabled
 	if r.useWarehouseProducts && r.warehouseClient != nil {
 		if p, err := r.warehouseClient.GetProduct(id); err == nil {
+			price := p.Price
 			prod := &models.Product{
 				ProductID:    id,
 				Name:         p.Name,
-				PricePerUnit: &p.Price,
+				PricePerUnit: &price,
 			}
 			if sku := strings.TrimSpace(p.SKU); sku != "" {
 				prod.GenericBarcode = new(string)
@@ -115,7 +116,10 @@ func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product,
 			}
 			return out, nil
 		}
-		// Fall back to DB on API error
+		if !shouldFallbackToDBFromWarehouseProductError(err) {
+			return nil, err
+		}
+		// Fall back to DB only on transient upstream errors.
 	}
 
 	var products []models.Product
