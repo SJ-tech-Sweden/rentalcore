@@ -87,7 +87,10 @@ func TestProductRepository_GetByID_APIMode(t *testing.T) {
 func TestProductRepository_List_APIMode(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/service/products" {
-			json.NewEncoder(w).Encode([]map[string]interface{}{{"id": 7, "name": "API Cable"}})
+			json.NewEncoder(w).Encode([]map[string]interface{}{
+				{"id": 7, "name": "API Cable", "price": 10.5},
+				{"id": 8, "name": "API Cable Pro", "price": 20.25},
+			})
 			return
 		}
 		http.NotFound(w, r)
@@ -103,7 +106,13 @@ func TestProductRepository_List_APIMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("List API error: %v", err)
 	}
-	if len(list) == 0 || list[0].Name == "" {
+	if len(list) != 2 || list[0].Name == "" || list[1].Name == "" {
 		t.Fatalf("unexpected list result: %#v", list)
+	}
+	if list[0].PricePerUnit == nil || list[1].PricePerUnit == nil {
+		t.Fatalf("expected non-nil price pointers: %#v", list)
+	}
+	if *list[0].PricePerUnit != 10.5 || *list[1].PricePerUnit != 20.25 {
+		t.Fatalf("unexpected prices in API list: %#v", list)
 	}
 }

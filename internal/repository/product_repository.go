@@ -101,10 +101,11 @@ func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product,
 		if err == nil {
 			var out []models.Product
 			for _, it := range items {
+				price := it.Price
 				product := models.Product{
 					ProductID:    it.ID,
 					Name:         it.Name,
-					PricePerUnit: &it.Price,
+					PricePerUnit: &price,
 				}
 				if sku := strings.TrimSpace(it.SKU); sku != "" {
 					product.GenericBarcode = new(string)

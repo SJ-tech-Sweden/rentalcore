@@ -927,6 +927,7 @@ func setupRoutes(r *gin.Engine,
 
 	// Swagger / OpenAPI UI routes (accessible at /docs)
 	registerDocsRoutes(r, ginSwagger.WrapHandler(swaggerfiles.Handler))
+	errorAssetVersion := strconv.FormatInt(time.Now().Unix(), 10)
 
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {
@@ -1072,12 +1073,15 @@ func setupRoutes(r *gin.Engine,
 		redirectToWarehouseCables := func(c *gin.Context) {
 			target := buildWarehouseCablesURL(c.Request)
 			if target == "" {
+				now := time.Now()
 				c.HTML(http.StatusServiceUnavailable, "error_page.html", gin.H{
 					"error_code":    http.StatusServiceUnavailable,
 					"error_message": "WarehouseCore domain not configured",
 					"error_details": "Cable UI is disabled; set WAREHOUSECORE_DOMAIN to enable external cable search.",
 					"request_id":    c.GetHeader("X-Request-Id"),
-					"timestamp":     time.Now().Format("2006-01-02 15:04:05"),
+					"timestamp":     now.Format("2006-01-02 15:04:05"),
+					"display_time":  now.Format("2006-01-02 15:04:05"),
+					"asset_version": errorAssetVersion,
 					"user":          nil,
 				})
 				return
