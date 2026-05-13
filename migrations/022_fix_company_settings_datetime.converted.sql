@@ -2,7 +2,7 @@
 -- Source: 022_fix_company_settings_datetime.sql.bak
 -- Review this file for correctness before applying to Postgres.
 
--- Fix nullable TIMESTAMP values in company_settings table.
+-- Fix NULL TIMESTAMP values in company_settings table.
 -- MySQL zero-date literals are invalid in PostgreSQL and cannot be stored in
 -- these TIMESTAMP columns after import, so this converted migration only
 -- normalizes NULL values.
