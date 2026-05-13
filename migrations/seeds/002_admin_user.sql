@@ -3,6 +3,8 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+ALTER TABLE IF EXISTS users
+	ADD COLUMN IF NOT EXISTS force_password_change BOOLEAN DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS public.seed_marker (name text PRIMARY KEY, applied_at timestamptz DEFAULT now());
 INSERT INTO public.seed_marker (name) VALUES ('admin_seed') ON CONFLICT DO NOTHING;
