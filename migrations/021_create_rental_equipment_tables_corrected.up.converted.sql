@@ -46,10 +46,20 @@ CREATE INDEX IF NOT EXISTS idx_equipment_id ON job_rental_equipment(equipment_id
 CREATE INDEX IF NOT EXISTS idx_created_at ON job_rental_equipment(created_at);
 
 -- Insert some example rental equipment items
-INSERT INTO rental_equipment (product_name, supplier_name, rental_price, description, category) VALUES
-('LED Moving Head - Martin MAC Aura', 'Pro Rental GmbH', 45.00, 'Professional LED Moving Head Light', 'Lighting'),
-('d&b V12 Line Array', 'Sound Solutions AG', 120.00, 'High-end Line Array Speaker System', 'Audio'),
-('Truss System 3m Segment', 'Stage Tech Berlin', 15.00, '3 Meter Aluminum Truss Segment', 'Stage Equipment'),
-('Haze Machine - Unique 2.1', 'Effect Masters', 35.00, 'Professional Haze Machine with DMX', 'Other'),
-('LED Par 64 RGBW', 'Light Rental Pro', 12.00, 'RGBW LED Par with DMX Control', 'Lighting'),
-('Wireless Microphone Shure ULXD2', 'Audio Rent Hamburg', 25.00, 'Professional Wireless Handheld Microphone', 'Audio');
+INSERT INTO rental_equipment (product_name, supplier_name, rental_price, description, category)
+SELECT v.product_name, v.supplier_name, v.rental_price, v.description, v.category
+FROM (
+  VALUES
+    ('LED Moving Head - Martin MAC Aura', 'Pro Rental GmbH', 45.00, 'Professional LED Moving Head Light', 'Lighting'),
+    ('d&b V12 Line Array', 'Sound Solutions AG', 120.00, 'High-end Line Array Speaker System', 'Audio'),
+    ('Truss System 3m Segment', 'Stage Tech Berlin', 15.00, '3 Meter Aluminum Truss Segment', 'Stage Equipment'),
+    ('Haze Machine - Unique 2.1', 'Effect Masters', 35.00, 'Professional Haze Machine with DMX', 'Other'),
+    ('LED Par 64 RGBW', 'Light Rental Pro', 12.00, 'RGBW LED Par with DMX Control', 'Lighting'),
+    ('Wireless Microphone Shure ULXD2', 'Audio Rent Hamburg', 25.00, 'Professional Wireless Handheld Microphone', 'Audio')
+) AS v(product_name, supplier_name, rental_price, description, category)
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM rental_equipment re
+  WHERE re.product_name = v.product_name
+    AND re.supplier_name = v.supplier_name
+);

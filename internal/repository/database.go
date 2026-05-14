@@ -2,6 +2,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -77,11 +78,16 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 		if migrationsDir == "" {
 			migrationsDir = "migrations"
 		}
-		if _, err := sqlDB.Exec("SELECT pg_advisory_lock($1)", startupMigrationsLockKey); err != nil {
+		lockConn, err := sqlDB.Conn(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("acquire startup migration lock connection: %w", err)
+		}
+		defer lockConn.Close()
+		if _, err := lockConn.ExecContext(context.Background(), "SELECT pg_advisory_lock($1)", startupMigrationsLockKey); err != nil {
 			return nil, fmt.Errorf("acquire startup migration lock: %w", err)
 		}
 		defer func() {
-			if _, err := sqlDB.Exec("SELECT pg_advisory_unlock($1)", startupMigrationsLockKey); err != nil {
+			if _, err := lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", startupMigrationsLockKey); err != nil {
 				log.Printf("WARNING: failed to release startup migration lock: %v", err)
 			}
 		}()

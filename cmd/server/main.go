@@ -973,6 +973,7 @@ func setupRoutes(r *gin.Engine,
 	// are guarded by API key checks inside the handler.
 	serviceAuthAPI := r.Group("/api/v1/security/auth")
 	{
+		serviceAuthAPI.GET("/users", authHandler.ListUsersAPI)
 		serviceAuthAPI.GET("/users/:id", authHandler.GetUserAPI)
 	}
 

@@ -23,16 +23,6 @@ BEGIN
         EXECUTE 'ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS footer_text TEXT NULL';
         EXECUTE 'ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS payment_terms_text TEXT NULL';
 
-        -- Update existing record with English defaults if it exists (user preference)
-        IF EXISTS (SELECT 1 FROM company_settings WHERE id = 1) THEN
-            UPDATE company_settings 
-            SET 
-                country = 'United Kingdom',
-                footer_text = 'Thank you for your business.\n\nIf you have questions about this invoice, please contact us.',
-                payment_terms_text = 'Payable within 30 days net.\n\nLate payments may incur interest as permitted by law.'
-            WHERE id = 1;
-        END IF;
-
         -- Add indexes for better performance if columns exist
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='company_settings' AND column_name='iban') THEN
             EXECUTE 'CREATE INDEX IF NOT EXISTS idx_company_settings_iban ON company_settings (iban)';
@@ -41,7 +31,7 @@ BEGIN
             EXECUTE 'CREATE INDEX IF NOT EXISTS idx_company_settings_register_number ON company_settings (register_number)';
         END IF;
 
-        RAISE NOTICE 'Company settings migration completed (English defaults applied if record existed)';
+        RAISE NOTICE 'Company settings migration completed (existing values preserved)';
     ELSE
         RAISE NOTICE 'company_settings relation not found; skipping migration 009';
     END IF;

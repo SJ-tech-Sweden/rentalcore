@@ -7,8 +7,19 @@ BEGIN
       -- Build select list dynamically to avoid referencing missing columns
       DECLARE
         sel_cols TEXT := '';
-        col_jobid TEXT := 'jobid';
+        col_jobid TEXT := NULL;
       BEGIN
+        -- job column
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'jobid') THEN
+          col_jobid := 'jobid';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'job_id') THEN
+          col_jobid := 'job_id';
+        ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'jobID') THEN
+          col_jobid := 'jobID';
+        ELSE
+          col_jobid := 'NULL::int AS jobid';
+        END IF;
+
         -- device column
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'deviceid') THEN
           sel_cols := sel_cols || ', deviceid';
@@ -74,11 +85,26 @@ BEGIN
   -- Expose deviceid alias when devices have numeric id
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'id') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'devices_as_deviceid') THEN
-      EXECUTE $q$
-        CREATE OR REPLACE VIEW devices_as_deviceid AS
-        SELECT id::text AS deviceid, id::text AS "deviceID", productid, serialnumber AS serial, zone_id AS zoneid, *
-        FROM devices;
-      $q$;
+      DECLARE
+        dev_cols TEXT := 'id::text AS deviceid, id::text AS "deviceID"';
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='devices' AND column_name='productid') THEN
+          dev_cols := dev_cols || ', productid';
+        ELSE
+          dev_cols := dev_cols || ', NULL::int AS productid';
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='devices' AND column_name='serialnumber') THEN
+          dev_cols := dev_cols || ', serialnumber AS serial';
+        ELSE
+          dev_cols := dev_cols || ', NULL::text AS serial';
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='devices' AND column_name='zone_id') THEN
+          dev_cols := dev_cols || ', zone_id AS zoneid';
+        ELSE
+          dev_cols := dev_cols || ', NULL::int AS zoneid';
+        END IF;
+        EXECUTE format('CREATE OR REPLACE VIEW devices_as_deviceid AS SELECT %s FROM devices', dev_cols);
+      END;
     END IF;
   END IF;
 

@@ -12,13 +12,16 @@ func TestGetUser_ListUsers(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/admin/users/5":
+		case "/api/v1/security/auth/users/5":
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(user) //nolint:errcheck
 			return
-		case "/admin/users":
+		case "/api/v1/security/auth/users":
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode([]User{user}) //nolint:errcheck
+			json.NewEncoder(w).Encode(map[string]any{
+				"users": []User{user},
+				"total": 1,
+			}) //nolint:errcheck
 			return
 		default:
 			http.NotFound(w, r)

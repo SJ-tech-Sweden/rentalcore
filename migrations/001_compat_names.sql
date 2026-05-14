@@ -135,11 +135,26 @@ BEGIN
   -- If devices table uses numeric primary key `id`, expose it as deviceid to satisfy older migrations
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'devices' AND column_name = 'id') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'devices_as_deviceid') THEN
-      EXECUTE $q$
-        CREATE VIEW devices_as_deviceid AS
-        SELECT id::text AS deviceid, id::text AS "deviceID", productid, serialnumber AS serial, zone_id AS zoneid, *
-        FROM devices;
-      $q$;
+      DECLARE
+        dev_cols TEXT := 'id::text AS deviceid, id::text AS "deviceID"';
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='devices' AND column_name='productid') THEN
+          dev_cols := dev_cols || ', productid';
+        ELSE
+          dev_cols := dev_cols || ', NULL::int AS productid';
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='devices' AND column_name='serialnumber') THEN
+          dev_cols := dev_cols || ', serialnumber AS serial';
+        ELSE
+          dev_cols := dev_cols || ', NULL::text AS serial';
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='devices' AND column_name='zone_id') THEN
+          dev_cols := dev_cols || ', zone_id AS zoneid';
+        ELSE
+          dev_cols := dev_cols || ', NULL::int AS zoneid';
+        END IF;
+        EXECUTE format('CREATE VIEW devices_as_deviceid AS SELECT %s FROM devices', dev_cols);
+      END;
     END IF;
   END IF;
 

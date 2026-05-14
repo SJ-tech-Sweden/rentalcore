@@ -18,6 +18,7 @@ func main() {
 		log.Fatal("DATABASE_URL required")
 	}
 	dir := flag.String("dir", "migrations", "migrations directory")
+	seed := flag.Bool("seed", false, "also apply seeds after migrations")
 	flag.Parse()
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -27,9 +28,12 @@ func main() {
 	if err := migrations.ApplyMigrations(db, *dir); err != nil {
 		log.Fatalf("apply migrations: %v", err)
 	}
-	// Apply seeds if present
-	if err := migrations.ApplySeeds(db, filepath.Join(*dir, "seeds")); err != nil {
-		log.Fatalf("apply seeds: %v", err)
+	if *seed {
+		if err := migrations.ApplySeeds(db, filepath.Join(*dir, "seeds")); err != nil {
+			log.Fatalf("apply seeds: %v", err)
+		}
+		log.Println("migrations and seeds complete")
+		return
 	}
 	log.Println("migrations complete")
 }

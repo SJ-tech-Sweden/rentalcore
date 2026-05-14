@@ -1,6 +1,6 @@
 -- Add a compatibility column `statusid` to `jobs` when missing.
 -- This migration is idempotent and will try to populate the new column
--- from any existing candidate column (statusID, statusId, status_id, status).
+  -- from any existing numeric candidate column (statusID, statusId, status_id).
 DO $$
 DECLARE
   candidate text;
@@ -12,14 +12,13 @@ BEGIN
     SELECT column_name INTO candidate
     FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'jobs'
-      AND column_name IN ('statusid','statusID','statusId','status_id','status')
+      AND column_name IN ('statusid','statusID','statusId','status_id')
     ORDER BY CASE column_name
       WHEN 'statusid' THEN 0
       WHEN 'statusID' THEN 1
       WHEN 'statusId' THEN 2
       WHEN 'status_id' THEN 3
-      WHEN 'status' THEN 4
-      ELSE 5 END
+      ELSE 4 END
     LIMIT 1;
 
     -- Add the compatibility column (no FK by default to avoid failures).

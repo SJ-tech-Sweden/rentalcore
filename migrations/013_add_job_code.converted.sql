@@ -17,6 +17,8 @@ BEGIN
     job_id_col := 'jobID';
   ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='jobs' AND column_name='job_id') THEN
     job_id_col := 'job_id';
+  ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='jobs' AND column_name='jobid') THEN
+    job_id_col := 'jobid';
   ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='jobs' AND column_name='id') THEN
     job_id_col := 'id';
   END IF;
@@ -32,7 +34,9 @@ BEGIN
   END IF;
 
   -- set NOT NULL if possible
-  EXECUTE 'ALTER TABLE jobs ALTER COLUMN job_code SET NOT NULL';
+  IF NOT EXISTS (SELECT 1 FROM jobs WHERE job_code IS NULL OR job_code = '') THEN
+    EXECUTE 'ALTER TABLE jobs ALTER COLUMN job_code SET NOT NULL';
+  END IF;
 
   -- add unique constraint if not present
   SELECT EXISTS(SELECT 1 FROM pg_constraint WHERE conname = 'ux_jobs_job_code') INTO constraint_exists;

@@ -934,6 +934,21 @@ func (h *AuthHandler) DeleteUser(c *gin.Context) {
 
 // ListUsersAPI returns users in JSON format for API calls
 func (h *AuthHandler) ListUsersAPI(c *gin.Context) {
+	// Require API key for service-to-service calls
+	apiKey := c.GetHeader("X-API-Key")
+	configuredAPIKey := ""
+	if h.config != nil {
+		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
+	}
+	if configuredAPIKey == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	var users []models.User
 	if err := h.db.Order("created_at DESC").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})

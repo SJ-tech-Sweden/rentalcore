@@ -742,7 +742,7 @@ func (c *Client) ListCustomers(search string) ([]Customer, error) {
 
 // GetUser fetches a single user by ID from the central auth API (RentalCore).
 func (c *Client) GetUser(id uint) (*User, error) {
-	url := fmt.Sprintf("%s/admin/users/%d", c.baseURL, id)
+	url := fmt.Sprintf("%s/api/v1/security/auth/users/%d", c.baseURL, id)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -779,7 +779,7 @@ func (c *Client) GetUser(id uint) (*User, error) {
 
 // ListUsers calls the central auth API user listing endpoint with optional search.
 func (c *Client) ListUsers(search string) ([]User, error) {
-	url := fmt.Sprintf("%s/admin/users", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/security/auth/users", c.baseURL)
 	if strings.TrimSpace(search) != "" {
 		url = withSearchQuery(url, search)
 	}
@@ -804,11 +804,13 @@ func (c *Client) ListUsers(search string) ([]User, error) {
 		return nil, fmt.Errorf("users API returned status %d", resp.StatusCode)
 	}
 
-	var items []User
-	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
+	var payload struct {
+		Users []User `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, fmt.Errorf("decode users list: %w", err)
 	}
-	return items, nil
+	return payload.Users, nil
 }
 
 // ClearCache clears the cached rental equipment data

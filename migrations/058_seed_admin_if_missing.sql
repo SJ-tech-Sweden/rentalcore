@@ -3,6 +3,10 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+ALTER TABLE IF EXISTS users
+    ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE IF EXISTS users
+    ADD COLUMN IF NOT EXISTS force_password_change BOOLEAN DEFAULT FALSE;
 
 -- Insert admin user if not present with an unpredictable generated password hash.
 INSERT INTO users (username, email, password_hash, is_active, is_admin, force_password_change, created_at)

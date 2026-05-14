@@ -67,10 +67,26 @@ CREATE TABLE IF NOT EXISTS products (
   productID SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   categoryID INT,
+  subcategoryid VARCHAR(255),
+  subbiercategoryid VARCHAR(255),
   manufacturerID INT,
+  brandID INT,
   description TEXT,
+  maintenanceInterval INT,
+  itemcostperday NUMERIC,
+  weight NUMERIC,
+  height NUMERIC,
+  width NUMERIC,
+  depth NUMERIC,
+  powerconsumption NUMERIC,
+  pos_in_category INT,
+  is_accessory BOOLEAN DEFAULT FALSE,
+  is_consumable BOOLEAN DEFAULT FALSE,
+  count_type_id INT,
   price_per_unit NUMERIC,
   stock_quantity NUMERIC,
+  min_stock_level NUMERIC,
+  generic_barcode TEXT,
   website_visible BOOLEAN DEFAULT FALSE
 );
 
@@ -104,15 +120,28 @@ CREATE TABLE IF NOT EXISTS job_devices (
   jobid INT NOT NULL REFERENCES jobs(jobid) ON DELETE CASCADE,
   deviceid VARCHAR(255) NOT NULL,
   productid INT,
-  quantity INT DEFAULT 1
+  quantity INT DEFAULT 1,
+  custom_price NUMERIC,
+  package_id INT,
+  is_package_item BOOLEAN DEFAULT FALSE,
+  pack_status VARCHAR(50) DEFAULT 'pending',
+  pack_ts TIMESTAMP
 );
 
 -- Create compatibility view `jobdevices` and INSTEAD OF triggers
 -- Simple compatibility view `jobdevices` (read-only). Triggers omitted for now.
-CREATE OR REPLACE VIEW jobdevices AS
-  SELECT jobid, deviceid, NULL::numeric AS custom_price, NULL::int AS package_id,
-    false AS is_package_item, 'pending'::varchar AS pack_status, NULL::timestamp AS pack_ts
-  FROM job_devices;
+DO $$
+BEGIN
+  IF to_regclass('public.jobdevices') IS NULL OR EXISTS (
+    SELECT 1 FROM pg_views WHERE schemaname = 'public' AND viewname = 'jobdevices'
+  ) THEN
+    EXECUTE $q$
+      CREATE OR REPLACE VIEW jobdevices AS
+      SELECT jobid, deviceid, custom_price, package_id, is_package_item, pack_status, pack_ts
+      FROM job_devices
+    $q$;
+  END IF;
+END$$;
 
 -- Job history and related tables
 CREATE TABLE IF NOT EXISTS job_history (

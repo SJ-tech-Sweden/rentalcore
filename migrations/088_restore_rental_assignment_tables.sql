@@ -3,7 +3,7 @@
 -- These tables may have been removed by legacy cleanup migrations.
 
 CREATE TABLE IF NOT EXISTS rental_equipment (
-    equipment_id BIGINT PRIMARY KEY,
+    equipment_id BIGSERIAL PRIMARY KEY,
     product_name TEXT NOT NULL,
     supplier_name TEXT NOT NULL,
     rental_price DOUBLE PRECISION NOT NULL DEFAULT 0,

@@ -12,6 +12,8 @@ re_engine = re.compile(r"ENGINE=\w+\s*(DEFAULT CHARSET=[\w-]+)?;?", re.IGNORECAS
 re_charset = re.compile(r"CHARSET=\w+;?", re.IGNORECASE)
 re_auto_inc = re.compile(r"\bINT\s+UNSIGNED\s+AUTO_INCREMENT\b", re.IGNORECASE)
 re_auto_inc2 = re.compile(r"\bBIGINT\s+UNSIGNED\s+AUTO_INCREMENT\b", re.IGNORECASE)
+re_auto_inc_int = re.compile(r"\bINT\s+AUTO_INCREMENT\b", re.IGNORECASE)
+re_auto_inc_bigint = re.compile(r"\bBIGINT\s+AUTO_INCREMENT\b", re.IGNORECASE)
 re_auto_inc_simple = re.compile(r"\bAUTO_INCREMENT\b", re.IGNORECASE)
 re_backticks = re.compile(r"`")
 re_enum = re.compile(r"ENUM\s*\(([^)]+)\)", re.IGNORECASE)
@@ -36,8 +38,10 @@ def convert_content(s: str) -> str:
     # UNSIGNED -> (no-op, convert INT UNSIGNED -> BIGINT)
     s = re_auto_inc.sub('SERIAL', s)
     s = re_auto_inc2.sub('BIGSERIAL', s)
-    # generic AUTO_INCREMENT -> SERIAL (best-effort)
-    s = re_auto_inc_simple.sub('SERIAL', s)
+    s = re_auto_inc_int.sub('SERIAL', s)
+    s = re_auto_inc_bigint.sub('BIGSERIAL', s)
+    # generic AUTO_INCREMENT -> remove token (manual review required)
+    s = re_auto_inc_simple.sub('/* AUTO_INCREMENT removed - review */', s)
     s = re_unsigned.sub('', s)
 
     # ENUM -> VARCHAR(50) + comment
@@ -68,10 +72,8 @@ def main():
             f'-- Source: {f.name}\n'
             '-- Review this file for correctness before applying to Postgres.\n\n'
         )
-        out_path = f.with_suffix('')  # remove .bak -> produce .sql if safe
-        # If a file without .bak already exists, write to .converted.sql
-        if out_path.exists():
-            out_path = out_path.with_suffix('.converted.sql')
+        out_path = f.with_suffix('')  # remove .bak
+        out_path = out_path.with_suffix('.converted.sql.todo')
         out_path.write_text(header + conv, encoding='utf-8')
         print('Wrote', out_path.name)
 

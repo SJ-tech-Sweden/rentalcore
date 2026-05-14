@@ -20,8 +20,20 @@ INSERT INTO customers (customerid, companyname, email, created_at)
 VALUES (1, 'Acme Events', 'ops@acme.test', NOW()) ON CONFLICT DO NOTHING;
 
 -- Job sample
-INSERT INTO jobs (jobid, customerid, name, status, created_at)
-VALUES (1, 1, 'Init job', 'open', NOW()) ON CONFLICT DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'jobs' AND column_name = 'job_code'
+  ) THEN
+    INSERT INTO jobs (jobid, job_code, customerid, name, status, created_at)
+    VALUES (1, 'JOB000001', 1, 'Init job', 'open', NOW()) ON CONFLICT DO NOTHING;
+  ELSE
+    INSERT INTO jobs (jobid, customerid, name, status, created_at)
+    VALUES (1, 1, 'Init job', 'open', NOW()) ON CONFLICT DO NOTHING;
+  END IF;
+END$$;
 
 -- Keep sequences aligned after explicit ID inserts
 SELECT setval(pg_get_serial_sequence('roles', 'roleid'), COALESCE((SELECT MAX(roleid) FROM roles), 1), true);
