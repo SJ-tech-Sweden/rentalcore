@@ -2,6 +2,8 @@
 -- Ensures both `job_devices` / `jobdevices` and `devices` column name variants exist as views
 
 DO $$
+DECLARE
+  dev_cols TEXT;
 BEGIN
   -- If job_devices table exists and jobdevices view does not, create jobdevices view
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'job_devices') THEN
@@ -135,9 +137,8 @@ BEGIN
   -- If devices table uses numeric primary key `id`, expose it as deviceid to satisfy older migrations
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'devices' AND column_name = 'id') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'devices_as_deviceid') THEN
-      DECLARE
-        dev_cols TEXT := 'id::text AS deviceid, id::text AS "deviceID"';
       BEGIN
+        dev_cols := 'id::text AS deviceid, id::text AS "deviceID"';
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='devices' AND column_name='productid') THEN
           dev_cols := dev_cols || ', productid';
         ELSE

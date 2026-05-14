@@ -941,7 +941,7 @@ func (h *AuthHandler) ListUsersAPI(c *gin.Context) {
 		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
 	}
 	if configuredAPIKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key is not configured"})
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
@@ -982,7 +982,7 @@ func (h *AuthHandler) GetUserAPI(c *gin.Context) {
 		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
 	}
 	if configuredAPIKey == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key is not configured"})
 		return
 	}
 	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {

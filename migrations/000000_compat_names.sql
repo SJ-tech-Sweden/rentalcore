@@ -1,14 +1,17 @@
 
 DO $$
+DECLARE
+  sel_cols TEXT;
+  col_jobid TEXT;
+  dev_cols TEXT;
 BEGIN
   -- Create jobdevices view if job_devices exists, mapping device_id -> deviceid when necessary
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'job_devices') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'jobdevices') THEN
       -- Build select list dynamically to avoid referencing missing columns
-      DECLARE
-        sel_cols TEXT := '';
-        col_jobid TEXT := NULL;
       BEGIN
+        sel_cols := '';
+        col_jobid := NULL;
         -- job column
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'jobid') THEN
           col_jobid := 'jobid';
@@ -85,9 +88,8 @@ BEGIN
   -- Expose deviceid alias when devices have numeric id
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'devices' AND column_name = 'id') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_views WHERE viewname = 'devices_as_deviceid') THEN
-      DECLARE
-        dev_cols TEXT := 'id::text AS deviceid, id::text AS "deviceID"';
       BEGIN
+        dev_cols := 'id::text AS deviceid, id::text AS "deviceID"';
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='devices' AND column_name='productid') THEN
           dev_cols := dev_cols || ', productid';
         ELSE
