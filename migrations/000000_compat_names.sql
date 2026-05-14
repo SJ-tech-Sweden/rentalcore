@@ -11,7 +11,7 @@ BEGIN
       -- Build select list dynamically to avoid referencing missing columns
       BEGIN
         sel_cols := '';
-        col_jobid := NULL;
+        col_jobid := '';
         -- job column
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name = 'jobid') THEN
           col_jobid := 'jobid';
