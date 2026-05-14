@@ -1,4 +1,5 @@
--- Remove total fields from pdf_extractions table
-ALTER TABLE pdf_extractions
-    DROP COLUMN parsed_total,
-    DROP COLUMN discount_percent;
+-- Migration 027 down (noop)
+DO $$
+BEGIN
+    RAISE NOTICE 'Skipping MySQL-original migration 027_add_pdf_totals.down.sql; converted migration should be used instead.';
+END $$;

@@ -108,6 +108,8 @@
     "unknown_customer": "Unknown Customer",
     "no_name": "No Name",
     "devices_label": "Devices",
+    "products": "Produkte",
+    "rented_equipment": "Mietgeräte",
     "startDate": "Start Date",
     "endDate": "End Date",
     "discount": "Discount",

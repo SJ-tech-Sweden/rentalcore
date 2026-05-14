@@ -233,26 +233,7 @@
                     </div>
                 </div>
             </div>
-            <div class="rc-modal-body" id="jobCablesContent" style="display: none;">
-                <div class="rc-flex rc-flex-between rc-items-center rc-mb-lg">
-                    <button type="button" class="rc-btn rc-btn-secondary" onclick="returnToJobSummary()">
-                        <i class="bi bi-arrow-left"></i> Back to Job Summary
-                    </button>
-                    <h4 class="rc-text-lg rc-font-semibold">Cable Overview</h4>
-                </div>
-                <div class="rc-flex rc-flex-gap-sm rc-mb-lg">
-                    <input type="number" id="addCableIdInput" class="rc-input rc-input-sm" placeholder="Cable ID" style="width: 120px;" min="1">
-                    <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="addCableToCurrentJob()">
-                        <i class="bi bi-plus-lg"></i> Add Cable
-                    </button>
-                </div>
-                <div id="jobCablesOverview">
-                    <div class="rc-text-center rc-py-xl">
-                        <div class="rc-spinner"></div>
-                        <p class="rc-text-muted rc-mt-md">Loading cables...</p>
-                    </div>
-                </div>
-            </div>
+            
         </div>
     </div>
 
@@ -407,21 +388,14 @@
                             <div class="rc-text-lg">${appCurrencySymbolHtml}${(jobData.revenue || 0).toFixed(2)}</div>
                         </div>
                         <div class="rc-form-group">
-                            <label class="rc-label">${_t ? _t('jobs.devices_label') : 'Devices'}</label>
-                            <div>
-                                <button type="button" class="job-device-count-button" onclick="expandToDeviceView(${jobData.jobID})" data-i18n-attr="title:jobs.click_to_view_devices">
-                                    ${jobData.device_count || 0}
-                                </button>
-                            </div>
+                            <label class="rc-label">${_t ? _t('jobs.products') : 'Products'}</label>
+                            <div><span class="rc-badge rc-badge-primary">${jobData.product_requirement_count || 0}</span></div>
                         </div>
                         <div class="rc-form-group">
-                            <label class="rc-label">${_t ? _t('jobs.cables_label') : 'Cables'}</label>
-                            <div>
-                                <button type="button" class="job-device-count-button" onclick="expandToCableView(${jobData.jobID})">
-                                    ${jobData.cable_count || 0}
-                                </button>
-                            </div>
+                            <label class="rc-label">${_t ? _t('jobs.rented_equipment') : 'Rented Equipment'}</label>
+                            <div><span class="rc-badge rc-badge-outline">${jobData.rental_equipment_count || 0}</span></div>
                         </div>
+                        <!-- Cables removed: functionality moved to WarehouseCore -->
                         ${jobData.startDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.startDate') : 'Start Date') + '</label><div><i class="bi bi-calendar"></i> ' + toLocalDateStr(jobData.startDate) + '</div></div>' : ''}
                         ${jobData.endDate ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.endDate') : 'End Date') + '</label><div><i class="bi bi-calendar"></i> ' + toLocalDateStr(jobData.endDate) + '</div></div>' : ''}
                         ${jobData.discount > 0 ? '<div class="rc-form-group"><label class="rc-label">' + (_t ? _t('jobs.discount') : 'Discount') + '</label><div>' + jobData.discount + ' ' + (jobData.discount_type === 'percent' ? '%' : appCurrencySymbolHtml) + '</div></div>' : ''}
@@ -487,7 +461,10 @@
     }
 
     function closeJobModal() {
-        document.getElementById('jobDetailsModal').style.display = 'none';
+        const modal = document.getElementById('jobDetailsModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
         // Reset modal to job summary view
         returnToJobSummary();
     }
@@ -623,186 +600,64 @@
 
     function expandToDeviceView(jobID) {
         currentJobID = jobID;
-        
+
+        const detailsContent = document.getElementById('jobDetailsContent');
+        const devicesContent = document.getElementById('jobDevicesContent');
+        const cablesContent = document.getElementById('jobCablesContent');
+        const modalTitle = document.getElementById('jobDetailsModalTitle');
+        const modalContent = document.getElementById('jobDetailsModalContent');
+
         // Hide job summary and cables, show device overview
-        document.getElementById('jobDetailsContent').style.display = 'none';
-        document.getElementById('jobDevicesContent').style.display = 'block';
-        document.getElementById('jobCablesContent').style.display = 'none';
-        
+        if (detailsContent) detailsContent.style.display = 'none';
+        if (devicesContent) devicesContent.style.display = 'block';
+        if (cablesContent) cablesContent.style.display = 'none';
+
         // Update modal title
-        document.getElementById('jobDetailsModalTitle').innerHTML = '<i class="bi bi-cpu"></i> ' + (window.t ? window.t('jobs.deviceOverview') : ('Device Overview - Job #' + jobID));
-        
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="bi bi-cpu"></i> ' + (window.t ? window.t('jobs.deviceOverview') : ('Device Overview - Job #' + jobID));
+        }
+
         // Make modal larger for device overview
-        document.getElementById('jobDetailsModalContent').style.maxWidth = '1400px';
+        if (modalContent) {
+            modalContent.style.maxWidth = '1400px';
+        }
         
         // Load device data
         loadJobDevices(jobID);
     }
 
     function returnToJobSummary() {
-        // Show job summary, hide device and cable overview  
-        document.getElementById('jobDetailsContent').style.display = 'block';
-        document.getElementById('jobDevicesContent').style.display = 'none';
-        document.getElementById('jobCablesContent').style.display = 'none';
-        
+        const detailsContent = document.getElementById('jobDetailsContent');
+        const devicesContent = document.getElementById('jobDevicesContent');
+        const cablesContent = document.getElementById('jobCablesContent');
+        const modalTitle = document.getElementById('jobDetailsModalTitle');
+        const modalContent = document.getElementById('jobDetailsModalContent');
+
+        // Show job summary, hide device and cable overview
+        if (detailsContent) detailsContent.style.display = 'block';
+        if (devicesContent) devicesContent.style.display = 'none';
+        if (cablesContent) cablesContent.style.display = 'none';
+
         // Reset modal title
-        document.getElementById('jobDetailsModalTitle').innerHTML = '<i class="bi bi-briefcase"></i> ' + (window.t ? window.t('jobs.details_title') : 'Job Details');
-        
+        if (modalTitle) {
+            modalTitle.innerHTML = '<i class="bi bi-briefcase"></i> ' + (window.t ? window.t('jobs.details_title') : 'Job Details');
+        }
+
         // Reset modal size
-        document.getElementById('jobDetailsModalContent').style.maxWidth = '';
-    }
-
-    function expandToCableView(jobID) {
-        currentJobID = jobID;
-
-        // Hide job summary, show cable overview
-        document.getElementById('jobDetailsContent').style.display = 'none';
-        document.getElementById('jobDevicesContent').style.display = 'none';
-        document.getElementById('jobCablesContent').style.display = 'block';
-
-        // Update modal title
-        document.getElementById('jobDetailsModalTitle').innerHTML = '<i class="bi bi-ethernet"></i> ' + (window.t ? window.t('jobs.cableOverview') : ('Cable Overview - Job #' + jobID));
-
-        // Make modal larger
-        document.getElementById('jobDetailsModalContent').style.maxWidth = '1400px';
-
-        // Load cable data
-        loadJobCables(jobID);
-    }
-
-    function loadJobCables(jobID) {
-        const content = document.getElementById('jobCablesOverview');
-        content.innerHTML = `
-            <div class="rc-text-center rc-py-xl">
-                <div class="rc-spinner"></div>
-                <p class="rc-text-muted rc-mt-md">Loading cables...</p>
-            </div>
-        `;
-
-        fetchJSON('/api/v1/jobs/' + jobID + '/cables')
-            .then(data => {
-                const cables = data.cables || [];
-                displayJobCablesInModal(cables, jobID);
-            })
-            .catch(error => {
-                content.innerHTML = `
-                    <div class="rc-alert rc-alert-error">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <span class="job-cables-error-message"></span>
-                    </div>
-                `;
-                content.querySelector('.job-cables-error-message').textContent = 'Error loading cables: ' + error.message;
-            });
-    }
-
-    function displayJobCablesInModal(cables, jobID) {
-        const container = document.getElementById('jobCablesOverview');
-
-        if (!cables || cables.length === 0) {
-            container.innerHTML = `
-                <div class="rc-empty-state">
-                    <i class="bi bi-ethernet rc-empty-icon"></i>
-                    <h3 class="rc-heading-3">No cables assigned</h3>
-                    <p class="rc-text">Use the input above to add cables by ID.</p>
-                </div>
-            `;
-            return;
+        if (modalContent) {
+            modalContent.style.maxWidth = '';
         }
-
-        // Group cables by type + connector combo
-        const groups = {};
-        cables.forEach(jc => {
-            const cable = jc.cable || {};
-            const typeName = cable.type_info ? cable.type_info.name : 'Unknown Type';
-            const c1Name = cable.connector1_info ? cable.connector1_info.name : '?';
-            const c2Name = cable.connector2_info ? cable.connector2_info.name : '?';
-            const key = typeName + '|' + c1Name + '|' + c2Name;
-            if (!groups[key]) {
-                groups[key] = { typeName, c1Name, c2Name, cables: [] };
-            }
-            groups[key].cables.push(jc);
-        });
-
-        let html = '';
-        Object.values(groups).forEach((group, index) => {
-            const groupId = 'cable-group-' + index;
-            html += `
-                <div class="rc-card rc-mb-sm" style="padding: 10px; border-radius: var(--radius-sm);">
-                    <div class="rc-flex rc-flex-between rc-flex-items-center" style="cursor: pointer;" onclick="toggleProductDevices('${groupId}')">
-                        <div>
-                            <div class="rc-text-sm rc-font-semibold">${escapeHtml(group.typeName)}</div>
-                            <div class="rc-text-xs rc-text-secondary">${escapeHtml(group.c1Name)} → ${escapeHtml(group.c2Name)}</div>
-                        </div>
-                        <div class="rc-flex rc-flex-gap-sm rc-flex-items-center">
-                            <span class="rc-badge rc-badge-outline rc-text-xs">${group.cables.length} pcs</span>
-                            <i class="bi bi-chevron-down" id="${groupId}-icon"></i>
-                        </div>
-                    </div>
-                    <div id="${groupId}" style="display: none; margin-top: 8px;">
-            `;
-
-            group.cables.forEach(jc => {
-                const cable = jc.cable || {};
-                const lengthStr = cable.length ? cable.length + 'm' : '';
-                const mm2Str = cable.mm2 ? cable.mm2.toFixed(2) + ' mm²' : '';
-                const nameStr = cable.name || ('Cable #' + cable.cableID);
-                html += `
-                    <div class="rc-flex rc-flex-between rc-flex-items-center rc-p-sm rc-mb-xs" style="border: 1px solid var(--surface-3); border-radius: var(--radius-sm);">
-                        <div>
-                            <strong>${escapeHtml(nameStr)}</strong>
-                            <br><small class="rc-text-muted">ID: ${cable.cableID} ${lengthStr ? '• ' + lengthStr : ''} ${mm2Str ? '• ' + mm2Str : ''}</small>
-                        </div>
-                        <button class="rc-btn rc-btn-outline rc-btn-sm rc-btn-danger" onclick="removeCableFromJob(${jobID}, ${cable.cableID})" title="Remove cable">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                `;
-            });
-
-            html += `
-                    </div>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
     }
 
-    function addCableToCurrentJob() {
-        const input = document.getElementById('addCableIdInput');
-        const cableID = parseInt(input.value, 10);
-        if (!cableID || cableID <= 0) {
-            alert('Please enter a valid cable ID.');
-            return;
-        }
+    // Cable UI removed - functions intentionally omitted
 
-        fetchJSON('/api/v1/jobs/' + currentJobID + '/cables', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cable_id: cableID })
-        })
-        .then(data => {
-            input.value = '';
-            loadJobCables(currentJobID);
-        })
-        .catch(error => {
-            alert('Failed to add cable: ' + error.message);
-        });
-    }
+    // Cable UI removed - functions intentionally omitted
 
-    function removeCableFromJob(jobID, cableID) {
-        if (!confirm('Remove this cable from the job?')) return;
+    // Cable UI removed - functions intentionally omitted
 
-        fetchJSON('/api/v1/jobs/' + jobID + '/cables/' + cableID, {
-            method: 'DELETE'
-        })
-        .then(data => {
-            loadJobCables(jobID);
-        })
-        .catch(error => {
-            alert('Failed to remove cable: ' + error.message);
-        });
-    }
+    // Cable UI removed - functions intentionally omitted
+
+    // Cable UI removed - functions intentionally omitted
 
     function loadJobDevices(jobID) {
         const content = document.getElementById('jobDevicesOverview');
@@ -959,6 +814,86 @@
         }
     }
 
+    let jobFormAssetsReady = false;
+
+    async function ensureJobFormAssetsLoaded(doc) {
+        if (jobFormAssetsReady) {
+            return;
+        }
+
+        const styles = doc.querySelectorAll('style');
+        console.log(`🎨 Found ${styles.length} style tag(s) in fetched HTML`);
+        styles.forEach(oldStyle => {
+            const newStyle = document.createElement('style');
+            newStyle.setAttribute('data-job-form-asset', '1');
+            newStyle.textContent = oldStyle.textContent;
+            document.head.appendChild(newStyle);
+        });
+
+        const scripts = doc.querySelectorAll('script');
+        const scriptPromises = [];
+        console.log(`📜 Found ${scripts.length} script(s) in fetched HTML`);
+
+        scripts.forEach(oldScript => {
+            const newScript = document.createElement('script');
+            newScript.setAttribute('data-job-form-asset', '1');
+
+            Array.from(oldScript.attributes).forEach(attr => {
+                newScript.setAttribute(attr.name, attr.value);
+            });
+
+            if (oldScript.src) {
+                const src = newScript.getAttribute('src');
+                if (src && document.querySelector(`script[data-job-form-asset="1"][src="${src}"]`)) {
+                    return;
+                }
+
+                scriptPromises.push(new Promise((resolve, reject) => {
+                    newScript.onload = resolve;
+                    newScript.onerror = reject;
+                    document.body.appendChild(newScript);
+                }));
+            } else {
+                newScript.textContent = oldScript.textContent;
+                document.body.appendChild(newScript);
+            }
+        });
+
+        await Promise.all(scriptPromises);
+        jobFormAssetsReady = true;
+    }
+
+    async function loadJobFormIntoModal(url, content) {
+        const response = await fetch(url, {
+            credentials: 'include',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load job form');
+        }
+
+        const html = await response.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const mainContent = doc.querySelector('main');
+
+        content.innerHTML = mainContent ? mainContent.innerHTML : html;
+
+        await ensureJobFormAssetsLoaded(doc);
+
+        setTimeout(() => {
+            if (typeof window.initializeJobForm === 'function') {
+                window.initializeJobForm();
+                console.log('✅ Job form initialized in modal');
+            } else {
+                console.error('❌ initializeJobForm not available');
+            }
+        }, 120);
+    }
+
     async function showEditJob(jobID) {
         // Close details modal if open
         closeJobModal();
@@ -981,6 +916,19 @@
                 <p class="rc-text-muted rc-mt-md">Loading job form...</p>
             </div>
         `;
+
+        loadJobFormIntoModal('/jobs/' + jobID + '/edit?modal=1', content)
+        .catch(error => {
+            console.error('Error loading edit job form:', error);
+            content.innerHTML = `
+                <div class="rc-alert rc-alert-error">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Failed to load edit form. Please try again.
+                </div>
+            `;
+        });
+
+        return;
         
         // Fetch job data for editing
         Promise.all([
@@ -1096,25 +1044,7 @@
                         </div>
                     </div>
 
-                    <div class="rc-mt-md rc-card">
-                        <div class="rc-card-header rc-flex rc-flex-between rc-flex-align-center">
-                            <div>
-                                <h5 class="rc-card-title rc-mb-0"><i class="bi bi-ethernet"></i> Assigned Cables</h5>
-                                <div class="rc-text-sm rc-text-secondary">Add and manage cables for this job.</div>
-                            </div>
-                            <div class="rc-flex rc-flex-gap-sm">
-                                <input type="number" id="editAddCableIdInput" class="rc-input rc-input-sm" placeholder="Cable ID" style="width: 100px;" min="1">
-                                <button type="button" class="rc-btn rc-btn-primary rc-btn-sm" onclick="addCableInEditMode(${job.jobID})">
-                                    <i class="bi bi-plus-lg"></i> Add
-                                </button>
-                            </div>
-                        </div>
-                        <div class="rc-card-body">
-                            <div id="editAssignedCablesList">
-                                <!-- Assigned cables will appear here -->
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Assigned Cables removed (moved to WarehouseCore) -->
 
                     <div id="editFileAttachmentsContainer" class="rc-mt-md rc-card">
                         <div class="rc-card-header rc-flex rc-flex-between rc-flex-align-center">
@@ -1266,7 +1196,6 @@
 
             initializeEditProductSelections(job.jobID, existingDevices, productRequirements);
             loadEditAssignedDevices(job.jobID, existingDevices);
-            loadEditAssignedCables(job.jobID);
             refreshJobRentalEquipment(job.jobID);
         })
         .catch(error => {
@@ -1298,89 +1227,8 @@
             </div>
         `;
 
-        // Load the job form via fetch
-        fetch('/jobs/new', {
-            credentials: 'include',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Failed to load job form');
-            return response.text();
-        })
-        .then(html => {
-            // Parse HTML and extract only the <main> content
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const mainContent = doc.querySelector('main');
-
-            if (mainContent) {
-                content.innerHTML = mainContent.innerHTML;
-            } else {
-                // Fallback: use entire HTML if no <main> found
-                content.innerHTML = html;
-            }
-
-            // Extract and inject styles from the fetched document
-            // Styles are typically in <head>, outside <main>
-            const styles = doc.querySelectorAll('style');
-            console.log(`🎨 Found ${styles.length} style tag(s) in fetched HTML`);
-
-            styles.forEach(oldStyle => {
-                const newStyle = document.createElement('style');
-                newStyle.textContent = oldStyle.textContent;
-                document.head.appendChild(newStyle);
-            });
-
-            // Execute scripts from the ORIGINAL document (not just main content)
-            // Scripts are typically in <head> or at end of <body>, outside <main>
-            const scripts = doc.querySelectorAll('script');
-            const scriptPromises = [];
-
-            console.log(`📜 Found ${scripts.length} script(s) in fetched HTML`);
-
-            scripts.forEach(oldScript => {
-                const newScript = document.createElement('script');
-
-                // Copy all attributes
-                Array.from(oldScript.attributes).forEach(attr => {
-                    newScript.setAttribute(attr.name, attr.value);
-                });
-
-                if (oldScript.src) {
-                    // External script - wait for load
-                    scriptPromises.push(new Promise((resolve, reject) => {
-                        newScript.onload = resolve;
-                        newScript.onerror = reject;
-                        newScript.src = oldScript.src;
-                    }));
-                } else {
-                    // Inline script - copy content
-                    newScript.textContent = oldScript.textContent;
-                }
-
-                // Remove old script and append new one to ensure execution
-                oldScript.parentNode.removeChild(oldScript);
-                document.body.appendChild(newScript);
-            });
-
-            // Wait for all external scripts to load, then initialize
-            Promise.all(scriptPromises).then(() => {
-                // Give scripts a moment to execute
-                setTimeout(() => {
-                    if (typeof window.initializeJobForm === 'function') {
-                        window.initializeJobForm();
-                        console.log('✅ Job form initialized in modal');
-                    } else {
-                        console.error('❌ initializeJobForm still not available');
-                        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('init')));
-                    }
-                }, 200);
-            }).catch(err => {
-                console.error('Error loading scripts:', err);
-            });
-        })
+        // Load the job form via the same shared loader used by edit modal.
+        loadJobFormIntoModal('/jobs/new', content)
         .catch(error => {
             console.error('Error loading job form:', error);
             content.innerHTML = `
@@ -1613,7 +1461,7 @@
                     email: valueOrNull('email'),
                     phonenumber: valueOrNull('phone_number'),
                     notes: valueOrNull('notes'),
-                    customertype: valueOrNull('customer_type') || 'Kunde',
+                    customertype: valueOrNull('customer_type') || 'customer',
                 };
 
                 if (!payload.companyname && !(payload.firstname && payload.lastname)) {
@@ -3118,106 +2966,11 @@
         return null;
     }
 
-    // Functions for managing assigned cables in edit modal
-    function loadEditAssignedCables(jobID) {
-        fetchJSON('/api/v1/jobs/' + jobID + '/cables')
-            .then(data => {
-                const cables = data.cables || [];
-                displayEditAssignedCables(cables, jobID);
-            })
-            .catch(error => {
-                console.error('Error loading cables:', error);
-                const container = document.getElementById('editAssignedCablesList');
-                container.innerHTML = `
-                    <div class="rc-alert rc-alert-error rc-alert-sm">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <span class="edit-cables-error-message"></span>
-                    </div>
-                `;
-                container.querySelector('.edit-cables-error-message').textContent = 'Error loading cables: ' + error.message;
-            });
-    }
+    // Cable edit UI removed - related functions are intentionally omitted
 
-    function displayEditAssignedCables(cables, jobID) {
-        const container = document.getElementById('editAssignedCablesList');
+    // Cable edit UI removed - related functions are intentionally omitted
 
-        if (!cables || cables.length === 0) {
-            container.innerHTML = `
-                <div class="rc-empty-state rc-p-md" style="background: var(--surface-2); border-radius: var(--radius-md);">
-                    <i class="bi bi-ethernet" style="font-size: 2rem; color: var(--text-muted); margin-bottom: var(--space-sm);"></i>
-                    <p class="rc-text-secondary">No cables assigned to this job yet.</p>
-                </div>
-            `;
-            return;
-        }
-
-        let html = '';
-        cables.forEach(jc => {
-            const cable = jc.cable || {};
-            const typeName = cable.type_info ? cable.type_info.name : 'Unknown Type';
-            const c1Name = cable.connector1_info ? cable.connector1_info.name : '?';
-            const c2Name = cable.connector2_info ? cable.connector2_info.name : '?';
-            const lengthStr = cable.length ? cable.length + 'm' : '';
-            const mm2Str = cable.mm2 ? cable.mm2.toFixed(2) + ' mm²' : '';
-            const nameStr = cable.name || ('Cable #' + cable.cableID);
-
-            html += `
-                <div class="rc-flex rc-flex-between rc-flex-center rc-p-xs rc-mb-xxs" style="background: var(--surface-2); border-radius: var(--radius-sm); border: 1px solid var(--surface-3);">
-                    <div>
-                        <div class="rc-text-sm rc-font-medium">${escapeHtml(nameStr)}</div>
-                        <div class="rc-text-xs rc-text-secondary">
-                            ${escapeHtml(typeName)} • ${escapeHtml(c1Name)} → ${escapeHtml(c2Name)}
-                            ${lengthStr ? ' • ' + lengthStr : ''}${mm2Str ? ' • ' + mm2Str : ''}
-                        </div>
-                    </div>
-                    <button type="button" onclick="removeCableFromEditJob(${jobID}, ${cable.cableID})"
-                            class="rc-btn rc-btn-outline rc-btn-sm"
-                            style="padding: 2px 6px;"
-                            title="Remove cable">
-                        <i class="bi bi-trash" style="font-size: 0.75rem;"></i>
-                    </button>
-                </div>
-            `;
-        });
-
-        container.innerHTML = html;
-    }
-
-    function addCableInEditMode(jobID) {
-        const input = document.getElementById('editAddCableIdInput');
-        const cableID = parseInt(input.value, 10);
-        if (!cableID || cableID <= 0) {
-            alert('Please enter a valid cable ID.');
-            return;
-        }
-
-        fetchJSON('/api/v1/jobs/' + jobID + '/cables', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cable_id: cableID })
-        })
-        .then(data => {
-            input.value = '';
-            loadEditAssignedCables(jobID);
-        })
-        .catch(error => {
-            alert('Failed to add cable: ' + error.message);
-        });
-    }
-
-    function removeCableFromEditJob(jobID, cableID) {
-        if (!confirm('Remove this cable from the job?')) return;
-
-        fetchJSON('/api/v1/jobs/' + jobID + '/cables/' + cableID, {
-            method: 'DELETE'
-        })
-        .then(data => {
-            loadEditAssignedCables(jobID);
-        })
-        .catch(error => {
-            alert('Failed to remove cable: ' + error.message);
-        });
-    }
+    // Cable edit UI removed - related functions are intentionally omitted
 
     // Recalculate job revenue based on current assigned devices
     function recalculateJobRevenue(jobID) {

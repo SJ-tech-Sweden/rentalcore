@@ -2,19 +2,18 @@
 -- Migration 025 (UP): Create user dashboard widget preferences table
 -- ================================================================
 
-START TRANSACTION;
+BEGIN;
 
 CREATE TABLE IF NOT EXISTS user_dashboard_widgets (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT UNSIGNED NOT NULL,
-    widgets JSON NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    widgets JSONB NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_dashboard_widgets_user
-        FOREIGN KEY (user_id) REFERENCES users(userID)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    UNIQUE KEY idx_user_dashboard_widgets_user (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dashboard_widgets_user FOREIGN KEY (user_id) REFERENCES users(userid) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_dashboard_widgets_user
+    ON user_dashboard_widgets (user_id);
 
 COMMIT;
-

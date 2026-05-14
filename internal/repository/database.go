@@ -2,11 +2,16 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	"go-barcode-webapp/internal/config"
+	"go-barcode-webapp/internal/migrations"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -18,6 +23,10 @@ import (
 type Database struct {
 	*gorm.DB
 }
+
+// startupMigrationsLockKey is a fixed, repository-scoped advisory lock key used
+// only for startup migration/seed execution to prevent concurrent runners.
+const startupMigrationsLockKey int64 = 73043001
 
 // NewDatabase erstellt eine neue PostgreSQL-Datenbankverbindung
 func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
@@ -56,7 +65,62 @@ func NewDatabase(cfg *config.DatabaseConfig) (*Database, error) {
 	sqlDB.SetConnMaxIdleTime(30 * time.Minute)
 
 	log.Printf("PostgreSQL database connected: %s:%d/%s", cfg.Host, cfg.Port, cfg.Name)
+
+	// Optionally run SQL migrations and/or seeds on startup.
+	// - MIGRATE_ON_STARTUP=true applies migrations (default: false)
+	// - SEED_ON_STARTUP=true applies seeds (default: false)
+	// The migrations directory can be overridden with MIGRATIONS_DIR
+	// (default: "migrations").
+	migrateOnStartup := parseEnvBool("MIGRATE_ON_STARTUP")
+	seedOnStartup := parseEnvBool("SEED_ON_STARTUP")
+	if migrateOnStartup || seedOnStartup {
+		migrationsDir := os.Getenv("MIGRATIONS_DIR")
+		if migrationsDir == "" {
+			migrationsDir = "migrations"
+		}
+		lockConn, err := sqlDB.Conn(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("acquire startup migration lock connection: %w", err)
+		}
+		defer lockConn.Close()
+		if _, err := lockConn.ExecContext(context.Background(), "SELECT pg_advisory_lock($1)", startupMigrationsLockKey); err != nil {
+			return nil, fmt.Errorf("acquire startup migration lock: %w", err)
+		}
+		defer func() {
+			if _, err := lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock($1)", startupMigrationsLockKey); err != nil {
+				log.Printf("WARNING: failed to release startup migration lock: %v", err)
+			}
+		}()
+
+		absDir, _ := filepath.Abs(migrationsDir)
+		if migrateOnStartup {
+			log.Printf("Running SQL migrations from %s", absDir)
+			if err := migrations.ApplyMigrations(sqlDB, migrationsDir); err != nil {
+				return nil, fmt.Errorf("apply migrations: %w", err)
+			}
+			log.Println("Startup migrations applied")
+		}
+		if seedOnStartup {
+			log.Printf("Running startup seeds from %s", filepath.Join(absDir, "seeds"))
+			if err := migrations.ApplySeeds(sqlDB, filepath.Join(migrationsDir, "seeds")); err != nil {
+				return nil, fmt.Errorf("apply seeds: %w", err)
+			}
+			log.Println("Startup seeds applied")
+		}
+	}
 	return &Database{db}, nil
+}
+
+func parseEnvBool(name string) bool {
+	raw := os.Getenv(name)
+	value, err := strconv.ParseBool(raw)
+	if err != nil {
+		if raw != "" {
+			log.Printf("WARNING: invalid boolean value for %s=%q; treating as false", name, raw)
+		}
+		return false
+	}
+	return value
 }
 
 // Close schließt die Datenbankverbindung

@@ -1,16 +1,30 @@
 package repository
 
 import (
+	"errors"
 	"go-barcode-webapp/internal/models"
+	"go-barcode-webapp/internal/services/warehousecore"
 	"log"
+	"net"
+	"strings"
 )
 
 type ProductRepository struct {
-	db *Database
+	db                   *Database
+	warehouseClient      *warehousecore.Client
+	useWarehouseProducts bool
 }
 
 func NewProductRepository(db *Database) *ProductRepository {
 	return &ProductRepository{db: db}
+}
+
+// WithWarehouseCoreClient attaches a WarehouseCore client to the repository and
+// enables API-based product reads when enabled is true.
+func (r *ProductRepository) WithWarehouseCoreClient(client *warehousecore.Client, enabled bool) *ProductRepository {
+	r.warehouseClient = client
+	r.useWarehouseProducts = enabled
+	return r
 }
 
 // GetDB returns the database connection for direct queries
@@ -23,6 +37,26 @@ func (r *ProductRepository) Create(product *models.Product) error {
 }
 
 func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
+	// Try WarehouseCore API first if enabled
+	if r.useWarehouseProducts && r.warehouseClient != nil {
+		if p, err := r.warehouseClient.GetProduct(id); err == nil {
+			price := p.Price
+			prod := &models.Product{
+				ProductID:    id,
+				Name:         p.Name,
+				PricePerUnit: &price,
+			}
+			if sku := strings.TrimSpace(p.SKU); sku != "" {
+				prod.GenericBarcode = new(string)
+				*prod.GenericBarcode = sku
+			}
+			return prod, nil
+		} else if !shouldFallbackToDBFromWarehouseProductError(err) {
+			return nil, err
+		}
+		// Fall back to DB only on transient upstream errors.
+	}
+
 	var product models.Product
 	err := r.db.Preload("Category").
 		Preload("Subcategory").
@@ -35,6 +69,20 @@ func (r *ProductRepository) GetByID(id uint) (*models.Product, error) {
 	return &product, nil
 }
 
+func shouldFallbackToDBFromWarehouseProductError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, warehousecore.ErrProductNotFound) {
+		return false
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	return warehousecore.IsServerStatusError(err)
+}
+
 func (r *ProductRepository) Update(product *models.Product) error {
 	return r.db.Save(product).Error
 }
@@ -44,6 +92,36 @@ func (r *ProductRepository) Delete(id uint) error {
 }
 
 func (r *ProductRepository) List(params *models.FilterParams) ([]models.Product, error) {
+	if params == nil {
+		params = &models.FilterParams{}
+	}
+
+	// If configured to use WarehouseCore, fetch products from API
+	if r.useWarehouseProducts && r.warehouseClient != nil {
+		items, err := r.warehouseClient.ListProducts(params.SearchTerm)
+		if err == nil {
+			var out []models.Product
+			for _, it := range items {
+				price := it.Price
+				product := models.Product{
+					ProductID:    it.ID,
+					Name:         it.Name,
+					PricePerUnit: &price,
+				}
+				if sku := strings.TrimSpace(it.SKU); sku != "" {
+					product.GenericBarcode = new(string)
+					*product.GenericBarcode = sku
+				}
+				out = append(out, product)
+			}
+			return out, nil
+		}
+		if !shouldFallbackToDBFromWarehouseProductError(err) {
+			return nil, err
+		}
+		// Fall back to DB only on transient upstream errors.
+	}
+
 	var products []models.Product
 
 	query := r.db.Model(&models.Product{}).

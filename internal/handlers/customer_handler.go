@@ -26,6 +26,18 @@ func (h *CustomerHandler) SetTwentyService(svc *services.TwentyService) {
 	h.twentyService = svc
 }
 
+func normalizeCustomerType(raw string) string {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch value {
+	case "", "kunde", "customer", "individual", "business":
+		return "customer"
+	case "lieferant", "supplier", "vendor":
+		return "supplier"
+	default:
+		return value
+	}
+}
+
 func (h *CustomerHandler) ListCustomers(c *gin.Context) {
 	user, _ := GetCurrentUser(c)
 
@@ -97,7 +109,7 @@ func (h *CustomerHandler) CreateCustomer(c *gin.Context) {
 	city := c.PostForm("city")
 	federalState := c.PostForm("federal_state")
 	country := c.PostForm("country")
-	customerType := c.PostForm("customer_type")
+	customerType := normalizeCustomerType(c.PostForm("customer_type"))
 	notes := c.PostForm("notes")
 
 	customer := models.Customer{
@@ -229,7 +241,7 @@ func (h *CustomerHandler) UpdateCustomer(c *gin.Context) {
 	city := c.PostForm("city")
 	federalState := c.PostForm("federal_state")
 	country := c.PostForm("country")
-	customerType := c.PostForm("customer_type")
+	customerType := normalizeCustomerType(c.PostForm("customer_type"))
 	notes := c.PostForm("notes")
 
 	customer := models.Customer{
@@ -326,6 +338,12 @@ func (h *CustomerHandler) CreateCustomerAPI(c *gin.Context) {
 		return
 	}
 
+	normalizedType := "customer"
+	if customer.CustomerType != nil {
+		normalizedType = normalizeCustomerType(*customer.CustomerType)
+	}
+	customer.CustomerType = &normalizedType
+
 	if err := h.customerRepo.Create(&customer); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -390,6 +408,12 @@ func (h *CustomerHandler) UpdateCustomerAPI(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	normalizedType := "customer"
+	if customer.CustomerType != nil {
+		normalizedType = normalizeCustomerType(*customer.CustomerType)
+	}
+	customer.CustomerType = &normalizedType
 
 	customer.CustomerID = uint(id)
 	if err := h.customerRepo.Update(&customer); err != nil {

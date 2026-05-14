@@ -79,15 +79,20 @@ func (al *AuditLogger) LogEventWithContext(
 		}
 	}
 
-	// Get username if not provided
+	// Get username if not provided. Treat userID=0 as system/anonymous to
+	// avoid pointless user table lookups and noisy "record not found" logs.
 	if username == "" {
-		var user struct {
-			Username string
-		}
-		if err := al.db.Table("users").Select("username").Where("userID = ?", userID).First(&user).Error; err == nil {
-			username = user.Username
+		if userID == 0 {
+			username = "system"
 		} else {
-			username = fmt.Sprintf("user_%d", userID)
+			var user struct {
+				Username string
+			}
+			if err := al.db.Table("users").Select("username").Where("userid = ?", userID).First(&user).Error; err == nil {
+				username = user.Username
+			} else {
+				username = fmt.Sprintf("user_%d", userID)
+			}
 		}
 	}
 

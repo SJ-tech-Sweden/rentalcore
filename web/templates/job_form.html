@@ -198,7 +198,25 @@
                     </button>
                 </div>
 
-                <form method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
+                <form id="jobForm" method="POST" action="{{if .job.JobID}}/jobs/{{.job.JobID}}/update{{else}}/jobs{{end}}">
+
+                    <div id="quickSaveBar" class="rc-flex rc-flex-between rc-mb-md quick-save-bar">
+                        <div class="rc-text-sm rc-text-secondary">
+                            <i class="bi bi-save"></i> Quick save actions
+                        </div>
+                        <div class="rc-flex" style="gap: 0.5rem; align-items: center;">
+                            <a href="/jobs" class="rc-btn rc-btn-secondary rc-btn-sm" data-quick-save-cancel>
+                                <i class="bi bi-x-lg"></i> Cancel
+                            </a>
+                            <button type="submit" form="jobForm" class="rc-btn rc-btn-primary rc-btn-sm" data-quick-save-submit>
+                                {{if .job.JobID}}
+                                    <i class="bi bi-check-lg"></i> Update Job
+                                {{else}}
+                                    <i class="bi bi-plus-lg"></i> Create Job
+                                {{end}}
+                            </button>
+                        </div>
+                    </div>
 
                     <div class="rc-grid rc-grid-2 rc-mb-lg">
                         <div class="rc-form-group" data-role="customer-section">
@@ -354,6 +372,68 @@
                         </div>
                     </div>
 
+                    <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
+                        <div class="rc-card-header">
+                            <h4 class="rc-card-title" style="color: #0ea5e9;">
+                                <i class="bi bi-box2"></i> Rental Packages
+                            </h4>
+                            <div class="rc-text-sm rc-text-secondary">
+                                Add predefined rental packages to this job.
+                            </div>
+                        </div>
+                        <div class="rc-card-body">
+                            <div id="jobPackageLoading" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite; margin-right: var(--space-sm);"></i>
+                                Loading packages...
+                            </div>
+                            <div id="jobPackageEmpty" class="rc-alert rc-alert-info" style="display: none;">
+                                <i class="bi bi-info-circle"></i> No rental packages available.
+                            </div>
+                            <div class="rc-table-scroll" id="jobPackageTableWrap" style="display: none;">
+                                <table class="rc-table rc-table-compact" id="jobPackageTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Package</th>
+                                            <th style="width: 120px;">Default Price</th>
+                                            <th style="width: 80px;">Qty</th>
+                                            <th style="width: 130px;">Custom Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="jobPackageBody"></tbody>
+                                </table>
+                            </div>
+
+                            <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
+                            <div>
+                                <h5 style="color: #0ea5e9;">Selected Rental Packages</h5>
+                                <div id="selectedJobPackagesEmpty" class="rc-text-sm rc-text-secondary rc-mb-md">
+                                    No rental packages selected yet.
+                                </div>
+                                <div class="rc-table-scroll">
+                                    <table class="rc-table rc-table-compact" id="selectedJobPackagesTable" style="display: none;">
+                                        <thead>
+                                            <tr>
+                                                <th>Package</th>
+                                                <th style="width: 80px;">Qty</th>
+                                                <th style="width: 120px;">Unit Price</th>
+                                                <th style="width: 120px;">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="selectedJobPackagesBody"></tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td colspan="3" style="text-align: right; font-weight: 600;">Total:</td>
+                                                <td id="selectedJobPackagesTotal" style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9; font-weight: 700;">0.00 EUR</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <input type="hidden" name="selected_job_packages" id="selectedJobPackagesInput" value="[]">
+                        </div>
+                    </div>
+
                     <!-- Rental Equipment Section -->
                     <div class="rc-card rc-mb-lg" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
                         <div class="rc-card-header">
@@ -365,94 +445,105 @@
                             </div>
                         </div>
                         <div class="rc-card-body">
-                            {{if .rentalEquipBySupplier}}
+                            {{if .rentalEquipByCategory}}
                             <div id="rentalEquipmentContainer">
-                                {{range $supplier, $items := .rentalEquipBySupplier}}
-                                <div class="rc-mb-lg">
-                                    <h5 style="color: #8b5cf6; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-                                        <i class="bi bi-building"></i> {{$supplier}}
-                                        <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6; font-size: 0.7rem;">
-                                            {{len $items}} items
-                                        </span>
-                                    </h5>
-                                    <div class="rc-table-scroll">
-                                        <table class="rc-table rc-table-compact">
-                                            <thead>
-                                                <tr>
-                                                    <th>Product</th>
-                                                    <th style="width: 100px;">Category</th>
-                                                    <th style="width: 100px;">Rental</th>
-                                                    <th style="width: 100px;">Customer</th>
-                                                    <th style="width: 80px;">Qty</th>
-                                                    <th style="width: 80px;">Days</th>
-                                                    <th style="width: 150px;">Notes</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {{range $items}}
-                                                <tr data-equipment-id="{{.EquipmentID}}">
-                                                    <td>
-                                                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                                            <span class="rc-chip rc-chip-pill" style="background: rgba(139, 92, 246, 0.15); color: #a78bfa; font-size: 0.65rem; padding: 2px 6px;">
-                                                                <span data-i18n="rental.label">Rental product</span>
-                                                            </span>
-                                                            <strong>{{.ProductName}}</strong>
-                                                        </div>
-                                                        {{if .Description}}
-                                                        <div class="rc-text-xs rc-text-secondary" style="margin-top: 2px;">{{.Description}}</div>
-                                                        {{end}}
-                                                    </td>
-                                                    <td>
-                                                        {{if .Category}}
-                                                        <span class="rc-chip rc-chip-neutral rc-chip-pill" style="font-size: 0.65rem;">{{.Category}}</span>
-                                                        {{else}}
-                                                        <span class="rc-text-muted">-</span>
-                                                        {{end}}
-                                                    </td>
-                                                    <td style="font-family: 'JetBrains Mono', monospace; color: #f97316;">
-                                                        {{printf "%.2f" .RentalPrice}} EUR
-                                                    </td>
-                                                    <td style="font-family: 'JetBrains Mono', monospace; color: #22c55e;">
-                                                        {{printf "%.2f" .CustomerPrice}} EUR
-                                                    </td>
-                                                    <td>
-                                                        <input type="number"
-                                                               class="rc-input rental-qty-input"
-                                                               name="rental_qty_{{.EquipmentID}}"
-                                                               min="0"
-                                                               value="0"
-                                                               style="width: 70px; padding: 4px 8px; text-align: center;"
-                                                               data-equipment-id="{{.EquipmentID}}"
-                                                               data-rental-price="{{.RentalPrice}}"
-                                                               data-customer-price="{{.CustomerPrice}}">
-                                                    </td>
-                                                    <td>
-                                                        <input type="number"
-                                                               class="rc-input rental-days-input"
-                                                               name="rental_days_{{.EquipmentID}}"
-                                                               min="1"
-                                                               value="1"
-                                                               style="width: 70px; padding: 4px 8px; text-align: center;"
-                                                               data-equipment-id="{{.EquipmentID}}">
-                                                    </td>
-                                                    <td>
-                                                        <input type="text"
-                                                               class="rc-input rental-notes-input"
-                                                               name="rental_notes_{{.EquipmentID}}"
-                                                               placeholder="Notes..."
-                                                               style="padding: 4px 8px; font-size: 0.85rem;"
-                                                               data-equipment-id="{{.EquipmentID}}">
-                                                    </td>
-                                                </tr>
-                                                {{end}}
-                                            </tbody>
-                                        </table>
+                                {{range .rentalEquipByCategory}}
+                                <div class="rc-mb-xl">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid rgba(139,92,246,0.3);">
+                                        <i class="bi bi-tag-fill" style="color: #8b5cf6;"></i>
+                                        <h5 style="color: #8b5cf6; margin: 0;">{{.Category}}</h5>
                                     </div>
+                                    {{range .Subcategories}}
+                                    <div class="rc-mb-lg" style="margin-left: 1rem;">
+                                        <h6 style="color: #a78bfa; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                                            <i class="bi bi-building"></i> {{.Subcategory}}
+                                            <span class="rc-chip rc-chip-pill" style="background: rgba(139,92,246,0.15); color: #a78bfa; font-size: 0.65rem;">
+                                                {{len .Items}} items
+                                            </span>
+                                        </h6>
+                                        <div class="rc-table-scroll">
+                                            <table class="rc-table rc-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Product</th>
+                                                        <th style="width: 100px;">Supplier</th>
+                                                        <th style="width: 100px;">Rental</th>
+                                                        <th style="width: 100px;">Customer</th>
+                                                        <th style="width: 80px;">Qty</th>
+                                                        <th style="width: 80px;">Days</th>
+                                                        <th style="width: 150px;">Notes</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {{range .Items}}
+                                                    <tr data-equipment-id="{{.EquipmentID}}"
+                                                        data-product-name="{{.ProductName}}"
+                                                        data-supplier-name="{{.SupplierName}}"
+                                                        data-category="{{.Category}}">
+                                                        <td>
+                                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                                <span class="rc-chip rc-chip-pill" style="background: rgba(139,92,246,0.15); color: #a78bfa; font-size: 0.65rem; padding: 2px 6px;">
+                                                                    <span data-i18n="rental.label">Rental</span>
+                                                                </span>
+                                                                <strong>{{.ProductName}}</strong>
+                                                            </div>
+                                                            {{if .Description}}
+                                                            <div class="rc-text-xs rc-text-secondary" style="margin-top: 2px;">{{.Description}}</div>
+                                                            {{end}}
+                                                        </td>
+                                                        <td>
+                                                            <span class="rc-chip rc-chip-neutral rc-chip-pill" style="font-size: 0.65rem;">{{.SupplierName}}</span>
+                                                        </td>
+                                                        <td style="font-family: 'JetBrains Mono', monospace; color: #f97316;">
+                                                            {{printf "%.2f" .RentalPrice}} EUR
+                                                        </td>
+                                                        <td style="font-family: 'JetBrains Mono', monospace; color: #22c55e;">
+                                                            {{printf "%.2f" .CustomerPrice}} EUR
+                                                        </td>
+                                                        <td>
+                                                            <input type="number"
+                                                                   class="rc-input rental-qty-input"
+                                                                   name="rental_qty_{{.EquipmentID}}"
+                                                                   min="0"
+                                                                   value="0"
+                                                                   style="width: 70px; padding: 4px 8px; text-align: center;"
+                                                                   data-equipment-id="{{.EquipmentID}}"
+                                                                   data-rental-price="{{.RentalPrice}}"
+                                                                   data-customer-price="{{.CustomerPrice}}">
+                                                        </td>
+                                                        <td>
+                                                            <input type="number"
+                                                                   class="rc-input rental-days-input"
+                                                                   name="rental_days_{{.EquipmentID}}"
+                                                                   min="1"
+                                                                   value="1"
+                                                                   style="width: 70px; padding: 4px 8px; text-align: center;"
+                                                                   data-equipment-id="{{.EquipmentID}}">
+                                                        </td>
+                                                        <td>
+                                                            <input type="text"
+                                                                   class="rc-input rental-notes-input"
+                                                                   name="rental_notes_{{.EquipmentID}}"
+                                                                   placeholder="Notes..."
+                                                                   style="padding: 4px 8px; font-size: 0.85rem;"
+                                                                   data-equipment-id="{{.EquipmentID}}">
+                                                        </td>
+                                                    </tr>
+                                                    {{end}}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {{end}}
                                 </div>
                                 {{end}}
                             </div>
+                            {{else}}
+                            <div class="rc-alert rc-alert-info">
+                                <i class="bi bi-info-circle"></i> No rental equipment available from WarehouseCore.
+                            </div>
+                            {{end}}
 
-                            <!-- Summary of selected rental equipment -->
                             <div class="rc-divider rc-mt-lg rc-mb-lg"></div>
                             <div>
                                 <h5 style="color: #8b5cf6;">Selected Rental Equipment</h5>
@@ -467,68 +558,31 @@
                                                 <th>Supplier</th>
                                                 <th style="width: 60px;">Qty</th>
                                                 <th style="width: 60px;">Days</th>
-                                                <th style="width: 100px;">Cost</th>
-                                                <th style="width: 100px;">Revenue</th>
+                                                <th style="width: 100px;">Total Cost</th>
+                                                <th style="width: 100px;">Total Revenue</th>
                                             </tr>
                                         </thead>
                                         <tbody id="selectedRentalBody"></tbody>
                                         <tfoot>
-                                            <tr style="font-weight: 600; background: var(--surface-3);">
-                                                <td colspan="4">Total Rental</td>
-                                                <td id="totalRentalCost" style="color: #f97316;">0.00 EUR</td>
-                                                <td id="totalRentalRevenue" style="color: #22c55e;">0.00 EUR</td>
+                                            <tr>
+                                                <td colspan="4" style="text-align: right; font-weight: 600;">Totals:</td>
+                                                <td id="totalRentalCost" style="font-family: 'JetBrains Mono', monospace; color: #f97316; font-weight: 700;">0.00 EUR</td>
+                                                <td id="totalRentalRevenue" style="font-family: 'JetBrains Mono', monospace; color: #22c55e; font-weight: 700;">0.00 EUR</td>
                                             </tr>
                                         </tfoot>
                                     </table>
                                 </div>
                             </div>
-                            {{else}}
-                            <div class="rc-alert rc-alert-info">
-                                <i class="bi bi-info-circle"></i>
-                                No rental equipment available from WarehouseCore. Make sure WarehouseCore is running and has rental equipment configured.
-                            </div>
-                            {{end}}
-                            <input type="hidden" name="selected_rental_equipment" id="selectedRentalInput" value="">
+                            <input type="hidden" name="selected_rental_equipment" id="selectedRentalInput" value="[]">
                         </div>
                     </div>
+
+                    
 
                     <div class="rc-form-group rc-mb-xl">
                         <label class="rc-label">Description</label>
                         <textarea class="rc-textarea" name="description" rows="4" placeholder="Additional job details and notes...">{{derefString .job.Description}}</textarea>
                     </div>
-
-                    <!-- File Attachments Section -->
-                    {{if .job.JobID}}
-                    <div class="rc-card rc-mb-xl" style="background: var(--surface-2); border: 1px solid var(--surface-3);">
-                        <div class="rc-card-header">
-                            <h4 class="rc-card-title">
-                                <i class="bi bi-paperclip"></i> File Attachments
-                            </h4>
-                        </div>
-                        <div class="rc-card-body">
-                            <div class="rc-form-group rc-mb-md">
-                                <label class="rc-label">Upload Files</label>
-                                <div class="file-upload-area" style="border: 2px dashed var(--surface-3); border-radius: 8px; padding: 20px; text-align: center; cursor: pointer;"
-                                     onclick="document.getElementById('jobFileInput').click();">
-                                    <i class="bi bi-cloud-upload" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 8px;"></i>
-                                    <p style="margin: 0; color: var(--text-muted);">Click to select files or drag and drop</p>
-                                    <small style="color: var(--text-muted); font-size: 12px;">Maximum file size: 50MB per file</small>
-                                </div>
-                                <input type="file" id="jobFileInput" multiple accept="*/*" style="display: none;" onchange="handleJobFileSelection(this)">
-
-                                <div id="selectedFilesList" style="margin-top: 12px; display: none;">
-                                    <h6 style="margin-bottom: 8px; font-size: 14px;">Selected Files:</h6>
-                                    <div id="selectedFilesContainer"></div>
-                                </div>
-                            </div>
-
-                            <div id="existingAttachments" style="margin-top: 16px;">
-                                <h6 style="margin-bottom: 8px; font-size: 14px;">Current Attachments:</h6>
-                                <div id="attachmentsList">Loading...</div>
-                            </div>
-                        </div>
-                    </div>
-                    {{end}}
 
                     <div class="rc-flex rc-flex-between" style="align-items: center;">
                         <a href="/jobs" class="rc-btn rc-btn-secondary">
@@ -543,15 +597,11 @@
                         </button>
                     </div>
 
-                    <!-- Inline Customer Creation Modal -->
-                    <div class="rc-modal" data-role="customer-modal" style="display: none;">
-                        <div class="rc-modal-overlay" data-action="close-customer-modal"></div>
-                        <div class="rc-modal-content" style="max-width: 620px;">
-                            <div class="rc-modal-header">
-                                <h3 class="rc-modal-title">
-                                    <i class="bi bi-person-plus"></i> New Customer
-                                </h3>
-                                <button type="button" class="rc-modal-close" data-action="close-customer-modal">
+                    <div class="rc-modal-overlay" data-role="customer-modal" style="display: none;">
+                        <div class="rc-modal-panel" style="max-width: 640px;">
+                            <div class="rc-flex rc-flex-between rc-flex-wrap" style="gap: var(--space-sm); align-items: center; padding: var(--space-md); border-bottom: 1px solid var(--surface-3);">
+                                <h4 class="rc-m-0">Create Customer</h4>
+                                <button type="button" class="rc-btn rc-btn-ghost rc-btn-sm" data-action="close-customer-modal">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
@@ -565,9 +615,9 @@
                                     </div>
                                     <div class="rc-form-group">
                                         <label class="rc-label">Customer Type</label>
-                                        <select class="rc-select" data-field="customer_type" data-default-value="Kunde">
-                                            <option value="Kunde" selected>Customer</option>
-                                            <option value="Lieferant">Supplier</option>
+                                        <select class="rc-select" data-field="customer_type" data-default-value="customer">
+                                            <option value="customer" selected>Customer</option>
+                                            <option value="supplier">Supplier</option>
                                         </select>
                                     </div>
                                     <div class="rc-form-group">
@@ -634,6 +684,70 @@
 
     <!-- Product Tree Styles -->
     <style>
+        .quick-save-bar {
+            display: flex;
+            gap: 0.75rem;
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            top: auto;
+            z-index: 10020;
+            align-items: center;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--surface-3);
+            border-radius: 10px;
+            background: var(--surface-1);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+            max-width: calc(100vw - 2rem);
+            pointer-events: auto;
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        .quick-save-bar .rc-btn {
+            pointer-events: auto;
+        }
+
+        .quick-save-floating-portal {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 10030;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid var(--surface-3);
+            border-radius: 10px;
+            background: var(--surface-1);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+        }
+
+        .quick-save-bar.quick-save-in-modal {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .quick-save-bar {
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: 0.75rem;
+                width: auto;
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .quick-save-floating-portal {
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: 0.75rem;
+                width: auto;
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+
         .pdf-modal-overlay {
             position: fixed;
             inset: 0;
@@ -1148,6 +1262,22 @@
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
+        #rentalEquipmentContainer .rc-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        #rentalEquipmentContainer table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        #rentalEquipmentContainer td,
+        #rentalEquipmentContainer th {
+            white-space: normal;
+            word-break: break-word;
+        }
+
         .rc-product-entry-input input:focus {
             outline: none;
             border-color: var(--accent-red);
@@ -1380,7 +1510,7 @@
                         email: valueOrNull('email'),
                         phonenumber: valueOrNull('phone_number'),
                         notes: valueOrNull('notes'),
-                        customertype: valueOrNull('customer_type') || 'Kunde',
+                        customertype: valueOrNull('customer_type') || 'customer',
                     };
 
                     if (!payload.companyname && !(payload.firstname && payload.lastname)) {
@@ -1446,11 +1576,36 @@
         let productValidationErrors = [];
         let productTreeControlsBound = false;
         let productTreeExpanded = new Set();
+        const JOB_FORM_BUILD = 'job-form-fix-2026-05-07b';
+        console.log('Job form build:', JOB_FORM_BUILD);
 
         function getJobIdFromUrl() {
             const path = window.location.pathname;
             const matches = path.match(/\/jobs\/([^\/]+)\/edit/);
-            return matches ? matches[1] : null;
+            if (matches && matches[1]) {
+                return matches[1];
+            }
+
+            const form = document.getElementById('jobForm');
+            if (form) {
+                const action = form.getAttribute('action') || '';
+                const actionMatches = action.match(/\/jobs\/(\d+)\/update/);
+                if (actionMatches && actionMatches[1]) {
+                    return actionMatches[1];
+                }
+
+                const explicitJobInput = form.querySelector('input[name="job_id"], input[name="jobID"]');
+                if (explicitJobInput && explicitJobInput.value) {
+                    return explicitJobInput.value;
+                }
+            }
+
+            const templateJobID = '{{if .job.JobID}}{{.job.JobID}}{{end}}';
+            if (templateJobID) {
+                return templateJobID;
+            }
+
+            return null;
         }
 
         const currentJobId = getJobIdFromUrl();
@@ -1464,9 +1619,46 @@
                     return response.json();
                 })
                 .then(job => {
-                    if (!job || !Array.isArray(job.jobDevices)) {
+                    if (!job) {
                         return;
                     }
+
+                    const requirementList = Array.isArray(job.job_product_requirements)
+                        ? job.job_product_requirements
+                        : (Array.isArray(job.jobProductRequirements)
+                            ? job.jobProductRequirements
+                            : (Array.isArray(job.JobProductRequirements) ? job.JobProductRequirements : []));
+
+                    if (requirementList.length > 0) {
+                        requirementList.forEach(req => {
+                            const productID = req.product_id ?? req.productID ?? req.ProductID;
+                            const quantity = Number(req.quantity ?? req.Quantity ?? 0);
+                            const product = req.product || req.Product || {};
+                            const productName = product.name || product.Name || `Product ${productID}`;
+                            if (!productID || quantity <= 0) {
+                                return;
+                            }
+
+                            const value = { id: productID, name: productName, quantity: quantity };
+                            initialProductSelections.set(String(productID), value);
+                            productSelections.set(String(productID), {
+                                id: productID,
+                                name: productName,
+                                available: 0,
+                                total: 0,
+                                quantity: quantity
+                            });
+                        });
+
+                        updateSelectedProductsSummary();
+                        updateHiddenProductInput();
+                        return;
+                    }
+
+                    if (!Array.isArray(job.jobDevices)) {
+                        return;
+                    }
+
                     const counts = new Map();
                     job.jobDevices.forEach(jd => {
                         const device = jd.device || {};
@@ -1490,6 +1682,9 @@
                             quantity: value.quantity
                         });
                     });
+
+                    updateSelectedProductsSummary();
+                    updateHiddenProductInput();
                 })
                 .catch(error => {
                     console.error('Failed to load existing product selections:', error);
@@ -1540,6 +1735,9 @@
                     productTreeData = Array.isArray(data.treeData) ? data.treeData : [];
                     console.log('🌲 Product Tree Data:', productTreeData);
                     console.log('🌲 Categories count:', productTreeData.length);
+                    if (productTreeExpanded.size === 0) {
+                        productTreeExpanded = collectInitialExpandedNodes(productTreeData);
+                    }
                     applyAvailabilityToSelections(productTreeData);
                     renderProductTree(productTreeData);
                 })
@@ -1677,6 +1875,8 @@
                 availableSource = product.availableCount;
             } else if (product.AvailableCount !== undefined) {
                 availableSource = product.AvailableCount;
+            } else if (product.available !== undefined) {
+                availableSource = product.available;
             }
 
             let totalSource = 0;
@@ -1686,6 +1886,34 @@
                 totalSource = product.deviceCount;
             } else if (product.DeviceCount !== undefined) {
                 totalSource = product.DeviceCount;
+            } else if (product.total !== undefined) {
+                totalSource = product.total;
+            }
+
+            const stockSource = product.stock_quantity ?? product.stockQuantity ?? product.StockQuantity;
+            const stockValue = toNumber(stockSource, 0);
+            if (stockValue > 0 && toNumber(totalSource, 0) === 0) {
+                totalSource = stockValue;
+                if (toNumber(availableSource, 0) === 0) {
+                    availableSource = stockValue;
+                }
+            }
+
+            if (toNumber(totalSource, 0) === 0) {
+                const devices = Array.isArray(product.devices)
+                    ? product.devices
+                    : Array.isArray(product.Devices)
+                        ? product.Devices
+                        : Array.isArray(product.direct_devices)
+                            ? product.direct_devices
+                            : Array.isArray(product.DirectDevices)
+                                ? product.DirectDevices
+                                : [];
+                if (devices.length > 0) {
+                    totalSource = devices.length;
+                    const availableFromDevices = devices.filter(d => d && (d.available === true || d.Available === true)).length;
+                    availableSource = availableFromDevices > 0 ? availableFromDevices : devices.length;
+                }
             }
 
             return {
@@ -1752,6 +1980,49 @@
             return tree.reduce((acc, node) => mergeStats(acc, collectNodeStats(node)), { products: 0, available: 0, total: 0 });
         }
 
+        function collectInitialExpandedNodes(treeData) {
+            const expanded = new Set();
+            if (!Array.isArray(treeData)) {
+                return expanded;
+            }
+
+            treeData.forEach(category => {
+                const catId = `cat-${category.id}`;
+                const categoryHasProducts = Array.isArray(category.products) && category.products.length > 0;
+                const categoryHasSubProducts = Array.isArray(category.subcategories) && category.subcategories.some(sub => {
+                    const subHasProducts = Array.isArray(sub.products) && sub.products.length > 0;
+                    const subbierHasProducts = Array.isArray(sub.subbiercategories) && sub.subbiercategories.some(sb => Array.isArray(sb.products) && sb.products.length > 0);
+                    return subHasProducts || subbierHasProducts;
+                });
+
+                if (categoryHasProducts || categoryHasSubProducts) {
+                    expanded.add(catId);
+                }
+
+                if (categoryHasProducts) {
+                    expanded.add(`cat-${category.id}-products`);
+                }
+
+                (category.subcategories || []).forEach(sub => {
+                    const subId = `sub-${sub.id}`;
+                    const subHasProducts = Array.isArray(sub.products) && sub.products.length > 0;
+                    const subbierHasProducts = Array.isArray(sub.subbiercategories) && sub.subbiercategories.some(sb => Array.isArray(sb.products) && sb.products.length > 0);
+
+                    if (subHasProducts || subbierHasProducts) {
+                        expanded.add(subId);
+                    }
+
+                    (sub.subbiercategories || []).forEach(sb => {
+                        if (Array.isArray(sb.products) && sb.products.length > 0) {
+                            expanded.add(`subbier-${sb.id}`);
+                        }
+                    });
+                });
+            });
+
+            return expanded;
+        }
+
         function buildNodeHeader(level, name, stats) {
             const icons = {
                 category: 'bi-diagram-3',
@@ -1815,9 +2086,8 @@
 
             if (!root) return;
 
-            // If tree hasn't been loaded yet, don't disturb the loading state
+            // Empty or invalid payload should resolve to the empty state.
             if (!Array.isArray(treeData) || treeData.length === 0) {
-                if (loading && loading.style.display !== 'none') return;
                 root.innerHTML = '';
                 if (loading) loading.style.display = 'none';
                 if (empty) empty.style.display = 'block';
@@ -1976,13 +2246,11 @@
             node.className = 'wc-node';
             node.dataset.nodeId = nodeId;
             const isExpanded = productTreeExpanded.has(nodeId);
-            console.log('🔵 renderSubcategoryNode:', nodeId, 'isExpanded:', isExpanded);
             if (isExpanded) node.classList.add('open');
 
             const header = document.createElement('div');
             header.className = 'wc-node-header';
             header.addEventListener('click', (e) => {
-                console.log('🖱️ Click on subcategory header:', nodeId);
                 e.stopPropagation();
                 toggleNode(productTreeExpanded, nodeId, node);
             });
@@ -2008,10 +2276,7 @@
             // Only render children if this node is expanded
             if (isExpanded) {
                 (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
-                const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Products');
-                if (subProductsGroup) {
-                    body.appendChild(subProductsGroup);
-                }
+                (subcategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
             }
 
             node.appendChild(header);
@@ -2184,7 +2449,6 @@
         }
 
         function toggleNode(set, id, nodeElement) {
-            console.log('🔄 toggleNode called:', id, 'currently expanded:', set.has(id));
             if (set.has(id)) {
                 // Collapse: remove from set, remove CSS class, clear children
                 set.delete(id);
@@ -2195,7 +2459,6 @@
                         body.innerHTML = ''; // Clear children
                     }
                 }
-                console.log('➖ Collapsed:', id);
             } else {
                 // Expand: add to set, add CSS class, render children
                 set.add(id);
@@ -2213,8 +2476,7 @@
                         } else if (nodeElement._subcategoryData) {
                             const subcategory = nodeElement._subcategoryData;
                             (subcategory.subbiercategories || []).forEach(sb => body.appendChild(renderSubbiercategoryNode(sb, `subbier-${sb.id}`)));
-                            const subProductsGroup = renderProductGroup(subcategory.products, `sub-${subcategory.id}-products`, 'Products');
-                            if (subProductsGroup) body.appendChild(subProductsGroup);
+                            (subcategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
                         } else if (nodeElement._subbiercategoryData) {
                             const subbiercategory = nodeElement._subbiercategoryData;
                             (subbiercategory.products || []).forEach(product => body.appendChild(renderProductCard(product)));
@@ -2224,9 +2486,7 @@
                         }
                     }
                 }
-                console.log('➕ Expanded:', id);
             }
-            console.log('📊 Expanded nodes:', Array.from(set));
         }
 
         function toggleProductTreeNodes(open) {
@@ -2352,9 +2612,61 @@
             if (!input) {
                 return;
             }
-            const payload = Array.from(productSelections.values())
-                .filter(entry => entry.quantity > 0)
-                .map(entry => ({ product_id: entry.id, quantity: entry.quantity }));
+
+            // Prefer live DOM quantities so submit stays correct even if the
+            // internal map gets out of sync after dynamic tree re-renders.
+            const byProduct = new Map();
+            document.querySelectorAll('.wc-product').forEach(card => {
+                const productIdRaw = card.dataset.productId;
+                const qtyInput = card.querySelector('.wc-qty-input');
+                const productNameNode = card.querySelector('.wc-product-title span');
+                const productId = parseInt(productIdRaw || '', 10);
+                const qty = qtyInput ? (parseInt(qtyInput.value || '0', 10) || 0) : 0;
+                if (!Number.isFinite(productId) || productId <= 0 || qty <= 0) {
+                    return;
+                }
+                const key = String(productId);
+                const prev = productSelections.get(key) || { id: productId, name: '' };
+                const readableName = (productNameNode && productNameNode.textContent) ? productNameNode.textContent.trim() : prev.name;
+                const existing = byProduct.get(productId) || { product_id: productId, quantity: 0, product_name: '' };
+                // If the same product is rendered in more than one tree branch,
+                // keep the highest chosen quantity rather than duplicating it.
+                if (qty > existing.quantity) {
+                    byProduct.set(productId, { product_id: productId, quantity: qty, product_name: readableName || '' });
+                }
+
+                // Keep in-memory summary aligned with what user can currently see
+                // without clobbering a better user-facing name when duplicate IDs
+                // appear with different labels across tree branches.
+                const prevName = (prev.name || '').trim();
+                const prevIsGeneric = /^Product\s+\d+$/i.test(prevName);
+                const readableIsGeneric = /^Product\s+\d+$/i.test(readableName || '');
+                const resolvedName = (!prevName || prevIsGeneric)
+                    ? ((readableName && !readableIsGeneric) ? readableName : (readableName || `Product ${productId}`))
+                    : prevName;
+                const currentQty = Number(prev.quantity || 0);
+                const nextQty = Math.max(currentQty, qty);
+                productSelections.set(key, {
+                    id: productId,
+                    name: resolvedName,
+                    available: prev.available || 0,
+                    total: prev.total || 0,
+                    quantity: nextQty
+                });
+            });
+
+            const payload = Array.from(byProduct.values());
+
+            if (payload.length === 0) {
+                // Fallback to map-based payload for edge cases where product cards
+                // are not mounted (e.g. collapsed tree right before submit).
+                const mapPayload = Array.from(productSelections.values())
+                    .filter(entry => entry.quantity > 0)
+                    .map(entry => ({ product_id: entry.id, quantity: entry.quantity }));
+                input.value = JSON.stringify(mapPayload);
+                return;
+            }
+
             input.value = JSON.stringify(payload);
         }
 
@@ -2430,6 +2742,7 @@
             // Check if we have pre-loaded job rental equipment
             {{if .jobRentalEquipment}}
             {{range .jobRentalEquipment}}
+            {
             const equipmentId = '{{.EquipmentID}}';
             const qtyInput = document.querySelector(`input[name="rental_qty_${equipmentId}"]`);
             const daysInput = document.querySelector(`input[name="rental_days_${equipmentId}"]`);
@@ -2444,6 +2757,7 @@
             }
             if (notesInput && '{{.Notes}}') {
                 notesInput.value = '{{.Notes}}';
+            }
             }
             {{end}}
             {{end}}
@@ -2466,16 +2780,16 @@
             const rentalPrice = parseFloat(qtyInput.dataset.rentalPrice) || 0;
             const customerPrice = parseFloat(qtyInput.dataset.customerPrice) || 0;
 
-            // Get product name and supplier from the row
-            const productName = row.querySelector('strong')?.textContent?.trim() || 'Unknown';
-            const supplierHeader = row.closest('.rc-mb-lg')?.querySelector('h5 i.bi-building')?.parentElement;
-            const supplierName = supplierHeader ? supplierHeader.childNodes[1]?.textContent?.trim() : 'Unknown';
+            const productName = row.dataset.productName || row.querySelector('strong')?.textContent?.trim() || 'Unknown';
+            const supplierName = row.dataset.supplierName || 'Unknown';
+            const category = row.dataset.category || '';
 
             if (qty > 0) {
                 rentalSelections.set(equipmentId, {
                     equipmentId: parseInt(equipmentId),
                     productName: productName,
                     supplierName: supplierName,
+                    category: category,
                     quantity: qty,
                     days: days,
                     rentalPrice: rentalPrice,
@@ -2553,16 +2867,323 @@
                     equipment_id: selection.equipmentId,
                     quantity: selection.quantity,
                     days_used: selection.days,
-                    notes: selection.notes
+                    notes: selection.notes,
+                    rental_price: selection.rentalPrice,
+                    customer_price: selection.customerPrice,
+                    product_name: selection.productName,
+                    supplier_name: selection.supplierName,
+                    category: selection.category
                 });
             });
 
             input.value = JSON.stringify(selections);
         }
 
+        // Job Package Selection Functionality
+        const jobPackageSelections = new Map(); // packageId -> { packageId, packageName, quantity, defaultPrice, customPrice }
+        const availableJobPackages = new Map(); // packageId -> { packageId, name, description, price, packageCode }
+
+        function readCustomPriceValue(rawValue) {
+            if (rawValue === undefined || rawValue === null) {
+                return null;
+            }
+            if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+                return rawValue;
+            }
+            if (typeof rawValue === 'object') {
+                if (rawValue.Valid && Number.isFinite(rawValue.Float64)) {
+                    return Number(rawValue.Float64);
+                }
+                if (Number.isFinite(rawValue.value)) {
+                    return Number(rawValue.value);
+                }
+            }
+            const parsed = parseFloat(String(rawValue));
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        async function initializeJobPackages() {
+            try {
+                await loadAvailableJobPackages();
+                await loadExistingJobPackageSelections();
+                updateJobPackageSummary();
+                updateJobPackageHiddenInput();
+            } catch (error) {
+                console.error('Failed to initialize job packages:', error);
+            }
+        }
+
+        async function loadAvailableJobPackages() {
+            const loadingEl = document.getElementById('jobPackageLoading');
+            const emptyEl = document.getElementById('jobPackageEmpty');
+            const tableWrap = document.getElementById('jobPackageTableWrap');
+            const tbody = document.getElementById('jobPackageBody');
+
+            if (!tbody) return;
+
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (tableWrap) tableWrap.style.display = 'none';
+
+            let payload = { packages: [] };
+            try {
+                const response = await fetch('/api/v1/jobs/packages/available', { credentials: 'include' });
+                payload = response.ok ? await response.json() : { packages: [] };
+            } catch (error) {
+                console.error('Error loading available job packages:', error);
+                payload = { packages: [] };
+            }
+
+            const packages = Array.isArray(payload?.packages) ? payload.packages : [];
+            availableJobPackages.clear();
+            packages.forEach(pkg => {
+                const packageId = parseInt(pkg.package_id, 10);
+                if (!Number.isFinite(packageId) || packageId <= 0) return;
+                availableJobPackages.set(packageId, {
+                    packageId,
+                    name: (pkg.name || `Package ${packageId}`).toString(),
+                    description: (pkg.description || '').toString(),
+                    price: readCustomPriceValue(pkg.price) || 0,
+                    packageCode: (pkg.package_code || '').toString()
+                });
+            });
+
+            if (loadingEl) loadingEl.style.display = 'none';
+
+            if (availableJobPackages.size === 0) {
+                tbody.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (tableWrap) tableWrap.style.display = 'none';
+                return;
+            }
+
+            const rows = Array.from(availableJobPackages.values())
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(pkg => {
+                    const descriptionHtml = pkg.description ? `<div class="rc-text-xs rc-text-secondary" style="margin-top: 2px;">${escapeHtml(pkg.description)}</div>` : '';
+                    const codeHtml = pkg.packageCode ? `<span class="rc-chip rc-chip-neutral rc-chip-pill" style="font-size: 0.65rem;">${escapeHtml(pkg.packageCode)}</span>` : '';
+                    return `
+                        <tr data-package-id="${pkg.packageId}">
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <strong>${escapeHtml(pkg.name)}</strong>
+                                    ${codeHtml}
+                                </div>
+                                ${descriptionHtml}
+                            </td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9;">${Number(pkg.price || 0).toFixed(2)} EUR</td>
+                            <td>
+                                <input type="number"
+                                       class="rc-input job-package-qty-input"
+                                       min="0"
+                                       step="1"
+                                       value="0"
+                                       style="width: 70px; padding: 4px 8px; text-align: center;"
+                                       data-package-id="${pkg.packageId}">
+                            </td>
+                            <td>
+                                <input type="number"
+                                       class="rc-input job-package-price-input"
+                                       min="0"
+                                       step="0.01"
+                                       placeholder="Default"
+                                       style="width: 110px; padding: 4px 8px; text-align: center;"
+                                       data-package-id="${pkg.packageId}">
+                            </td>
+                        </tr>
+                    `;
+                })
+                .join('');
+
+            tbody.innerHTML = rows;
+            if (tableWrap) tableWrap.style.display = 'block';
+
+            tbody.querySelectorAll('.job-package-qty-input, .job-package-price-input').forEach(input => {
+                input.addEventListener('input', updateJobPackageSelection);
+                input.addEventListener('change', updateJobPackageSelection);
+            });
+        }
+
+        async function loadExistingJobPackageSelections() {
+            const jobID = currentJobId;
+            if (!jobID) return;
+
+            try {
+                const response = await fetch(`/api/v1/jobs/${jobID}/packages`, { credentials: 'include' });
+                if (!response.ok) return;
+                const payload = await response.json();
+                const existing = Array.isArray(payload?.packages) ? payload.packages : [];
+
+                existing.forEach(pkg => {
+                    const packageId = parseInt(pkg.package_id, 10);
+                    if (!Number.isFinite(packageId) || packageId <= 0) return;
+
+                    const qtyInput = document.querySelector(`.job-package-qty-input[data-package-id="${packageId}"]`);
+                    const priceInput = document.querySelector(`.job-package-price-input[data-package-id="${packageId}"]`);
+                    const qty = parseInt(pkg.quantity, 10) || 0;
+                    if (qtyInput) qtyInput.value = String(qty);
+
+                    const customPrice = readCustomPriceValue(pkg.custom_price);
+                    if (priceInput) {
+                        priceInput.value = customPrice === null ? '' : customPrice.toFixed(2);
+                    }
+
+                    updateJobPackageSelectionForPackage(packageId);
+                });
+            } catch (error) {
+                console.error('Error loading existing job packages:', error);
+            }
+        }
+
+        function updateJobPackageSelection(event) {
+            const input = event.target;
+            const packageId = parseInt(input?.dataset?.packageId || '', 10);
+            if (!Number.isFinite(packageId) || packageId <= 0) return;
+            updateJobPackageSelectionForPackage(packageId);
+        }
+
+        function updateJobPackageSelectionForPackage(packageId) {
+            const qtyInput = document.querySelector(`.job-package-qty-input[data-package-id="${packageId}"]`);
+            const priceInput = document.querySelector(`.job-package-price-input[data-package-id="${packageId}"]`);
+            const pkg = availableJobPackages.get(packageId) || { packageId, name: `Package ${packageId}`, price: 0 };
+
+            const quantity = qtyInput ? (parseInt(qtyInput.value || '0', 10) || 0) : 0;
+            const customPrice = priceInput ? readCustomPriceValue(priceInput.value) : null;
+
+            if (quantity > 0) {
+                jobPackageSelections.set(packageId, {
+                    packageId,
+                    packageName: pkg.name,
+                    quantity,
+                    defaultPrice: Number(pkg.price || 0),
+                    customPrice: customPrice,
+                });
+            } else {
+                jobPackageSelections.delete(packageId);
+            }
+
+            updateJobPackageSummary();
+            updateJobPackageHiddenInput();
+        }
+
+        function updateJobPackageSummary() {
+            const emptyEl = document.getElementById('selectedJobPackagesEmpty');
+            const table = document.getElementById('selectedJobPackagesTable');
+            const tbody = document.getElementById('selectedJobPackagesBody');
+            const totalEl = document.getElementById('selectedJobPackagesTotal');
+            if (!tbody) return;
+
+            if (jobPackageSelections.size === 0) {
+                if (emptyEl) emptyEl.style.display = 'block';
+                if (table) table.style.display = 'none';
+                if (totalEl) totalEl.textContent = '0.00 EUR';
+                tbody.innerHTML = '';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+            if (table) table.style.display = 'table';
+
+            let total = 0;
+            let html = '';
+            Array.from(jobPackageSelections.values())
+                .sort((a, b) => a.packageName.localeCompare(b.packageName))
+                .forEach(selection => {
+                    const unitPrice = selection.customPrice === null ? selection.defaultPrice : selection.customPrice;
+                    const lineTotal = unitPrice * selection.quantity;
+                    total += lineTotal;
+
+                    html += `
+                        <tr>
+                            <td>${escapeHtml(selection.packageName)}</td>
+                            <td style="text-align: center;">${selection.quantity}</td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9;">${unitPrice.toFixed(2)} EUR</td>
+                            <td style="font-family: 'JetBrains Mono', monospace; color: #0ea5e9; font-weight: 600;">${lineTotal.toFixed(2)} EUR</td>
+                        </tr>
+                    `;
+                });
+
+            tbody.innerHTML = html;
+            if (totalEl) totalEl.textContent = total.toFixed(2) + ' EUR';
+        }
+
+        function updateJobPackageHiddenInput() {
+            const input = document.getElementById('selectedJobPackagesInput');
+            if (!input) return;
+
+            const payload = [];
+            jobPackageSelections.forEach(selection => {
+                const item = {
+                    package_id: selection.packageId,
+                    quantity: selection.quantity,
+                    package_name: selection.packageName,
+                };
+                if (selection.customPrice !== null) {
+                    item.custom_price = selection.customPrice;
+                }
+                payload.push(item);
+            });
+
+            payload.sort((a, b) => a.package_id - b.package_id);
+            input.value = JSON.stringify(payload);
+        }
+
         // Initialize job form - can be called manually from modal
+        function removeQuickSavePortal() {
+            const existingPortal = document.getElementById('quickSaveFloatingPortal');
+            if (existingPortal) {
+                existingPortal.remove();
+            }
+        }
+
+        function configureQuickSaveBar() {
+            const bar = document.getElementById('quickSaveBar');
+            if (!bar) return;
+
+            const isInModal = !!bar.closest('#jobEditContent, #jobNewContent');
+            bar.classList.toggle('quick-save-in-modal', isInModal);
+
+            removeQuickSavePortal();
+            if (!isInModal) {
+                return;
+            }
+
+            const submitButton = bar.querySelector('[data-quick-save-submit]');
+            const cancelButton = bar.querySelector('[data-quick-save-cancel]');
+            if (!submitButton || !cancelButton) {
+                return;
+            }
+
+            const portal = document.createElement('div');
+            portal.id = 'quickSaveFloatingPortal';
+            portal.className = 'quick-save-floating-portal';
+            portal.innerHTML = `
+                <button type="button" class="rc-btn rc-btn-secondary rc-btn-sm" data-portal-cancel>
+                    <i class="bi bi-x-lg"></i> Cancel
+                </button>
+                <button type="submit" form="jobForm" class="rc-btn rc-btn-primary rc-btn-sm" data-portal-submit>
+                    ${submitButton.innerHTML}
+                </button>
+            `;
+
+            portal.querySelector('[data-portal-cancel]').addEventListener('click', () => {
+                if (typeof window.closeEditJobModal === 'function' && document.getElementById('jobEditContent')) {
+                    window.closeEditJobModal();
+                    return;
+                }
+                if (typeof window.closeNewJobModal === 'function' && document.getElementById('jobNewContent')) {
+                    window.closeNewJobModal();
+                    return;
+                }
+                window.location.href = '/jobs';
+            });
+
+            document.body.appendChild(portal);
+        }
+
         function initializeJobForm() {
             console.log('initializeJobForm called');
+            configureQuickSaveBar();
 
             if (typeof window.setupCustomerInlineCreation === 'function') {
                 window.setupCustomerInlineCreation(document);
@@ -2570,6 +3191,7 @@
 
             // Initialize rental equipment selection
             initializeRentalEquipment();
+            initializeJobPackages();
 
             const startDateInput = document.querySelector('input[name="start_date"]');
             const endDateInput = document.querySelector('input[name="end_date"]');
@@ -2627,9 +3249,10 @@
                 updateHiddenProductInput();
                 validateProductSelections();
                 if (productValidationErrors.length > 0) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    window.scrollTo({ top: document.getElementById('productSelectionContainer').offsetTop - 80, behavior: 'smooth' });
+                    const container = document.getElementById('productSelectionContainer');
+                    if (container) {
+                        window.scrollTo({ top: container.offsetTop - 80, behavior: 'smooth' });
+                    }
                 }
             });
         }
@@ -2722,6 +3345,10 @@
                 const attachments = await response.json();
 
                 const container = document.getElementById('attachmentsList');
+                if (!container) {
+                    console.warn('attachmentsList container not found; skipping attachment render');
+                    return;
+                }
                 if (!attachments || attachments.length === 0) {
                     container.innerHTML = '<p style="color: var(--text-muted); font-style: italic; margin: 0;">No files attached yet.</p>';
                     return;
@@ -2752,7 +3379,10 @@
                 `).join('');
             } catch (error) {
                 console.error('Error loading attachments:', error);
-                document.getElementById('attachmentsList').innerHTML = '<p style="color: var(--error); margin: 0;">Error loading attachments.</p>';
+                const container = document.getElementById('attachmentsList');
+                if (container) {
+                    container.innerHTML = '<p style="color: var(--error); margin: 0;">Error loading attachments.</p>';
+                }
             }
         }
 
@@ -2921,15 +3551,27 @@
 
         function showJobHistoryModal() {
             {{if .job.JobID}}
+            const jobID = {{.job.JobID}};
             const modal = document.getElementById('jobHistoryModal');
-            modal.style.display = 'flex';
-            loadJobHistoryData();
+            if (modal) {
+                modal.style.display = 'flex';
+                loadJobHistoryData();
+                return;
+            }
+
+            // Fallback when the form is rendered inside the jobs page modal,
+            // where the inline history modal markup is not part of injected HTML.
+            if (typeof window.showJobHistoryInModal === 'function') {
+                window.showJobHistoryInModal(jobID);
+            }
             {{end}}
         }
 
         function hideJobHistoryModal() {
             const modal = document.getElementById('jobHistoryModal');
-            modal.style.display = 'none';
+            if (modal) {
+                modal.style.display = 'none';
+            }
         }
 
         function loadJobHistoryData() {
@@ -2937,14 +3579,19 @@
             const historyContent = document.getElementById('job-history-content');
             const loadingIndicator = document.getElementById('loading-job-history');
 
+            if (!historyContent) {
+                return;
+            }
+
             if (loadingIndicator) loadingIndicator.style.display = 'block';
 
             fetch(`/api/v1/jobs/${jobID}/history`)
                 .then(response => response.json())
                 .then(data => {
+                    const history = Array.isArray(data) ? data : (data.history || data.entries || []);
                     if (loadingIndicator) loadingIndicator.style.display = 'none';
-                    if (data.success && data.history && data.history.length > 0) {
-                        displayJobHistoryData(data.history);
+                    if (history.length > 0) {
+                        displayJobHistoryData(history);
                     } else {
                         historyContent.innerHTML = `
                             <div class="rc-text-center rc-p-lg">

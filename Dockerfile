@@ -31,6 +31,7 @@ RUN python3 -m venv /opt/ocr-venv && \
 # Build the application with CGO enabled for SQLite
 # Output binary into /app so production stage can copy it from that path
 RUN CGO_ENABLED=1 GOOS=linux go build -o /app/server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -o /app/migrate ./cmd/migrate
 
 # Production stage
 FROM alpine:latest
@@ -46,6 +47,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 # Copy binary from builder stage
 COPY --from=builder /app/server .
+COPY --from=builder /app/migrate ./migrate
 
 # Copy python virtualenv and parser tool
 COPY --from=builder /opt/ocr-venv /opt/ocr-venv

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,8 @@ import (
 
 	"go-barcode-webapp/internal/config"
 	"go-barcode-webapp/internal/models"
+
+	"go-barcode-webapp/internal/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp/totp"
@@ -30,10 +33,30 @@ func NewAuthHandler(db *gorm.DB, cfg *config.Config) *AuthHandler {
 	return &AuthHandler{db: db, config: cfg}
 }
 
+func SessionCookieName() string {
+	if name := strings.TrimSpace(os.Getenv("SESSION_COOKIE_NAME")); name != "" {
+		return name
+	}
+	return "session_id"
+}
+
+func isSecureRequest(c *gin.Context) bool {
+	if c.Request != nil && c.Request.TLS != nil {
+		return true
+	}
+	forwardedProto := strings.TrimSpace(strings.Split(c.GetHeader("X-Forwarded-Proto"), ",")[0])
+	return strings.EqualFold(forwardedProto, "https")
+}
+
+func setAuthCookie(c *gin.Context, name, value string, maxAge int, domain string) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, value, maxAge, "/", domain, isSecureRequest(c), true)
+}
+
 // LoginForm displays the login page
 func (h *AuthHandler) LoginForm(c *gin.Context) {
 	// Check if user is already logged in
-	if sessionID, err := c.Cookie("session_id"); err == nil && sessionID != "" {
+	if sessionID, err := c.Cookie(SessionCookieName()); err == nil && sessionID != "" {
 		if h.validateSession(sessionID) {
 			c.Redirect(http.StatusSeeOther, "/")
 			return
@@ -103,7 +126,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 		// Redirect to 2FA verification page
 		cookieDomain := getCookieDomain(c)
-		c.SetCookie("temp_session_id", tempSessionID, 300, "/", cookieDomain, false, true) // 5 minutes
+		setAuthCookie(c, "temp_session_id", tempSessionID, 300, cookieDomain) // 5 minutes
 		c.Redirect(http.StatusSeeOther, "/login/2fa")
 		return
 	}
@@ -135,7 +158,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Set cookie with shared domain for SSO
 	cookieDomain := getCookieDomain(c)
-	c.SetCookie("session_id", sessionID, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+	setAuthCookie(c, SessionCookieName(), sessionID, h.config.Security.SessionTimeout, cookieDomain)
+	// Generate SSO JWT and set as cookie for subdomain SSO
+	if token, err := auth.GenerateSSOToken(&user, h.config.Security.SessionTimeout); err == nil {
+		setAuthCookie(c, "sso_token", token, h.config.Security.SessionTimeout, cookieDomain)
+	}
 	fmt.Printf("DEBUG: Login successful, session created: %s with cookie domain: %s\n", sessionID, cookieDomain)
 
 	// Check if password change is required
@@ -151,14 +178,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Logout handles user logout
 func (h *AuthHandler) Logout(c *gin.Context) {
-	if sessionID, err := c.Cookie("session_id"); err == nil {
+	if sessionID, err := c.Cookie(SessionCookieName()); err == nil {
 		// Delete session from database
 		h.db.Where("session_id = ?", sessionID).Delete(&models.Session{})
 	}
 
 	// Clear cookie with same domain used for setting
 	cookieDomain := getCookieDomain(c)
-	c.SetCookie("session_id", "", -1, "/", cookieDomain, false, true)
+	setAuthCookie(c, SessionCookieName(), "", -1, cookieDomain)
+	setAuthCookie(c, "sso_token", "", -1, cookieDomain)
 
 	// Redirect to login
 	c.Redirect(http.StatusSeeOther, "/login")
@@ -167,7 +195,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // ShowForcePasswordChange displays the forced password change form
 func (h *AuthHandler) ShowForcePasswordChange(c *gin.Context) {
 	// Ensure user is logged in
-	sessionID, err := c.Cookie("session_id")
+	sessionID, err := c.Cookie(SessionCookieName())
 	if err != nil {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
@@ -219,7 +247,7 @@ func (h *AuthHandler) HandleForcePasswordChange(c *gin.Context) {
 	}
 
 	// Get session
-	sessionID, err := c.Cookie("session_id")
+	sessionID, err := c.Cookie(SessionCookieName())
 	if err != nil {
 		c.Redirect(http.StatusSeeOther, "/login")
 		return
@@ -369,7 +397,7 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 	// Delete temporary session
 	cookieDomain := getCookieDomain(c)
 	h.db.Delete(&tempSession)
-	c.SetCookie("temp_session_id", "", -1, "/", cookieDomain, false, true)
+	setAuthCookie(c, "temp_session_id", "", -1, cookieDomain)
 
 	// Create full session
 	sessionID := h.generateSessionID()
@@ -395,7 +423,11 @@ func (h *AuthHandler) Login2FAVerify(c *gin.Context) {
 	h.db.Save(&user)
 
 	// Set cookie with shared domain for SSO
-	c.SetCookie("session_id", sessionID, h.config.Security.SessionTimeout, "/", cookieDomain, false, true)
+	setAuthCookie(c, SessionCookieName(), sessionID, h.config.Security.SessionTimeout, cookieDomain)
+	// Generate SSO JWT and set as cookie for subdomain SSO
+	if token, err := auth.GenerateSSOToken(&user, h.config.Security.SessionTimeout); err == nil {
+		setAuthCookie(c, "sso_token", token, h.config.Security.SessionTimeout, cookieDomain)
+	}
 
 	// Redirect to home
 	c.Redirect(http.StatusSeeOther, "/")
@@ -409,7 +441,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 			c.GetHeader("Accept") == "application/json" ||
 			c.ContentType() == "application/json"
 
-		sessionID, err := c.Cookie("session_id")
+		sessionID, err := c.Cookie(SessionCookieName())
 		if err != nil || sessionID == "" {
 			if isAPI {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized", "code": "NO_SESSION"})
@@ -427,7 +459,7 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 			log.Printf("DEBUG: AuthMiddleware: Session validation failed for %s: %v", sessionID, err)
 			// Clean up invalid session cookie
 			cookieDomain := getCookieDomain(c)
-			c.SetCookie("session_id", "", -1, "/", cookieDomain, false, true)
+			setAuthCookie(c, SessionCookieName(), "", -1, cookieDomain)
 
 			if isAPI {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Session expired", "code": "SESSION_EXPIRED"})
@@ -440,12 +472,12 @@ func (h *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 
 		// Load the user and verify they are still active
 		var user models.User
-		if err := h.db.Where("userID = ? AND is_active = ?", session.UserID, true).First(&user).Error; err != nil {
+		if err := h.db.Where("userid = ? AND is_active = ?", session.UserID, true).First(&user).Error; err != nil {
 			log.Printf("DEBUG: AuthMiddleware: User not found or inactive for session %s (UserID: %d): %v", sessionID, session.UserID, err)
 			// Delete the session since user is inactive/deleted
 			cookieDomain := getCookieDomain(c)
 			h.db.Where("session_id = ?", sessionID).Delete(&models.Session{})
-			c.SetCookie("session_id", "", -1, "/", cookieDomain, false, true)
+			setAuthCookie(c, SessionCookieName(), "", -1, cookieDomain)
 
 			if isAPI {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "User inactive", "code": "USER_INACTIVE"})
@@ -472,7 +504,7 @@ func (h *AuthHandler) validateSession(sessionID string) bool {
 
 	// Also check if the user is still active
 	var user models.User
-	return h.db.Where("userID = ? AND is_active = ?", session.UserID, true).First(&user).Error == nil
+	return h.db.Where("userid = ? AND is_active = ?", session.UserID, true).First(&user).Error == nil
 }
 
 // generateSessionID creates a new session ID
@@ -902,6 +934,21 @@ func (h *AuthHandler) DeleteUser(c *gin.Context) {
 
 // ListUsersAPI returns users in JSON format for API calls
 func (h *AuthHandler) ListUsersAPI(c *gin.Context) {
+	// Require API key for service-to-service calls
+	apiKey := c.GetHeader("X-API-Key")
+	configuredAPIKey := ""
+	if h.config != nil {
+		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
+	}
+	if configuredAPIKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key is not configured"})
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	var users []models.User
 	if err := h.db.Order("created_at DESC").Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve users"})
@@ -917,6 +964,39 @@ func (h *AuthHandler) ListUsersAPI(c *gin.Context) {
 		"users": users,
 		"total": len(users),
 	})
+}
+
+// GetUserAPI returns a single user by ID in JSON format
+func (h *AuthHandler) GetUserAPI(c *gin.Context) {
+	idStr := c.Param("id")
+	id := parseUserID(idStr)
+	if id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+
+	// Require API key for service-to-service calls
+	apiKey := c.GetHeader("X-API-Key")
+	configuredAPIKey := ""
+	if h.config != nil {
+		configuredAPIKey = strings.TrimSpace(h.config.WarehouseCore.APIKey)
+	}
+	if configuredAPIKey == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "service API key is not configured"})
+		return
+	}
+	if subtle.ConstantTimeCompare([]byte(apiKey), []byte(configuredAPIKey)) != 1 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var user models.User
+	if err := h.db.First(&user, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+	user.PasswordHash = ""
+	c.JSON(http.StatusOK, user)
 }
 
 // Helper function to parse user ID

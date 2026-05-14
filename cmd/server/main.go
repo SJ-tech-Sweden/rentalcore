@@ -390,8 +390,12 @@ func main() {
 	}
 	deviceRepo := repository.NewDeviceRepository(db)
 	customerRepo := repository.NewCustomerRepository(db)
+	// Inject warehouse client for customer read fallback when enabled
+	customerRepo.WithWarehouseCoreClient(whClient, cfg.Features.WarehouseCustomersEnabled)
 	statusRepo := repository.NewStatusRepository(db)
 	productRepo := repository.NewProductRepository(db)
+	// Wire WarehouseCore client to productRepo if product API mode is enabled
+	productRepo.WithWarehouseCoreClient(whClient, cfg.Features.WarehouseProductsEnabled)
 	jobCategoryRepo := repository.NewJobCategoryRepository(db)
 	caseRepo := repository.NewCaseRepository(db)
 	equipmentPackageRepo := repository.NewEquipmentPackageRepository(db)
@@ -423,7 +427,7 @@ func main() {
 		jobHandler.SetWarehouseClient(whClient)
 	}
 	jobHistoryHandler := handlers.NewJobHistoryHandler(db.DB)
-	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo)
+	deviceHandler := handlers.NewDeviceHandler(deviceRepo, barcodeService, productRepo, whClient)
 	customerHandler := handlers.NewCustomerHandler(customerRepo)
 	statusHandler := handlers.NewStatusHandler(statusRepo)
 	productHandler := handlers.NewProductHandler(productRepo)
@@ -444,6 +448,8 @@ func main() {
 	pwaHandler := handlers.NewPWAHandler(db.DB)
 	workflowHandler := handlers.NewWorkflowHandler(jobRepo, customerRepo, equipmentPackageRepo, deviceRepo, db.DB, barcodeService)
 	equipmentPackageHandler := handlers.NewEquipmentPackageHandler(equipmentPackageRepo, deviceRepo)
+	// Wire WarehouseCore client into rental equipment repository so reads can use WarehouseCore
+	rentalEquipmentRepo.WithWarehouseCoreClient(whClient)
 	rentalEquipmentHandler := handlers.NewRentalEquipmentHandler(rentalEquipmentRepo)
 	documentHandler := handlers.NewDocumentHandler(db.DB)
 	financialHandler := handlers.NewFinancialHandler(db.DB)
@@ -921,11 +927,12 @@ func setupRoutes(r *gin.Engine,
 
 	// Swagger / OpenAPI UI routes (accessible at /docs)
 	registerDocsRoutes(r, ginSwagger.WrapHandler(swaggerfiles.Handler))
+	errorAssetVersion := strconv.FormatInt(time.Now().Unix(), 10)
 
 	// Root route - redirect to dashboard if authenticated, login if not
 	r.GET("/", func(c *gin.Context) {
 		// Check if user is authenticated by looking for session
-		sessionID, err := c.Cookie("session_id")
+		sessionID, err := c.Cookie(handlers.SessionCookieName())
 		if err != nil || sessionID == "" {
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return
@@ -959,6 +966,24 @@ func setupRoutes(r *gin.Engine,
 			passkey.POST("/start-authentication", webauthnHandler.StartPasskeyAuthentication)
 			passkey.POST("/complete-authentication", webauthnHandler.CompletePasskeyAuthentication)
 		}
+	}
+
+	// Service-to-service auth lookup routes.
+	// These routes are intentionally outside session-based protected groups and
+	// are guarded by API key checks inside the handler.
+	serviceAuthAPI := r.Group("/api/v1/security/auth")
+	{
+		serviceAuthAPI.GET("/users", authHandler.ListUsersAPI)
+		serviceAuthAPI.GET("/users/:id", authHandler.GetUserAPI)
+	}
+
+	// Service-to-service job routes.
+	// These routes are intentionally outside session-based protected groups and
+	// are guarded by API key checks inside the handler.
+	serviceJobsAPI := r.Group("/api/v1/service/jobs")
+	{
+		serviceJobsAPI.GET("", jobHandler.ListJobsServiceAPI)
+		serviceJobsAPI.GET("/:id/summary", jobHandler.GetJobSummaryServiceAPI)
 	}
 
 	// Protected routes - require authentication
@@ -1045,34 +1070,28 @@ func setupRoutes(r *gin.Engine,
 			rentalEquipment.GET("/analytics", rentalEquipmentHandler.ShowRentalAnalytics)
 		}
 
-		// Cable routes - redirect to WarehouseCore
+		// Cable routes removed from UI; redirect to WarehouseCore if configured
 		redirectToWarehouseCables := func(c *gin.Context) {
-			user, _ := handlers.GetCurrentUser(c)
 			target := buildWarehouseCablesURL(c.Request)
 			if target == "" {
-				c.HTML(http.StatusServiceUnavailable, "cables_redirect.html", gin.H{
-					"title":       "Cable Finder",
-					"user":        user,
-					"timestamp":   time.Now().Unix(),
-					"targetURL":   "",
-					"error":       "WarehouseCore domain not configured",
-					"message":     "Set WAREHOUSECORE_DOMAIN to enable cable search in WarehouseCore.",
-					"currentPage": "cables",
+				now := time.Now()
+				c.HTML(http.StatusServiceUnavailable, "error_page.html", gin.H{
+					"error_code":    http.StatusServiceUnavailable,
+					"error_message": "WarehouseCore domain not configured",
+					"error_details": "Cable UI is disabled; set WAREHOUSECORE_DOMAIN to enable external cable search.",
+					"request_id":    c.GetHeader("X-Request-Id"),
+					"timestamp":     now.Format("2006-01-02 15:04:05"),
+					"display_time":  now.Format("2006-01-02 15:04:05"),
+					"asset_version": errorAssetVersion,
+					"user":          nil,
 				})
 				return
 			}
-			c.HTML(http.StatusOK, "cables_redirect.html", gin.H{
-				"title":       "Cable Finder",
-				"user":        user,
-				"timestamp":   time.Now().Unix(),
-				"targetURL":   target,
-				"currentPage": "cables",
-			})
+			c.Redirect(http.StatusFound, target)
 		}
 
 		cables := protected.Group("/cables")
 		{
-			// Redirect to WarehouseCore
 			cables.GET("", redirectToWarehouseCables)
 			cables.GET("/new", redirectToWarehouseCables)
 		}
@@ -1419,6 +1438,7 @@ func setupRoutes(r *gin.Engine,
 			{
 				apiJobs.GET("", jobHandler.ListJobsAPI)
 				apiJobs.POST("", jobHandler.CreateJobAPI)
+				apiJobs.GET("/packages/available", jobHandler.GetAvailableJobPackages)
 				apiJobs.GET("/:id", jobHandler.GetJobAPI)
 				apiJobs.PUT("/:id", jobHandler.UpdateJobAPI)
 				apiJobs.DELETE("/:id", jobHandler.DeleteJobAPI)
@@ -1431,8 +1451,6 @@ func setupRoutes(r *gin.Engine,
 				apiJobs.GET("/:id/editing", jobHandler.GetJobEditingSessions)
 				apiJobs.GET("/:id/history", jobHistoryHandler.GetJobHistory)
 				apiJobs.GET("/:id/cable-planning", jobHandler.GetJobCablePlanning)
-
-				// Job cable routes
 				apiJobs.GET("/:id/cables", jobHandler.GetJobCablesAPI)
 				apiJobs.POST("/:id/cables", jobHandler.AssignCableToJobAPI)
 				apiJobs.DELETE("/:id/cables/:cableId", jobHandler.RemoveCableFromJobAPI)

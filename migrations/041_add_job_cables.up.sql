@@ -1,7 +1,5 @@
-CREATE TABLE IF NOT EXISTS job_cables (
-    jobid     INTEGER NOT NULL,
-    "cableID" INTEGER NOT NULL,
-    PRIMARY KEY (jobid, "cableID"),
-    FOREIGN KEY (jobid) REFERENCES jobs(jobid) ON DELETE CASCADE,
-    FOREIGN KEY ("cableID") REFERENCES cables("cableID") ON DELETE CASCADE
-);
+-- Migration 041 up (noop)
+DO $$
+BEGIN
+    RAISE NOTICE 'Skipping MySQL-original migration 041_add_job_cables.up.sql; converted migration should be used instead.';
+END $$;

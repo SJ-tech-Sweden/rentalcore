@@ -6,6 +6,7 @@ import (
 	"log"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -53,6 +54,7 @@ type PerformanceMonitor struct {
 	metrics       *PerformanceMetrics
 	slowThreshold time.Duration
 	startTime     time.Time
+	mu            sync.RWMutex
 }
 
 // NewPerformanceMonitor creates a new performance monitor
@@ -111,6 +113,12 @@ func (pm *PerformanceMonitor) PerformanceMiddleware() gin.HandlerFunc {
 
 // updateMetrics updates performance metrics
 func (pm *PerformanceMonitor) updateMetrics(endpoint string, duration time.Duration, isError bool) {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	pm.metrics.RequestCount++
 
 	// Update endpoint stats
@@ -129,8 +137,15 @@ func (pm *PerformanceMonitor) updateMetrics(endpoint string, duration time.Durat
 
 	pm.metrics.EndpointStats[endpoint] = stats
 
-	// Update memory stats
-	pm.updateMemoryStats()
+	// Update memory stats snapshot.
+	pm.metrics.MemoryUsage = MemoryStats{
+		Allocated:    m.Alloc,
+		TotalAlloc:   m.TotalAlloc,
+		Sys:          m.Sys,
+		GCRuns:       m.NumGC,
+		HeapInUse:    m.HeapInuse,
+		HeapReleased: m.HeapReleased,
+	}
 
 	// Calculate error rate
 	totalErrors := int64(0)
@@ -142,6 +157,9 @@ func (pm *PerformanceMonitor) updateMetrics(endpoint string, duration time.Durat
 
 // updateMemoryStats updates memory usage statistics
 func (pm *PerformanceMonitor) updateMemoryStats() {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
@@ -158,11 +176,35 @@ func (pm *PerformanceMonitor) updateMemoryStats() {
 // GetMetrics returns current performance metrics
 func (pm *PerformanceMonitor) GetMetrics() *PerformanceMetrics {
 	pm.updateMemoryStats()
-	return pm.metrics
+
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	endpointStats := make(map[string]Stats, len(pm.metrics.EndpointStats))
+	for k, v := range pm.metrics.EndpointStats {
+		endpointStats[k] = v
+	}
+
+	slowQueries := make([]SlowQuery, len(pm.metrics.SlowQueries))
+	copy(slowQueries, pm.metrics.SlowQueries)
+
+	metrics := &PerformanceMetrics{
+		RequestCount:    pm.metrics.RequestCount,
+		AverageResponse: pm.metrics.AverageResponse,
+		SlowQueries:     slowQueries,
+		ErrorRate:       pm.metrics.ErrorRate,
+		MemoryUsage:     pm.metrics.MemoryUsage,
+		EndpointStats:   endpointStats,
+	}
+
+	return metrics
 }
 
 // GetTopSlowEndpoints returns the slowest endpoints
 func (pm *PerformanceMonitor) GetTopSlowEndpoints(limit int) []EndpointSummary {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
 	endpoints := make([]EndpointSummary, 0, len(pm.metrics.EndpointStats))
 
 	for endpoint, stats := range pm.metrics.EndpointStats {

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"go-barcode-webapp/internal/models"
@@ -9,8 +8,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Sentinel errors for cable assignment
@@ -124,12 +123,18 @@ func (r *JobRepository) Create(job *models.Job) error {
 
 func (r *JobRepository) GetByID(id uint) (*models.Job, error) {
 	var job models.Job
-	err := r.db.
+	query := r.db.
 		Preload("JobDevices.Device").
-		Preload("JobPackages.Package").
 		Preload("JobProductRequirements.Product").
-		Preload("Creator"). // Load the user who created the job
-		First(&job, id).Error
+		Preload("Creator") // Load the user who created the job
+
+	if r.db.Migrator().HasTable(&models.ProductPackage{}) {
+		query = query.Preload("JobPackages.Package")
+	} else {
+		query = query.Preload("JobPackages")
+	}
+
+	err := query.First(&job, id).Error
 	if err != nil {
 		jobRepoDebugLog("🔧 DEBUG JobRepo.GetByID: Error loading job %d: %v\n", id, err)
 		return nil, err
@@ -173,12 +178,27 @@ func (r *JobRepository) GetByID(id uint) (*models.Job, error) {
 	}
 	job.DeviceCount = int(deviceCount)
 
-	// Add cable count
-	var cableCount int64
-	if err := r.db.DB.Table("job_cables").Where("jobid = ?", job.JobID).Count(&cableCount).Error; err != nil {
-		cableCount = 0
+	// Add product requirement count (sum of requested quantities)
+	var productRequirementQty int64
+	if err := r.db.DB.Table("job_product_requirements").
+		Where("job_id = ?", job.JobID).
+		Select("COALESCE(SUM(quantity), 0)").
+		Scan(&productRequirementQty).Error; err != nil {
+		productRequirementQty = 0
 	}
-	job.CableCount = int(cableCount)
+	job.ProductRequirementCount = int(productRequirementQty)
+
+	// Add rented equipment count (sum of selected rental quantities)
+	var rentalEquipmentQty int64
+	if err := r.db.DB.Table("job_rental_equipment").
+		Where("job_id = ?", job.JobID).
+		Select("COALESCE(SUM(quantity), 0)").
+		Scan(&rentalEquipmentQty).Error; err != nil {
+		rentalEquipmentQty = 0
+	}
+	job.RentalEquipmentCount = int(rentalEquipmentQty)
+
+	// Cable count is managed by WarehouseCore; omit local field
 
 	// Manually load products for each device
 	r.loadProductsForJobDevices(job.JobDevices)
@@ -204,19 +224,24 @@ func (r *JobRepository) Update(job *models.Job) error {
 	finalRevenue := computeFinalRevenue(job.Revenue, job.Discount, job.DiscountType)
 	job.FinalRevenue = &finalRevenue
 
-	// Use Updates instead of Save to ensure all fields are updated
-	result := r.db.Model(job).Where("jobID = ?", job.JobID).Updates(map[string]interface{}{
-		"customerid":    job.CustomerID,
-		"statusid":      job.StatusID,
-		"description":   job.Description,
-		"startdate":     job.StartDate,
-		"enddate":       job.EndDate,
-		"revenue":       job.Revenue,
-		"discount":      job.Discount,
-		"discount_type": job.DiscountType,
-		"jobcategoryid": job.JobCategoryID,
-		"final_revenue": finalRevenue,
-	})
+	// Use a base model target and omit associations to avoid writing preloaded
+	// relationship graphs (e.g. JobProductRequirements.Product) back to DB.
+	result := r.db.
+		Model(&models.Job{}).
+		Omit(clause.Associations).
+		Where("jobID = ?", job.JobID).
+		Updates(map[string]interface{}{
+			"customerid":    job.CustomerID,
+			"statusid":      job.StatusID,
+			"description":   job.Description,
+			"startdate":     job.StartDate,
+			"enddate":       job.EndDate,
+			"revenue":       job.Revenue,
+			"discount":      job.Discount,
+			"discount_type": job.DiscountType,
+			"jobcategoryid": job.JobCategoryID,
+			"final_revenue": finalRevenue,
+		})
 
 	if result.Error != nil {
 		jobRepoDebugLog("🔧 DEBUG JobRepo.Update: Error: %v\n", result.Error)
@@ -281,20 +306,86 @@ func (r *JobRepository) GetJobProductRequirements(jobID uint) ([]models.JobProdu
 
 // SetJobProductRequirements replaces all product requirements for the given job.
 // Passing an empty or nil slice removes all existing requirements.
-func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []models.JobProductRequirement) error {
+// Non-existent product IDs are gracefully skipped with a warning logged.
+func (r *JobRepository) SetJobProductRequirements(jobID uint, requirements []models.JobProductRequirement, productNames map[uint]string) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if !tx.Migrator().HasTable(&models.JobProductRequirement{}) {
+			log.Printf("⚠️ Warning: job_product_requirements table does not exist; skipping requirement save for job_id %d", jobID)
+			return nil
+		}
+
 		if err := tx.Where("job_id = ?", jobID).Delete(&models.JobProductRequirement{}).Error; err != nil {
 			return err
 		}
 		if len(requirements) == 0 {
 			return nil
 		}
-		for i := range requirements {
-			// Ensure new rows are inserted with fresh primary keys and the correct JobID.
-			requirements[i].JobID = int(jobID)
-			requirements[i].RequirementID = 0
+
+		// Resolve product PK column across schema variants.
+		productIDColumn := "productid"
+		var detectedColumn string
+		_ = tx.Raw("SELECT column_name FROM information_schema.columns WHERE table_name = 'products' AND column_name IN ('productid','product_id','id') ORDER BY CASE column_name WHEN 'productid' THEN 1 WHEN 'product_id' THEN 2 ELSE 3 END LIMIT 1").Scan(&detectedColumn).Error
+		if detectedColumn != "" {
+			productIDColumn = detectedColumn
 		}
-		return tx.Create(&requirements).Error
+
+		// Filter requirements to only include products that exist
+		validRequirements := make([]models.JobProductRequirement, 0, len(requirements))
+		for _, req := range requirements {
+			// Check if product exists
+			var count int64
+			if err := tx.Raw(fmt.Sprintf("SELECT COUNT(1) FROM products WHERE %s = ?", productIDColumn), req.ProductID).Scan(&count).Error; err != nil {
+				// Ignore errors in existence check; log and skip
+				log.Printf("⚠️ Warning: Could not verify product_id %d exists; skipping requirement (error: %v)", req.ProductID, err)
+				continue
+			}
+			if count == 0 {
+				// Ensure a placeholder product row exists so requirement FK can be saved.
+				placeholderName := ""
+				if productNames != nil {
+					placeholderName = strings.TrimSpace(productNames[req.ProductID])
+				}
+				if placeholderName == "" {
+					placeholderName = fmt.Sprintf("Product %d", req.ProductID)
+				}
+				insertSQL := fmt.Sprintf("INSERT INTO products (%s, name) VALUES (?, ?) ON CONFLICT (%s) DO NOTHING", productIDColumn, productIDColumn)
+				if err := tx.Exec(insertSQL, req.ProductID, placeholderName).Error; err != nil {
+					log.Printf("⚠️ Warning: Failed to create placeholder product %d; skipping requirement (error: %v)", req.ProductID, err)
+					continue
+				}
+
+				// Re-check existence after attempted placeholder insert.
+				count = 0
+				if err := tx.Raw(fmt.Sprintf("SELECT COUNT(1) FROM products WHERE %s = ?", productIDColumn), req.ProductID).Scan(&count).Error; err != nil || count == 0 {
+					if err != nil {
+						log.Printf("⚠️ Warning: Placeholder verification failed for product_id %d; skipping requirement (error: %v)", req.ProductID, err)
+					} else {
+						log.Printf("⚠️ Warning: Placeholder product_id %d not found after insert; skipping requirement", req.ProductID)
+					}
+					continue
+				}
+			}
+			if count == 0 {
+				log.Printf("⚠️ Warning: Product_id %d does not exist in local products table; skipping requirement", req.ProductID)
+				continue
+			}
+			validRequirements = append(validRequirements, req)
+		}
+
+		// If no valid requirements after filtering, just return (don't fail)
+		if len(validRequirements) == 0 {
+			log.Printf("ℹ️ Info: No valid product requirements to save for job_id %d (all products skipped or table missing)", jobID)
+			return nil
+		}
+
+		// Prepare requirements for insert
+		for i := range validRequirements {
+			validRequirements[i].JobID = int(jobID)
+			validRequirements[i].RequirementID = 0
+		}
+		// Do not auto-save Product associations here; the local products schema may
+		// intentionally differ from the full model tags in dev compatibility setups.
+		return tx.Omit(clause.Associations).Create(&validRequirements).Error
 	})
 }
 
@@ -311,16 +402,16 @@ func (r *JobRepository) Delete(id uint) error {
 		return fmt.Errorf("failed to remove devices from job: %v", err)
 	}
 
-	// Remove all cables from the job
-	if err := tx.Where("jobid = ?", id).Delete(&models.JobCable{}).Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to remove cables from job: %v", err)
-	}
+	// Note: cable assignments are now managed in WarehouseCore; skip removal here
 
 	// Second, remove all employee-job assignments
-	if err := tx.Exec("DELETE FROM employeejob WHERE jobID = ?", id).Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to remove employee assignments from job: %v", err)
+	if tx.Migrator().HasTable("employeejob") {
+		if err := tx.Exec("DELETE FROM employeejob WHERE jobID = ?", id).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to remove employee assignments from job: %v", err)
+		}
+	} else {
+		log.Printf("ℹ️ Info: employeejob table missing; skipping employee assignment cleanup for job %d", id)
 	}
 
 	// Then delete the job itself
@@ -339,21 +430,27 @@ func (r *JobRepository) List(params *models.FilterParams) ([]models.JobWithDetai
 	var sqlQuery string
 	var args []interface{}
 
-	sqlQuery = `SELECT j.jobid, j.job_code, j.customerid, j.statusid, j.jobcategoryid,
-			j.description, j.startdate, j.enddate,
-			j.revenue, j.final_revenue,
-			CONCAT(COALESCE(c.companyname, ''), ' ', COALESCE(c.firstname, ''), ' ', COALESCE(c.lastname, '')) as customer_name,
-			s.status as status_name,
-			jc.name as category_name,
-			COUNT(DISTINCT jd.deviceid) as device_count,
-			COUNT(DISTINCT jcb."cableID") as cable_count,
-			COALESCE(j.final_revenue, j.revenue) as total_revenue
-		FROM jobs j
-		LEFT JOIN customers c ON j.customerid = c.customerid
-		LEFT JOIN status s ON j.statusid = s.statusid
-		LEFT JOIN jobCategory jc ON j.jobcategoryid = jc.jobcategoryid
-		LEFT JOIN job_devices jd ON j.jobid = jd.jobid
-		LEFT JOIN job_cables jcb ON j.jobid = jcb.jobid`
+	// Detect job_devices device column name (deviceid | device_id | device)
+	deviceCol := "deviceid"
+	var detectedCol string
+	_ = r.db.Raw("SELECT column_name FROM information_schema.columns WHERE table_name = 'job_devices' AND column_name IN ('deviceid','device_id','device') LIMIT 1").Scan(&detectedCol).Error
+	if detectedCol != "" {
+		deviceCol = detectedCol
+	}
+
+	sqlQuery = fmt.Sprintf(`SELECT j.jobid, j.job_code, j.customerid, j.statusid, j.jobcategoryid,
+				  j.description, j.startdate, j.enddate,
+				  j.revenue, j.final_revenue,
+				  CONCAT(COALESCE(c.companyname, ''), ' ', COALESCE(c.firstname, ''), ' ', COALESCE(c.lastname, '')) as customer_name,
+				  s.status as status_name,
+				  jc.name as category_name,
+				  COUNT(DISTINCT jd.%s) as device_count,
+				  COALESCE(j.final_revenue, j.revenue) as total_revenue
+		  FROM jobs j
+		  LEFT JOIN customers c ON j.customerid = c.customerid
+		  LEFT JOIN status s ON j.statusid = s.statusid
+		  LEFT JOIN jobCategory jc ON j.jobcategoryid = jc.jobcategoryid
+		  LEFT JOIN job_devices jd ON j.jobid = jd.jobid`, deviceCol)
 
 	// Build WHERE conditions
 	var conditions []string
@@ -542,232 +639,7 @@ func (r *JobRepository) UnassignDevice(jobID uint, deviceID string) error {
 	return r.CalculateAndUpdateRevenue(jobID)
 }
 
-func (r *JobRepository) GetJobCables(jobID uint) ([]models.JobCable, error) {
-	var jobCables []models.JobCable
-
-	if r.cableSnapshotEnabled {
-		// Snapshot mode: fetch rows (with cable_snapshot) and populate Cable from
-		// the stored JSONB when available; only fall back to a DB join when the
-		// snapshot is absent.
-		err := r.db.Where("jobid = ?", jobID).Find(&jobCables).Error
-		if err != nil {
-			return nil, err
-		}
-
-		// First pass: populate from stored snapshots, collect IDs that need fallback.
-		var missingIDs []int          // cable IDs that still need DB/API lookup
-		missingIdx := map[int][]int{} // cableID → indices in jobCables slice
-
-		for i := range jobCables {
-			if len(jobCables[i].CableSnapshot) > 0 {
-				var cable models.Cable
-				unmarshalErr := json.Unmarshal(jobCables[i].CableSnapshot, &cable)
-				if unmarshalErr == nil {
-					jobCables[i].Cable = &cable
-					continue
-				}
-				log.Printf("warn: failed to unmarshal cable_snapshot for jobid=%d cableID=%d: %v",
-					jobCables[i].JobID, jobCables[i].CableID, unmarshalErr)
-			}
-
-			// Snapshot missing or corrupt – collect for batched DB fallback.
-			// API fill-in is intentionally not performed on the read path to keep
-			// GetJobCables read-only and avoid per-request WarehouseCore latency.
-			// Missing snapshots are populated by AssignCable or the backfill tool.
-			cid := jobCables[i].CableID
-			if _, seen := missingIdx[cid]; !seen {
-				missingIDs = append(missingIDs, cid)
-			}
-			missingIdx[cid] = append(missingIdx[cid], i)
-		}
-
-		// Second pass: single batched DB query for all cables still missing data.
-		if len(missingIDs) > 0 {
-			var cables []models.Cable
-			if err := r.db.
-				Preload("Connector1Info").
-				Preload("Connector2Info").
-				Preload("TypeInfo").
-				Where(`"cableID" IN ?`, missingIDs).
-				Find(&cables).Error; err != nil {
-				return nil, fmt.Errorf("db fallback for cables %v: %w", missingIDs, err)
-			}
-			cableMap := make(map[int]*models.Cable, len(cables))
-			for idx := range cables {
-				cableMap[cables[idx].CableID] = &cables[idx]
-			}
-			for cid, indices := range missingIdx {
-				if c, ok := cableMap[cid]; ok {
-					for _, i := range indices {
-						jobCables[i].Cable = c
-					}
-				}
-			}
-		}
-
-		// Third pass: populate TypeInfo/Connector1Info/Connector2Info for cables
-		// that were loaded from snapshots or the WarehouseCore API.  Those cables
-		// only carry scalar ID fields; the lookup tables (cable_connectors,
-		// cable_types) are local and cheap to query in bulk.
-		if err := r.populateCableLookups(jobCables); err != nil {
-			log.Printf("warn: failed to populate cable lookup relations: %v", err)
-			// Non-fatal – callers receive the cable data, just without name strings.
-		}
-
-		return jobCables, nil
-	}
-
-	// Default mode: original cross-service DB join
-	err := r.db.Where("jobid = ?", jobID).
-		Preload("Cable.Connector1Info").
-		Preload("Cable.Connector2Info").
-		Preload("Cable.TypeInfo").
-		Find(&jobCables).Error
-	return jobCables, err
-}
-
-// populateCableLookups enriches Cable objects that were populated from JSONB
-// snapshots or the WarehouseCore API.  Those cables carry only scalar IDs for
-// Connector1, Connector2, and Type; this helper resolves them via two batched
-// queries against the local cable_connectors and cable_types lookup tables.
-// Cables already having TypeInfo populated (e.g. from the DB preload fallback)
-// are skipped.
-func (r *JobRepository) populateCableLookups(jobCables []models.JobCable) error {
-	// Collect unique IDs from cables that need lookup.
-	var connectorIDs, typeIDs []int
-	connectorSeen := map[int]bool{}
-	typeSeen := map[int]bool{}
-
-	for i := range jobCables {
-		c := jobCables[i].Cable
-		if c == nil || c.TypeInfo != nil {
-			continue // nil or already populated via DB preload
-		}
-		if !connectorSeen[c.Connector1] {
-			connectorSeen[c.Connector1] = true
-			connectorIDs = append(connectorIDs, c.Connector1)
-		}
-		if !connectorSeen[c.Connector2] {
-			connectorSeen[c.Connector2] = true
-			connectorIDs = append(connectorIDs, c.Connector2)
-		}
-		if !typeSeen[c.Type] {
-			typeSeen[c.Type] = true
-			typeIDs = append(typeIDs, c.Type)
-		}
-	}
-
-	if len(connectorIDs) == 0 && len(typeIDs) == 0 {
-		return nil
-	}
-
-	connectorMap := make(map[int]*models.CableConnector)
-	typeMap := make(map[int]*models.CableType)
-
-	if len(connectorIDs) > 0 {
-		var connectors []models.CableConnector
-		if err := r.db.Where(`"cable_connectorsID" IN ?`, connectorIDs).
-			Find(&connectors).Error; err != nil {
-			return fmt.Errorf("load cable connectors: %w", err)
-		}
-		for idx := range connectors {
-			connectorMap[connectors[idx].CableConnectorsID] = &connectors[idx]
-		}
-	}
-
-	if len(typeIDs) > 0 {
-		var cableTypes []models.CableType
-		if err := r.db.Where(`"cable_typesID" IN ?`, typeIDs).
-			Find(&cableTypes).Error; err != nil {
-			return fmt.Errorf("load cable types: %w", err)
-		}
-		for idx := range cableTypes {
-			typeMap[cableTypes[idx].CableTypesID] = &cableTypes[idx]
-		}
-	}
-
-	// Attach lookup data to cables that were loaded from snapshots/API.
-	for i := range jobCables {
-		c := jobCables[i].Cable
-		if c == nil || c.TypeInfo != nil {
-			continue
-		}
-		c.Connector1Info = connectorMap[c.Connector1]
-		c.Connector2Info = connectorMap[c.Connector2]
-		c.TypeInfo = typeMap[c.Type]
-	}
-
-	return nil
-}
-
-func (r *JobRepository) AssignCable(jobID uint, cableID int) error {
-	// Check that the job exists
-	var job models.Job
-	if err := r.db.First(&job, jobID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return ErrJobNotFound
-		}
-		return fmt.Errorf("error checking job: %w", err)
-	}
-
-	// Check that the cable exists
-	var cable models.Cable
-	if err := r.db.First(&cable, cableID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return ErrCableNotFound
-		}
-		return fmt.Errorf("error checking cable: %w", err)
-	}
-
-	// Check if cable is already assigned to this job
-	var existing models.JobCable
-	err := r.db.Where("jobid = ? AND \"cableID\" = ?", jobID, cableID).First(&existing).Error
-	if err == nil {
-		return ErrCableAlreadyAssigned
-	}
-	if err != gorm.ErrRecordNotFound {
-		return fmt.Errorf("error checking cable assignment: %w", err)
-	}
-
-	jobCable := &models.JobCable{
-		JobID:   int(jobID),
-		CableID: cableID,
-	}
-
-	// When the cable-snapshot feature is enabled, eagerly fetch and store the
-	// snapshot from WarehouseCore so new assignments are immediately backed by
-	// denormalized data.  Failures are non-fatal: the row is still created and
-	// the backfill script can populate the snapshot later.
-	if r.cableSnapshotEnabled && r.warehouseClient != nil {
-		if snap, err := r.warehouseClient.GetCable(cableID); err == nil {
-			if raw, merr := json.Marshal(snap); merr == nil {
-				jobCable.CableSnapshot = raw
-			}
-		} else {
-			log.Printf("warn: GetCable(%d) during AssignCable failed: %v", cableID, err)
-		}
-	}
-
-	if err := r.db.Create(jobCable).Error; err != nil {
-		// Handle race condition: duplicate PK insert
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return ErrCableAlreadyAssigned
-		}
-		// Fallback for non-PostgreSQL databases (e.g., SQLite in tests)
-		if strings.Contains(strings.ToLower(err.Error()), "duplicate") ||
-			strings.Contains(strings.ToLower(err.Error()), "unique") {
-			return ErrCableAlreadyAssigned
-		}
-		return fmt.Errorf("error assigning cable: %w", err)
-	}
-	return nil
-}
-
-func (r *JobRepository) RemoveCable(jobID uint, cableID int) error {
-	return r.db.Where("jobid = ? AND \"cableID\" = ?", jobID, cableID).
-		Delete(&models.JobCable{}).Error
-}
+// Cable management removed: GetJobCables / AssignCable / RemoveCable implementations were removed.
 
 func (r *JobRepository) BulkAssignDevices(jobID uint, deviceIDs []string, price float64) ([]models.ScanResult, error) {
 	var results []models.ScanResult

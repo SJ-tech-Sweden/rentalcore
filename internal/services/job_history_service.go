@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-barcode-webapp/internal/models"
@@ -18,6 +19,16 @@ type JobHistoryService struct {
 // NewJobHistoryService creates a new job history service
 func NewJobHistoryService(db *gorm.DB) *JobHistoryService {
 	return &JobHistoryService{db: db}
+}
+
+func normalizeHistoryChangeType(changeType string) string {
+	normalized := strings.TrimSpace(changeType)
+	switch normalized {
+	case "created", "updated", "status_changed", "device_added", "device_removed", "deleted", "file_added", "file_removed":
+		return normalized
+	default:
+		return "updated"
+	}
 }
 
 // LogJobCreation logs the creation of a new job
@@ -189,6 +200,31 @@ func (s *JobHistoryService) LogFileRemoved(jobID uint, filename string, userID *
 		Description: sql.NullString{
 			String: fmt.Sprintf("File removed: %s", filename),
 			Valid:  true,
+		},
+	}
+
+	if userID != nil {
+		history.UserID = sql.NullInt64{Int64: int64(*userID), Valid: true}
+	}
+	if ipAddress != "" {
+		history.IPAddress = sql.NullString{String: ipAddress, Valid: true}
+	}
+	if userAgent != "" {
+		history.UserAgent = sql.NullString{String: userAgent, Valid: true}
+	}
+
+	return s.db.Create(&history).Error
+}
+
+// LogCustomChange logs a custom job change entry that is not part of core job fields.
+func (s *JobHistoryService) LogCustomChange(jobID uint, changeType, description string, userID *uint, ipAddress, userAgent string) error {
+	history := models.JobHistory{
+		JobID:      jobID,
+		ChangeType: normalizeHistoryChangeType(changeType),
+		ChangedAt:  time.Now(),
+		Description: sql.NullString{
+			String: description,
+			Valid:  strings.TrimSpace(description) != "",
 		},
 	}
 
